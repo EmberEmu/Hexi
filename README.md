@@ -39,7 +39,7 @@ auto deserialise(std::span<const char> network_buffer) {
 }
 
 auto serialise(const UserPacket& packet) {
-	std::vector<uint8_t> buffer;
+    std::vector<uint8_t> buffer;
     hexi::buffer_adaptor adaptor(buffer); // wrap the buffer
     hexi::binary_stream stream(adaptor);  // create a binary stream
     
@@ -133,7 +133,7 @@ struct UserPacket {
     uint8_t has_optional_field;
     uint32_t optional_field;
 
-	// deserialise
+    // deserialise
     auto& operator>>(auto& stream) {
         stream >> user_id >> username >> timestamp >> has_optional_field;
 
@@ -143,10 +143,10 @@ struct UserPacket {
 
         // we can manually trigger an error if something went wrong
         // stream.set_error_state();
-		return stream;
+        return stream;
     }
 
-	// serialise
+    // serialise
     auto& operator<<(auto& stream) const {
         stream << user_id << username << timestamp << has_optional_field;
 
@@ -154,7 +154,7 @@ struct UserPacket {
             stream << optional_field;
         }
 
-		return stream;
+        return stream;
     }
 };
 
