@@ -1,4 +1,4 @@
-#define HEXI_WITH_ASIO  // HEXI_WITH_BOOST_ASIO for Boost Asio
+#define HEXI_WITH_BOOST_ASIO // HEXI_WITH_ASIO for standalone Asio
 #include <hexi.h>
 #include <boost/asio.hpp>
 #include <array>

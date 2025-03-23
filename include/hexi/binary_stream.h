@@ -30,7 +30,7 @@ using namespace detail;
 	check_read_bounds(read_size);                                 \
 	                                                              \
 	if constexpr(std::is_same_v<exceptions, no_throw>) {          \
-		if(state_ != stream_state::ok) [[unlikely]] {              \
+		if(state_ != stream_state::ok) [[unlikely]] {             \
 			return ret_var;                                       \
 		}                                                         \
 	}
