@@ -758,7 +758,7 @@ public:
 
 namespace hexi {
 
-#ifndef USE_STANDALONE_ASIO
+#ifdef HEXI_WITH_BOOST_ASIO
 namespace asio = boost::asio;
 #endif
 
