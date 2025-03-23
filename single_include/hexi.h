@@ -752,7 +752,7 @@ public:
 #include <boost/asio/buffer.hpp>
 #endif
 
-#ifdef BUFFER_DEBUG
+#ifdef HEXI_BUFFER_DEBUG
 #include <span>
 #endif
 
@@ -804,7 +804,7 @@ public:
 
 		const_iterator& operator=(const_iterator&) = delete;
 
-	#ifdef BUFFER_DEBUG
+	#ifdef HEXI_BUFFER_DEBUG
 		std::span<const char> get_buffer() {
 			auto buffer = buffer_.buffer_from_node(curr_node_);
 			return {
@@ -1129,7 +1129,7 @@ struct intrusive_storage final {
 
 #include <concepts>
 #include <utility>
-#ifdef BUFFER_DEBUG
+#ifdef HEXI_BUFFER_DEBUG
 #include <algorithm>
 #include <vector>
 #endif
@@ -1220,7 +1220,7 @@ private:
 		}
 	}
 	
-#ifdef BUFFER_DEBUG
+#ifdef HEXI_BUFFER_DEBUG
 	void offset_buffers(std::vector<storage_type*>& buffers, size_type offset) {
 		std::erase_if(buffers, [&](auto block) {
 			if(block->size() > offset) {
@@ -1347,7 +1347,7 @@ public:
 		}
 	}
 
-#ifdef BUFFER_DEBUG
+#ifdef HEXI_BUFFER_DEBUG
 	std::vector<storage_type*> fetch_buffers(const size_type length, const size_type offset = 0) {
 		size_type total = length + offset;
 		assert(total <= size_ && "Chained buffer fetch too large!");

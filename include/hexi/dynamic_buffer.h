@@ -12,7 +12,7 @@
 #include <hexi/detail/intrusive_storage.h>
 #include <concepts>
 #include <utility>
-#ifdef BUFFER_DEBUG
+#ifdef HEXI_BUFFER_DEBUG
 #include <algorithm>
 #include <vector>
 #endif
@@ -103,7 +103,7 @@ private:
 		}
 	}
 	
-#ifdef BUFFER_DEBUG
+#ifdef HEXI_BUFFER_DEBUG
 	void offset_buffers(std::vector<storage_type*>& buffers, size_type offset) {
 		std::erase_if(buffers, [&](auto block) {
 			if(block->size() > offset) {
@@ -230,7 +230,7 @@ public:
 		}
 	}
 
-#ifdef BUFFER_DEBUG
+#ifdef HEXI_BUFFER_DEBUG
 	std::vector<storage_type*> fetch_buffers(const size_type length, const size_type offset = 0) {
 		size_type total = length + offset;
 		assert(total <= size_ && "Chained buffer fetch too large!");

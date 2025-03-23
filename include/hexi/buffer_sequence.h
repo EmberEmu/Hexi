@@ -12,7 +12,7 @@
 #include <boost/asio/buffer.hpp>
 #endif
 
-#ifdef BUFFER_DEBUG
+#ifdef HEXI_BUFFER_DEBUG
 #include <span>
 #endif
 
@@ -64,7 +64,7 @@ public:
 
 		const_iterator& operator=(const_iterator&) = delete;
 
-	#ifdef BUFFER_DEBUG
+	#ifdef HEXI_BUFFER_DEBUG
 		std::span<const char> get_buffer() {
 			auto buffer = buffer_.buffer_from_node(curr_node_);
 			return {

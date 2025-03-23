@@ -4,10 +4,10 @@
 // | | | |  __/>  <| | Version 1.0
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
-#define BUFFER_DEBUG
+#define HEXI_BUFFER_DEBUG
 #include <hexi/dynamic_buffer.h>
 #include <hexi/buffer_sequence.h>
-#undef BUFFER_DEBUG
+#undef HEXI_BUFFER_DEBUG
 #include <gtest/gtest.h>
 #include <memory>
 #include <string>
