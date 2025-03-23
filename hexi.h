@@ -1,0 +1,3232 @@
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+#pragma once
+
+// #include <hexi/binary_stream.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/shared.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+#include <bit>
+#include <concepts>
+#include <type_traits>
+#include <cstddef>
+#include <cstdint>
+
+namespace hexi {
+
+struct is_contiguous {};
+struct is_non_contiguous {};
+struct supported {};
+struct unsupported {};
+struct except_tag{};
+struct allow_throw : except_tag{};
+struct no_throw : except_tag{};
+
+enum class buffer_seek {
+	sk_absolute, sk_backward, sk_forward
+};
+
+enum class stream_seek {
+	// Seeks within the entire underlying buffer
+	sk_buffer_absolute,
+	sk_backward,
+	sk_forward,
+	// Seeks only within the range written by the current stream
+	sk_stream_absolute
+};
+
+enum class stream_state {
+	ok,
+	read_limit_err,
+	buff_limit_err,
+	user_defined_err
+};
+
+namespace detail {
+
+// Returns true if there's any overlap between source and destination ranges
+static inline bool region_overlap(const void* src, std::size_t src_len, const void* dst, std::size_t dst_len) {
+	const auto src_beg = std::bit_cast<std::uintptr_t>(src);
+	const auto src_end = src_beg + src_len;
+	const auto dst_beg = std::bit_cast<std::uintptr_t>(dst);
+	const auto dst_end = dst_beg + dst_len;
+
+	// cannot assume src is before dst or vice versa
+	return (src_beg >= dst_beg && src_beg < dst_end)
+		|| (src_end > dst_beg && src_end <= dst_end)
+		|| (dst_beg >= src_beg && dst_beg < src_end)
+		|| (dst_end > src_beg && dst_end <= src_end);
+}
+
+} // detail
+
+} // hexi
+
+// #include <hexi/concepts.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/shared.h>
+
+#include <bit>
+#include <concepts>
+#include <type_traits>
+
+namespace hexi {
+
+template<typename buf_type>
+concept writeable =
+	requires(buf_type t, void* v, typename buf_type::size_type s) {
+		{ t.write(v, s) } -> std::same_as<void>;
+};
+
+template<typename buf_type>
+concept seekable = requires(buf_type t) {
+	std::is_same_v<typename buf_type::seeking, supported>;
+};
+
+template<typename buf_type>
+concept contiguous = requires(buf_type t) {
+	std::is_same_v<typename buf_type::contiguous, is_contiguous>;
+};
+
+template<typename T>
+concept arithmetic = std::integral<T> || std::floating_point<T>;
+
+template<typename T>
+concept byte_type = sizeof(T) == 1;
+
+template<typename T>
+concept byte_oriented = byte_type<typename T::value_type>;
+
+template<typename T>
+concept pod = std::is_standard_layout_v<T> && std::is_trivial_v<T>;
+
+template<typename T>
+concept has_resize_overwrite =
+	requires(T t) {
+		{ t.resize_and_overwrite(typename T::size_type(), [](char*, T::size_type) {}) } -> std::same_as<void>;
+};
+
+template<typename T>
+concept has_resize = 
+	requires(T t) {
+		{ t.resize(typename T::size_type() ) } -> std::same_as<void>;
+};
+
+template<typename T, typename U>
+concept has_shl_override =
+	requires(T t, U& u) {
+		{ t.operator<<(u) } -> std::same_as<U&>;
+};
+
+template<typename T, typename U>
+concept has_shr_override =
+	requires(T t, U& u) {
+		{ t.operator>>(u) } -> std::same_as<U&>;
+};
+
+} // hexi
+
+// #include <hexi/exception.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+#include <format>
+#include <stdexcept>
+#include <cstddef>
+
+namespace hexi {
+
+class exception : public std::runtime_error {
+public:
+	exception(const std::string& msg)
+		: std::runtime_error(msg) {}
+};
+
+class buffer_underrun final : public exception {
+public:
+	const std::size_t buff_size, read_size, total_read;
+
+	buffer_underrun(std::size_t read_size, std::size_t total_read, std::size_t buff_size)
+		: exception(std::format(
+			"Buffer underrun: {} byte read requested, buffer contains {} bytes and total bytes read was {}",
+			read_size, buff_size, total_read)),
+		buff_size(buff_size), read_size(read_size), total_read(total_read) {}
+};
+
+class buffer_overflow final : public exception {
+public:
+	const std::size_t free, write_size, total_write;
+
+	buffer_overflow(std::size_t write_size, std::size_t total_write, std::size_t free)
+		: exception(std::format(
+			"Buffer overflow: {} byte write requested, free space is {} bytes and total bytes written was {}",
+			write_size, free, total_write)),
+		free(free), write_size(write_size), total_write(total_write) {}
+};
+
+class stream_read_limit final : public exception {
+public:
+	const std::size_t read_limit, read_size, total_read;
+
+	stream_read_limit(std::size_t read_size, std::size_t total_read, std::size_t read_limit)
+		: exception(std::format(
+			"Read boundary exceeded: {} byte read requested, read limit was {} bytes and total bytes read was {}",
+			read_size, read_limit, total_read)),
+		read_limit(read_limit), read_size(read_size), total_read(total_read) {}
+};
+
+} // hexi
+
+#include <algorithm>
+#include <array>
+#include <concepts>
+#include <ranges>
+#include <span>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+namespace hexi {
+
+using namespace detail;
+
+#define STREAM_READ_BOUNDS_CHECK(read_size, ret_var)              \
+	check_read_bounds(read_size);                                 \
+	                                                              \
+	if constexpr(std::is_same_v<exceptions, no_throw>) {          \
+		if(state_ != stream_state::ok) [[unlikely]] {              \
+			return ret_var;                                       \
+		}                                                         \
+	}
+
+template<byte_oriented buf_type, std::derived_from<except_tag> exceptions = allow_throw>
+class binary_stream final {
+public:
+	using size_type          = typename buf_type::size_type;
+	using offset_type        = typename buf_type::offset_type;
+	using seeking            = typename buf_type::seeking;
+	using value_type         = typename buf_type::value_type;
+	using contiguous_type    = typename buf_type::contiguous;
+	
+private:
+	buf_type& buffer_;
+	size_type total_write_ = 0;
+	size_type total_read_ = 0;
+	stream_state state_ = stream_state::ok;
+	const size_type read_limit_;
+
+	inline void check_read_bounds(const size_type read_size) {
+		if(read_size > buffer_.size()) [[unlikely]] {
+			state_ = stream_state::buff_limit_err;
+
+			if constexpr(std::is_same_v<exceptions, allow_throw>) {
+				throw buffer_underrun(read_size, total_read_, buffer_.size());
+			}
+
+			return;
+		}
+
+		const auto req_total_read = total_read_ + read_size;
+
+		if(read_limit_ && req_total_read > read_limit_) [[unlikely]] {
+			state_ = stream_state::read_limit_err;
+
+			if constexpr(std::is_same_v<exceptions, allow_throw>) {
+				throw stream_read_limit(read_size, total_read_, read_limit_);
+			}
+
+			return;
+		}
+
+		total_read_ = req_total_read;
+	}
+
+	template<size_type size>
+	constexpr auto generate_filled(const std::uint8_t value) {
+		std::array<std::uint8_t, size> target{};
+		std::ranges::fill(target, value);
+		return target;
+	}
+
+public:
+	explicit binary_stream(buf_type& source, size_type read_limit = 0)
+		: buffer_(source),
+		  read_limit_(read_limit) {};
+
+	/*** Write ***/
+
+	binary_stream& operator <<(has_shl_override<binary_stream> auto&& data)
+	requires(writeable<buf_type>) {
+		return data.operator<<(*this);
+	}
+
+	template<pod T>
+	requires (!has_shl_override<T, binary_stream>)
+	binary_stream& operator <<(const T& data) requires(writeable<buf_type>) {
+		buffer_.write(&data, sizeof(T));
+		total_write_ += sizeof(T);
+		return *this;
+	}
+
+	binary_stream& operator <<(const std::string& data) requires(writeable<buf_type>) {
+		buffer_.write(data.data(), data.size() + 1); // +1 also writes terminator
+		total_write_ += (data.size() + 1);
+		return *this;
+	}
+
+	binary_stream& operator <<(const char* data) requires(writeable<buf_type>) {
+		assert(data);
+		const auto len = std::strlen(data);
+		buffer_.write(data, len + 1); // include terminator
+		total_write_ += len + 1;
+		return *this;
+	}
+
+	binary_stream& operator <<(std::string_view& data) requires(writeable<buf_type>) {
+		buffer_.write(data.data(), data.size());
+		const char term = '\0';
+		buffer_.write(&term, sizeof(term));
+		total_write_ += (data.size() + 1);
+		return *this;
+	}
+
+	template<std::ranges::contiguous_range range>
+	void put(const range& data) requires(writeable<buf_type>) {
+		const auto write_size = data.size() * sizeof(typename range::value_type);
+		buffer_.write(data.data(), write_size);
+		total_write_ += write_size;
+	}
+
+	template<arithmetic T>
+	void put(const T& data) requires(writeable<buf_type>) {
+		buffer_.write(&data, sizeof(T));
+		total_write_ += sizeof(T);
+	}
+
+	template<pod T>
+	void put(const T* data, size_type count) requires(writeable<buf_type>) {
+		const auto write_size = count * sizeof(T);
+		buffer_.write(data, write_size);
+		total_write_ += write_size;
+	}
+
+	template<typename It>
+	void put(It begin, const It end) requires(writeable<buf_type>) {
+		for(auto it = begin; it != end; ++it) {
+			*this << *it;
+		}
+	}
+
+	template<size_type size>
+	void fill(const std::uint8_t value) requires(writeable<buf_type>) {
+		const auto filled = generate_filled<size>(value);
+		buffer_.write(filled.data(), filled.size());
+		total_write_ += size;
+	}
+
+	/*** Read ***/
+
+	// terminates when it hits a null byte, empty string if none found
+	binary_stream& operator>>(std::string& dest) {
+		auto pos = buffer_.find_first_of(value_type(0));
+
+		if(pos == buf_type::npos) {
+			dest.clear();
+			return *this;
+		}
+
+		dest.resize_and_overwrite(pos, [&](char* strbuf, size_type size) {
+			buffer_.read(strbuf, size);
+			total_read_ += size;
+			return size;
+		});
+
+		total_read_ += 1;
+		buffer_.skip(1); // skip null term
+		return *this;
+	}
+
+	// terminates when it hits a null byte, empty string_view if none found
+	// goes without saying that the buffer must outlive the string_view
+	binary_stream& operator>>(std::string_view& dest) requires(contiguous<buf_type>) {
+		dest = view();
+		return *this;
+	}
+
+	binary_stream& operator>>(has_shr_override<binary_stream> auto&& data) {
+		return data.operator>>(*this);
+	}
+
+	template<pod T>
+	requires (!has_shr_override<T, binary_stream>)
+	binary_stream& operator>>(T& data) {
+		STREAM_READ_BOUNDS_CHECK(sizeof(data), *this);
+		buffer_.read(&data, sizeof(data));
+		return *this;
+	}
+
+	template<arithmetic T>
+	void get(T& dest) {
+		STREAM_READ_BOUNDS_CHECK(sizeof(T), void());
+		buffer_.read(&dest, sizeof(T));
+	}
+
+	template<arithmetic T>
+	T get() {
+		STREAM_READ_BOUNDS_CHECK(sizeof(T), void());
+		T t{};
+		buffer_.read(&t, sizeof(T));
+		return t;
+	}
+
+	void get(std::string& dest) {
+		*this >> dest;
+	}
+
+	void get(std::string& dest, size_type size) {
+		STREAM_READ_BOUNDS_CHECK(size, void());
+		dest.resize_and_overwrite(size, [&](char* strbuf, size_type len) {
+			buffer_.read(strbuf, len);
+			return len;
+		});
+	}
+
+	template<typename T>
+	void get(T* dest, size_type count) {
+		assert(dest);
+		const auto read_size = count * sizeof(T);
+		STREAM_READ_BOUNDS_CHECK(read_size, void());
+		buffer_.read(dest, read_size);
+	}
+
+	template<typename It>
+	void get(It begin, const It end) {
+		for(; begin != end; ++begin) {
+			*this >> *begin;
+		}
+	}
+
+	template<std::ranges::contiguous_range range>
+	void get(range& dest) {
+		const auto read_size = dest.size() * sizeof(range::value_type);
+		STREAM_READ_BOUNDS_CHECK(read_size, void());
+		buffer_.read(dest.data(), read_size);
+	}
+
+	void skip(const size_type count) {
+		STREAM_READ_BOUNDS_CHECK(count, void());
+		buffer_.skip(count);
+	}
+
+	// Reads a string_view from the buffer, up to the terminator value
+	// Returns an empty string_view if a terminator is not found
+	std::string_view view(value_type terminator = value_type(0)) requires(contiguous<buf_type>) {
+		const auto pos = buffer_.find_first_of(terminator);
+
+		if(pos == buf_type::npos) {
+			return {};
+		}
+
+		std::string_view view { reinterpret_cast<char*>(buffer_.read_ptr()), pos };
+		buffer_.skip(pos + 1);
+		total_read_ += (pos + 1);
+		return view;
+	}
+
+	// Reads a span<T> from the buffer
+	// Fails if buffer length < requested bytes
+	template<typename out_type = value_type>
+	std::span<out_type> span(size_type count) requires(contiguous<buf_type>) {
+		STREAM_READ_BOUNDS_CHECK(sizeof(out_type) * count, {});
+		std::span span { reinterpret_cast<out_type*>(buffer_.read_ptr()), count };
+		buffer_.skip(sizeof(out_type) * count);
+		return span;
+	}
+
+	/**  Misc functions **/
+
+	consteval static bool can_write_seek() requires(writeable<buf_type>) {
+		return std::is_same_v<seeking, supported>;
+	}
+
+	void write_seek(const stream_seek direction, const offset_type offset) requires(seekable<buf_type>) {
+		if(direction == stream_seek::sk_stream_absolute) {
+			buffer_.write_seek(buffer_seek::sk_backward, total_write_ - offset);
+		} else {
+			buffer_.write_seek(static_cast<buffer_seek>(direction), offset);
+		}
+	}
+
+	size_type size() const {
+		return buffer_.size();
+	}
+
+	[[nodiscard]]
+	bool empty() const {
+		return buffer_.empty();
+	}
+
+	size_type total_write() const requires(writeable<buf_type>) {
+		return total_write_;
+	}
+
+	const buf_type* buffer() const {
+		return &buffer_;
+	}
+
+	buf_type* buffer() {
+		return &buffer_;
+	}
+
+	stream_state state() const {
+		return state_;
+	}
+
+	size_type total_read() const {
+		return total_read_;
+	}
+
+	size_type read_limit() const {
+		return read_limit_;
+	}
+
+	bool good() const {
+		return state_ == stream_state::ok;
+	}
+
+	void clear_error_state() {
+		state_ = stream_state::ok;
+	}
+
+	operator bool() const {
+		return good();
+	}
+
+	void set_error_state() {
+		state_ = stream_state::user_defined_err;
+	}
+};
+
+} // hexi
+
+// #include <hexi/buffer_adaptor.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/shared.h>
+
+// #include <hexi/concepts.h>
+
+#include <ranges>
+#include <type_traits>
+#include <utility>
+#include <cassert>
+#include <cstddef>
+#include <cstring>
+
+namespace hexi {
+
+using namespace detail;
+
+template<byte_oriented buf_type, bool space_optimise = true>
+requires std::ranges::contiguous_range<buf_type>
+class buffer_adaptor final {
+public:
+	using value_type  = typename buf_type::value_type;
+	using size_type   = typename buf_type::size_type;
+	using offset_type = typename buf_type::size_type;
+	using contiguous  = is_contiguous;
+	using seeking     = supported;
+
+	static constexpr auto npos { static_cast<size_type>(-1) };
+
+private:
+	buf_type& buffer_;
+	size_type read_;
+	size_type write_;
+
+public:
+	buffer_adaptor(buf_type& buffer)
+		: buffer_(buffer),
+		  read_(0),
+		  write_(buffer.size()) {}
+
+	template<typename T>
+	void read(T* destination) {
+		read(destination, sizeof(T));
+	}
+
+	void read(void* destination, size_type length) {
+		assert(destination);
+		copy(destination, length);
+		read_ += length;
+
+		if constexpr(space_optimise) {
+			if(read_ == write_) {
+				read_ = write_ = 0;
+			}
+		}
+	}
+
+	template<typename T>
+	void copy(T* destination) const {
+		copy(destination, sizeof(T));
+	}
+
+	void copy(void* destination, size_type length) const {
+		assert(!region_overlap(buffer_.data(), buffer_.size(), destination, length));
+		assert(destination);
+		std::memcpy(destination, read_ptr(), length);
+	}
+
+	void skip(size_type length) {
+		read_ += length;
+
+		if constexpr(space_optimise) {
+			if(read_ == write_) {
+				read_ = write_ = 0;
+			}
+		}
+	}
+
+	void write(const auto& source) requires(has_resize<buf_type>) {
+		write(source, sizeof(source));
+	}
+
+	void write(const void* source, size_type length) requires(has_resize<buf_type>) {
+		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
+		const auto min_req_size = write_ + length;
+
+		// we don't use std::back_inserter so we can support seeks
+		if(buffer_.size() < min_req_size) {
+			if constexpr(has_resize_overwrite<buf_type>) {
+				buffer_.resize_and_overwrite(min_req_size, [](char*, size_type size) {
+					return size;
+				});
+			} else {
+				buffer_.resize(min_req_size);
+			}
+		}
+
+		std::memcpy(write_ptr(), source, length);
+		write_ += length;
+	}
+
+	size_type find_first_of(value_type val) const {
+		const auto data = read_ptr();
+
+		for(size_type i = 0; i < size(); ++i) {
+			if(data[i] == val) {
+				return i;
+			}
+		}
+
+		return npos;
+	}
+	
+	size_type size() const {
+		return buffer_.size() - read_;
+	}
+
+	[[nodiscard]]
+	bool empty() const {
+		return read_ == write_;
+	}
+
+	value_type& operator[](const size_type index) {
+		return read_ptr()[index];
+	}
+
+	const value_type& operator[](const size_type index) const {
+		return read_ptr()[index];
+	}
+
+	consteval static bool can_write_seek() requires(has_resize<buf_type>) {
+		return std::is_same_v<seeking, supported>;
+	}
+
+	void write_seek(const buffer_seek direction, const offset_type offset) requires(has_resize<buf_type>) {
+		switch(direction) {
+			case buffer_seek::sk_backward:
+				write_ -= offset;
+				break;
+			case buffer_seek::sk_forward:
+				write_ += offset;
+				break;
+			case buffer_seek::sk_absolute:
+				write_ = offset;
+		}
+	}
+
+	const auto read_ptr() const {
+		return buffer_.data() + read_;
+	}
+
+	auto read_ptr() {
+		return buffer_.data() + read_;
+	}
+
+	const auto write_ptr() const {
+		return buffer_.data() + write_;
+	}
+
+	auto write_ptr() {
+		return buffer_.data() + write_;
+	}
+
+	const auto data() const {
+		return buffer_.data() + read_;
+	}
+
+	auto data() {
+		return buffer_.data() + read_;
+	}
+
+	const auto storage() const {
+		return buffer_.data();
+	}
+
+	auto storage() {
+		return buffer_.data();
+	}
+
+	void advance_write(size_type bytes) {
+		assert(buffer_.size() >= (write_ + bytes));
+		write_ += bytes;
+	}
+};
+
+} // hexi
+
+// #include <hexi/buffer_sequence.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+#if defined HEXI_WITH_ASIO || defined HEXI_WITH_BOOST_ASIO
+
+#ifdef HEXI_WITH_ASIO
+#include <asio/buffer.hpp>
+#elif defined HEXI_WITH_BOOST_ASIO
+#include <boost/asio/buffer.hpp>
+#endif
+
+#ifdef BUFFER_DEBUG
+#include <span>
+#endif
+
+namespace hexi {
+
+#ifndef USE_STANDALONE_ASIO
+namespace asio = boost::asio;
+#endif
+
+template<typename buffer_type>
+class buffer_sequence {
+	const buffer_type& buffer_;
+
+public:
+	buffer_sequence(const buffer_type& buffer)
+		: buffer_(buffer) { }
+
+	class const_iterator {
+		using Node = typename buffer_type::node_type;
+
+	public:
+		const_iterator(const buffer_type& buffer, const Node* curr_node)
+			: buffer_(buffer),
+			  curr_node_(curr_node) {}
+
+		const_iterator& operator++() {
+			curr_node_ = curr_node_->next;
+			return *this;
+		}
+
+		const_iterator operator++(int) {
+			const_iterator current(*this);
+			curr_node_ = curr_node_->next;
+			return current;
+		}
+
+		asio::const_buffer operator*() const {
+			const auto buffer = buffer_.buffer_from_node(curr_node_);
+			return asio::const_buffer(buffer->read_data(), buffer->size());
+		}
+
+		bool operator==(const const_iterator& rhs) const {
+			return curr_node_ == rhs.curr_node_;
+		}
+
+		bool operator!=(const const_iterator& rhs) const {
+			return curr_node_ != rhs.curr_node_;
+		}
+
+		const_iterator& operator=(const_iterator&) = delete;
+
+	#ifdef BUFFER_DEBUG
+		std::span<const char> get_buffer() {
+			auto buffer = buffer_.buffer_from_node(curr_node_);
+			return {
+				reinterpret_cast<const char*>(buffer->read_data()), buffer->size()
+			};
+		}
+	#endif
+
+	private:
+		const buffer_type& buffer_;
+		const Node* curr_node_;
+	};
+
+const_iterator begin() const {
+	return const_iterator(buffer_, buffer_.root_.next);
+}
+
+const_iterator end() const {
+	return const_iterator(buffer_, &buffer_.root_);
+}
+
+friend class const_iterator;
+};
+
+} // hexi
+
+#endif // HEXI_ENABLE_BUFFER_SEQUENCE
+
+// #include <hexi/concepts.h>
+
+// #include <hexi/dynamic_buffer.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmr/buffer.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmr/buffer_read.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmr/buffer_base.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+#include <cstddef>
+
+namespace hexi::pmr {
+
+class buffer_base {
+public:
+	virtual std::size_t size() const = 0;
+	virtual bool empty() const = 0;
+	virtual ~buffer_base() = default;
+};
+
+} // pmr, hexi
+
+#include <cstddef>
+
+namespace hexi::pmr {
+
+class buffer_read : virtual public buffer_base {
+public:
+	using value_type = std::byte;
+
+	static constexpr auto npos { static_cast<std::size_t>(-1) };
+
+	virtual ~buffer_read() = default;
+	virtual void read(void* destination, std::size_t length) = 0;
+	virtual void copy(void* destination, std::size_t length) const = 0;
+	virtual	void skip(std::size_t length) = 0;
+	virtual const std::byte& operator[](const std::size_t index) const = 0;
+	virtual std::size_t find_first_of(std::byte val) const = 0;
+};
+
+} // pmr, hexi
+
+// #include <hexi/pmr/buffer_write.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmr/buffer_base.h>
+
+// #include <hexi/shared.h>
+
+#include <cstddef>
+
+namespace hexi::pmr {
+
+class buffer_write : virtual public buffer_base {
+public:
+	using value_type = std::byte;
+
+	virtual ~buffer_write() = default;
+	virtual void write(const void* source, std::size_t length) = 0;
+	virtual void reserve(std::size_t length) = 0;
+	virtual bool can_write_seek() const = 0;
+	virtual void write_seek(buffer_seek direction, std::size_t offset) = 0;
+};
+
+} // pmr, hexi
+
+
+namespace hexi::pmr {
+
+class buffer : public buffer_read, public buffer_write {
+public:
+	using value_type = std::byte;
+
+	using buffer_read::operator[];
+
+	virtual std::byte& operator[](const std::size_t index) = 0;
+	virtual ~buffer() = default;
+};
+
+} // pmr, hexi
+
+// #include <hexi/shared.h>
+
+// #include <hexi/allocators/default_allocator.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+#include <utility>
+
+namespace hexi {
+
+template<typename T>
+struct default_allocator final {
+	template<typename ...Args>
+	[[nodiscard]] inline T* allocate(Args&&... args) const {
+		return new T(std::forward<Args>(args)...);
+	}
+
+	inline void deallocate(T* t) const {
+		delete t;
+	}
+};
+
+} // hexi
+
+// #include <hexi/detail/intrusive_storage.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+#if _MSC_VER
+#pragma warning(disable : 4996)
+#endif
+
+// #include <hexi/shared.h>
+
+// #include <hexi/concepts.h>
+
+#include <array>
+#include <concepts>
+#include <type_traits>
+#include <cassert>
+#include <cstring>
+#include <cstddef>
+
+namespace hexi::detail {
+
+struct intrusive_node {
+	intrusive_node* next;
+	intrusive_node* prev;
+};
+
+template<std::size_t block_size, byte_type storage_type = std::byte>
+struct intrusive_storage final {
+	using value_type = storage_type;
+	using OffsetType = std::remove_const_t<decltype(block_size)>;
+
+	OffsetType read_offset = 0;
+	OffsetType write_offset = 0;
+	intrusive_node node {};
+	std::array<value_type, block_size> storage;
+
+	void reset() {
+		read_offset = 0;
+		write_offset = 0;
+	}
+
+	std::size_t write(const auto source, std::size_t length) {
+		assert(!region_overlap(source, length, storage.data(), storage.size()));
+		std::size_t write_len = block_size - write_offset;
+
+		if(write_len > length) {
+			write_len = length;
+		}
+
+		std::memcpy(storage.data() + write_offset, source, write_len);
+		write_offset += static_cast<OffsetType>(write_len);
+		return write_len;
+	}
+
+	std::size_t copy(auto destination, const std::size_t length) const {
+		assert(!region_overlap(storage.data(), storage.size(), destination, length));
+		std::size_t read_len = block_size - read_offset;
+
+		if(read_len > length) {
+			read_len = length;
+		}
+
+		std::memcpy(destination, storage.data() + read_offset, read_len);
+		return read_len;
+	}
+
+	std::size_t read(auto destination, const std::size_t length, const bool allow_optimise = false) {
+		std::size_t read_len = copy(destination, length);
+		read_offset += static_cast<OffsetType>(read_len);
+
+		if(read_offset == write_offset && allow_optimise) {
+			reset();
+		}
+
+		return read_len;
+	}
+
+	std::size_t skip(const std::size_t length, const bool allow_optimise = false) {
+		std::size_t skip_len = block_size - read_offset;
+
+		if(skip_len > length) {
+			skip_len = length;
+		}
+
+		read_offset += static_cast<OffsetType>(skip_len);
+
+		if(read_offset == write_offset && allow_optimise) {
+			reset();
+		}
+
+		return skip_len;
+	}
+
+	std::size_t size() const {
+		return write_offset - read_offset;
+	}
+
+	std::size_t free() const {
+		return block_size - write_offset;
+	}
+
+	void write_seek(const buffer_seek direction, const std::size_t offset) {
+		switch(direction) {
+			case buffer_seek::sk_absolute:
+				write_offset = offset;
+				break;
+			case buffer_seek::sk_backward:
+				write_offset -= static_cast<OffsetType>(offset);
+				break;
+			case buffer_seek::sk_forward:
+				write_offset += static_cast<OffsetType>(offset);
+				break;
+		}
+	}
+
+	std::size_t advance_write(std::size_t size) {
+		const auto remaining = free();
+
+		if(remaining < size) {
+			size = remaining;
+		}
+
+		write_offset += static_cast<OffsetType>(size);
+		return size;
+	}
+
+	const value_type* read_data() const {
+		return storage.data() + read_offset;
+	}
+
+	value_type* write_data() {
+		return storage.data() + write_offset;
+	}
+
+	value_type& operator[](const std::size_t index) {
+		return *(storage.data() + index);
+	}
+
+	value_type& operator[](const std::size_t index) const {
+		return *(storage.data() + index);
+	}
+};
+
+} // detail, hexi
+
+#include <concepts>
+#include <utility>
+#ifdef BUFFER_DEBUG
+#include <algorithm>
+#include <vector>
+#endif
+#include <cstddef>
+#include <cstdint>
+#include <cassert>
+
+namespace hexi {
+
+using namespace detail;
+
+template<typename buffer_type>
+class buffer_sequence;
+
+template<decltype(auto) block_sz>
+concept int_gt_zero = std::integral<decltype(block_sz)> && block_sz > 0;
+
+template<decltype(auto) block_sz,
+	byte_type storage_value_type = std::byte,
+	typename allocator = default_allocator<detail::intrusive_storage<block_sz, storage_value_type>>
+>
+requires int_gt_zero<block_sz>
+class dynamic_buffer final : public pmr::buffer {
+public:
+	using storage_type = intrusive_storage<block_sz, storage_value_type>;
+	using value_type   = storage_value_type;
+	using node_type    = intrusive_node;
+	using size_type    = std::size_t;
+	using offset_type  = std::size_t;
+	using contiguous   = is_non_contiguous;
+	using seeking      = supported;
+
+	static constexpr auto npos { static_cast<size_type>(-1) };
+
+private:
+	intrusive_node root_;
+	size_type size_;
+	[[no_unique_address]] allocator allocator_;
+
+	void link_tail_node(intrusive_node* node) {
+		node->next = &root_;
+		node->prev = root_.prev;
+		root_.prev = root_.prev->next = node;
+	}
+
+	void unlink_node(intrusive_node* node) {
+		node->next->prev = node->prev;
+		node->prev->next = node->next;
+	}
+
+	inline storage_type* buffer_from_node(const intrusive_node* node) const {
+		return reinterpret_cast<storage_type*>(std::uintptr_t(node)
+			- offsetof(storage_type, node));
+	}
+
+	void move(dynamic_buffer& rhs) noexcept {
+		if(this == &rhs) { // self-assignment
+			return;
+		}
+
+		clear(); // clear our current blocks rather than swapping them
+
+		size_ = rhs.size_;
+		root_ = rhs.root_;
+		root_.next->prev = &root_;
+		root_.prev->next = &root_;
+		rhs.size_ = 0;
+		rhs.root_.next = &rhs.root_;
+		rhs.root_.prev = &rhs.root_;
+	}
+
+	void copy(const dynamic_buffer& rhs) {
+		if(this == &rhs) { // self-assignment
+			return;
+		}
+
+		const intrusive_node* head = rhs.root_.next;
+		root_.next = &root_;
+		root_.prev = &root_;
+		size_ = 0;
+
+		while(head != &rhs.root_) {
+			auto buffer = allocate();
+			*buffer = *buffer_from_node(head);
+			link_tail_node(&buffer->node);
+			size_ += buffer->write_offset;
+			head = head->next;
+		}
+	}
+	
+#ifdef BUFFER_DEBUG
+	void offset_buffers(std::vector<storage_type*>& buffers, size_type offset) {
+		std::erase_if(buffers, [&](auto block) {
+			if(block->size() > offset) {
+				block->read_offset += offset;
+				block->write_offset -= offset;
+				return false;
+			} else {
+				return true;
+			}
+		});
+	}
+#endif
+
+	value_type& byte_at_index(const size_type index) const {
+		assert(index < size_ && "buffer subscript index out of range");
+
+		auto head = root_.next;
+		auto buffer = buffer_from_node(head);
+		const auto offset_index = index + buffer->read_offset;
+		const auto node_index = offset_index / block_sz;
+
+		for(size_type i = 0; i < node_index; ++i) {
+			head = head->next;
+		}
+
+		buffer = buffer_from_node(head);
+		return (*buffer)[offset_index % block_sz];
+	}
+
+	size_type abs_seek_offset(size_type offset) {
+		if(offset < size_) {
+			return size_ - offset;
+		} else if(offset > size_) {
+			return offset - size_;
+		} else {
+			return 0;
+		}
+	}
+
+	[[nodiscard]] storage_type* allocate() {
+		return allocator_.allocate();
+	}
+
+	void deallocate(storage_type* buffer) {
+		allocator_.deallocate(buffer);
+	}
+
+public:
+	dynamic_buffer()
+		: root_{ .next = &root_, .prev = &root_ },
+		  size_(0) {}
+
+	~dynamic_buffer() {
+		clear();
+	}
+
+	dynamic_buffer& operator=(dynamic_buffer&& rhs) noexcept {
+		move(rhs);
+		return *this;
+	}
+
+	dynamic_buffer(dynamic_buffer&& rhs) noexcept {
+		move(rhs);
+	}
+
+	dynamic_buffer(const dynamic_buffer& rhs) {
+		copy(rhs);
+	}
+
+	dynamic_buffer& operator=(const dynamic_buffer& rhs) {
+		clear();
+		copy(rhs);
+		return *this;
+	}
+
+	template<typename T>
+	void read(T* destination) {
+		read(destination, sizeof(T));
+	}
+
+	void read(void* destination, size_type length) override {
+		assert(length <= size_ && "Chained buffer read too large!");
+		size_type remaining = length;
+
+		while(true) {
+			auto buffer = buffer_from_node(root_.next);
+			remaining -= buffer->read(
+				static_cast<value_type*>(destination) + length - remaining, remaining,
+				                         root_.next == root_.prev
+			);
+
+			if(remaining) [[unlikely]] {
+				unlink_node(root_.next);
+				deallocate(buffer);
+			} else {
+				break;
+			}
+		}
+
+		size_ -= length;
+	}
+
+	template<typename T>
+	void copy(T* destination) const {
+		copy(destination, sizeof(T));
+	}
+
+	void copy(void* destination, const size_type length) const override {
+		assert(length <= size_ && "Chained buffer copy too large!");
+		size_type remaining = length;
+		auto head = root_.next;
+
+		while(true) {
+			const auto buffer = buffer_from_node(head);
+			remaining -= buffer->copy(
+				static_cast<value_type*>(destination) + length - remaining, remaining
+			);
+
+			if(remaining) [[unlikely]] {
+				head = head->next;
+			} else {
+				break;
+			}
+		}
+	}
+
+#ifdef BUFFER_DEBUG
+	std::vector<storage_type*> fetch_buffers(const size_type length, const size_type offset = 0) {
+		size_type total = length + offset;
+		assert(total <= size_ && "Chained buffer fetch too large!");
+		std::vector<storage_type*> buffers;
+		auto head = root_.next;
+
+		while(total) {
+			auto buffer = buffer_from_node(head);
+			size_type read_size = block_sz - buffer->read_offset;
+			
+			// guard against overflow - buffer may have more content than requested
+			if(read_size > total) {
+				read_size = total;
+			}
+
+			buffers.emplace_back(buffer);
+			total -= read_size;
+			head = head->next;
+		}
+
+		if(offset) {
+			offset_buffers(buffers, offset);
+		}
+
+		return buffers;
+	}
+#endif
+
+	void skip(const size_type length) override {
+		assert(length <= size_ && "Chained buffer skip too large!");
+		size_type remaining = length;
+
+		while(true) {
+			auto buffer = buffer_from_node(root_.next);
+			remaining -= buffer->skip(remaining, root_.next == root_.prev);
+
+			if(remaining) [[unlikely]] {
+				unlink_node(root_.next);
+				deallocate(buffer);
+			} else {
+				break;
+			}
+		}
+
+		size_ -= length;
+	}
+
+	void write(const auto& source) {
+		write(&source, sizeof(source));
+	}
+
+	void write(const void* source, const size_type length) override {
+		size_type remaining = length;
+		intrusive_node* tail = root_.prev;
+
+		do {
+			storage_type* buffer;
+
+			if(tail != &root_) [[likely]] {
+				buffer = buffer_from_node(tail);
+			} else {
+				buffer = allocate();
+				link_tail_node(&buffer->node);
+				tail = root_.prev;
+			}
+
+			remaining -= buffer->write(
+				static_cast<const value_type*>(source) + length - remaining, remaining
+			);
+
+			tail = tail->next;
+		} while(remaining);
+
+		size_ += length;
+	}
+
+	void reserve(const size_type length) override {
+		size_type remaining = length;
+		intrusive_node* tail = root_.prev;
+
+		do {
+			storage_type* buffer;
+
+			if(tail == &root_) [[unlikely]] {
+				buffer = allocate();
+				link_tail_node(&buffer->node);
+				tail = root_.prev;
+			} else {
+				buffer = buffer_from_node(tail);
+			}
+
+			remaining -= buffer->advance_write(remaining);
+			tail = tail->next;
+		} while(remaining);
+
+		size_ += length;
+	}
+
+	size_type size() const override {
+		return size_;
+	}
+
+	storage_type* back() const {
+		if(root_.prev == &root_) {
+			return nullptr;
+		}
+
+		return buffer_from_node(root_.prev);
+	}
+
+	storage_type* front() const {
+		if(root_.next == &root_) {
+			return nullptr;
+		}
+
+		return buffer_from_node(root_.next);
+	}
+
+	[[nodiscard]] auto pop_front() {
+		auto buffer = buffer_from_node(root_.next);
+		size_ -= buffer->size();
+		unlink_node(root_.next);
+		return buffer;
+	}
+
+	void push_back(storage_type* buffer) {
+		link_tail_node(&buffer->node);
+		size_ += buffer->write_offset;
+	}
+
+	void advance_write(const size_type size) {
+		auto buffer = buffer_from_node(root_.prev);
+		const auto actual = buffer->advance_write(size);
+		assert(size <= block_sz && actual <= size &&
+		       "Attempted to advance write cursor out of bounds!");
+		size_ += size;
+	}
+
+	bool can_write_seek() const override {
+		return std::is_same_v<seeking, supported>;
+	}
+
+	void write_seek(const buffer_seek mode, size_type offset) override {
+		// nothing to do in this case
+		if(mode == buffer_seek::sk_absolute && offset == size_) {
+			return;
+		}
+
+		auto tail = root_.prev;
+
+		switch(mode) {
+			case buffer_seek::sk_backward:
+				size_ -= offset;
+				break;
+			case buffer_seek::sk_forward:
+				size_ += offset;
+				break;
+			case buffer_seek::sk_absolute:
+				size_ = offset;
+				offset = abs_seek_offset(offset);
+				break;
+		}
+
+		const bool rewind = (mode == buffer_seek::sk_backward
+							 || (mode == buffer_seek::sk_absolute && offset < size_));
+
+		while(offset) {
+			auto buffer = buffer_from_node(tail);
+			const auto max_seek = rewind? buffer->size() : buffer->free();
+
+			if(max_seek >= offset) {
+				buffer->write_seek(mode, offset);
+				offset = 0;
+			} else {
+				buffer->write_seek(mode, max_seek);
+				offset -= max_seek;
+				tail = rewind? tail->prev : tail->next;
+			}
+		}
+
+		root_.prev = tail;
+	}
+
+	void clear() {
+		intrusive_node* head = root_.next;
+
+		while(head != &root_) {
+			auto next = head->next;
+			deallocate(buffer_from_node(head));
+			head = next;
+		}
+
+		root_.next = &root_;
+		root_.prev = &root_;
+		size_ = 0;
+	}
+
+	[[nodiscard]]
+	bool empty() const override {
+		return !size_;
+	}
+	
+	consteval static size_type block_size() {
+		return block_sz;
+	}
+
+	value_type& operator[](const size_type index) {
+		return byte_at_index(index);
+	}
+
+	const value_type& operator[](const size_type index) const override {
+		return byte_at_index(index);
+	}
+
+	size_type block_count() {
+		auto node = &root_;
+		size_type count = 0;
+
+		// not calculating based on block size & size as it
+		// wouldn't play nice with seeking or manual push/pop
+		while(node->next != root_.prev->next) {
+			++count;
+			node = node->next;
+		}
+
+		return count;
+	}
+
+	size_type find_first_of(value_type val) const {
+		size_type index = 0;
+		auto head = root_.next;
+
+		while(head != &root_) {
+			const auto buffer = buffer_from_node(head);
+			const auto data = buffer->read_data();
+			
+			for(size_type i = 0, j = buffer->size(); i < j; ++i, ++index) {
+				if(data[i] == val) {
+					return index;
+				}
+			}
+
+			head = head->next;
+		}
+
+		return npos;
+	}
+
+	auto& get_allocator() {
+		return allocator_;
+	}
+
+	const auto& get_allocator() const {
+		return allocator_;
+	}
+
+	template<typename buffer_type>
+	friend class buffer_sequence;
+};
+
+} // hexi
+
+// #include <hexi/dynamic_tls_buffer.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/dynamic_buffer.h>
+
+// #include <hexi/allocators/tls_block_allocator.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/allocators/block_allocator.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+#include <array>
+#include <memory>
+#include <new>
+#include <thread>
+#include <type_traits>
+#include <utility>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+
+#ifndef NDEBUG
+#define HEXI_DEBUG_ALLOCATORS
+#endif
+
+namespace hexi {
+
+namespace detail {
+
+struct free_block {
+	free_block* next;
+};
+
+template<decltype(auto) size>
+concept gt_zero = size > 0;
+
+template<typename T, typename U>
+concept sizeof_gte = sizeof(T) >= sizeof(U);
+
+} // detail
+
+using namespace detail;
+
+struct no_validate_dealloc {};
+struct validate_dealloc : no_validate_dealloc {};
+
+/*
+ * Basic fixed-size block stack allocator that preallocates a slab of memory
+ * capable of holding a compile-time determined number of elements.
+ * When constructed, a linked list of chunks is built within the slab and
+ * each allocation request will take the head node. Since the allocations
+ * are fixed-size, the list does not need to be traversed for a suitable
+ * size. Deallocations place the chunk as the new head (LIFO).
+ *
+ * If the preallocated slab runs out of chunks, it will fall back to using the
+ * system allocator rather than allocating additional slabs. This means sizing
+ * the initial allocation correctly is important for maximum performance, so
+ * it's better to be pessimistic. This is a server application and RAM is cheap. :)
+ *
+ * PagePolicy: 'lock' requests that the OS does not page out the memory slab to disk.
+ *
+ * ThreadPolicy: 'same_thread' triggers an assert if an allocated object
+ * is deallocated from a different thread. Used by the TLS allocator, since
+ * implementing the functionality there is messier (and slower).
+ */
+template<typename _ty, 
+	std::size_t _elements,
+	std::derived_from<no_validate_dealloc> ValidatePolicy = no_validate_dealloc>
+requires gt_zero<_elements> && sizeof_gte<_ty, free_block>
+class block_allocator {
+	using tid_type = std::conditional_t<
+		std::is_same_v<ValidatePolicy, validate_dealloc>, std::thread::id, std::monostate
+	>;
+
+	struct mem_block {
+		_ty obj;
+
+		struct {
+			[[no_unique_address]] tid_type thread_id;
+			bool using_new;
+		} meta;
+	};
+
+	static constexpr auto block_size = sizeof(mem_block);
+
+	free_block* head_ = nullptr;
+	[[no_unique_address]] tid_type thread_id_;
+	std::array<char, block_size * _elements> storage_;
+
+	void initialise_free_list() {
+		auto storage = storage_.data();
+
+		for(std::size_t i = 0; i < _elements; ++i) {
+			auto block = reinterpret_cast<free_block*>(storage + (block_size * i));
+			push(block);
+		}
+	}
+
+	inline void push(free_block* block) {
+		assert(block);
+		block->next = head_;
+		head_ = block;
+	}
+
+	[[nodiscard]] inline free_block* pop() {
+		if(!head_) {
+			return nullptr;
+		}
+
+		auto block = head_;
+		head_ = block->next;
+		return block;
+	}
+
+public:
+#ifdef HEXI_DEBUG_ALLOCATORS
+	std::size_t storage_active_count = 0;
+	std::size_t new_active_count = 0;
+	std::size_t active_count = 0;
+	std::size_t total_allocs = 0;
+	std::size_t total_deallocs = 0;
+#endif
+
+	block_allocator() requires std::same_as<ValidatePolicy, validate_dealloc>
+		: thread_id_(std::this_thread::get_id()) {
+		initialise_free_list();
+	}
+
+	block_allocator() {
+		initialise_free_list();
+	}
+
+	template<typename ...Args>
+	[[nodiscard]] inline _ty* allocate(Args&&... args) {
+		auto block = reinterpret_cast<mem_block*>(pop());
+
+		if(block) [[likely]] {
+#ifdef HEXI_DEBUG_ALLOCATORS
+			++storage_active_count;
+#endif
+			block->meta.using_new = false;
+		} else {
+#ifdef HEXI_DEBUG_ALLOCATORS
+			++new_active_count;
+#endif
+			block = new mem_block;
+			block->meta.using_new = true;
+		}
+
+		if constexpr(std::is_same_v<ValidatePolicy, validate_dealloc>) {
+			block->meta.thread_id = thread_id_;
+		}
+
+#ifdef HEXI_DEBUG_ALLOCATORS
+		++total_allocs;
+		++active_count;
+#endif
+		return new (&block->obj) _ty(std::forward<Args>(args)...);
+	}
+
+	inline void deallocate(_ty* t) {
+		assert(t);
+		auto block = reinterpret_cast<mem_block*>(t);
+
+		if constexpr(std::is_same_v<ValidatePolicy, validate_dealloc>) {
+			assert(block->meta.thread_id == thread_id_
+				&& "thread policy violation or clobbered block");
+		}
+
+		if(block->meta.using_new) [[unlikely]] {
+#ifdef HEXI_DEBUG_ALLOCATORS
+			--new_active_count;
+#endif
+			t->~_ty();
+			delete block;
+		} else {
+#ifdef HEXI_DEBUG_ALLOCATORS
+			--storage_active_count;
+#endif
+			t->~_ty();
+			push(reinterpret_cast<free_block*>(t));
+		}
+
+#ifdef HEXI_DEBUG_ALLOCATORS
+		++total_deallocs;
+		--active_count;
+#endif
+	}
+
+	~block_allocator() {
+#ifdef HEXI_DEBUG_ALLOCATORS
+		assert(active_count == 0);
+#endif
+	}
+};
+
+} // hexi
+
+#include <type_traits>
+#include <utility>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+
+#ifndef NDEBUG
+#define HEXI_DEBUG_ALLOCATORS
+#endif
+
+namespace hexi {
+
+struct safe_entrant {};
+struct no_ref_counting {};
+
+struct unsafe_entrant : safe_entrant {};
+struct ref_counting : no_ref_counting {};
+
+template<typename _ty,
+	std::size_t _elements,
+	std::derived_from<no_ref_counting> ref_count_policy = no_ref_counting,
+	std::derived_from<safe_entrant> entrant_policy = safe_entrant
+>
+class tls_block_allocator final {
+	using allocator_type = block_allocator<_ty, _elements>;
+
+	using ref_count = std::conditional_t<
+		std::is_same_v<ref_count_policy, ref_counting>, int, std::monostate
+	>;
+
+	using tls_handle_cache = std::conditional_t<
+		std::is_same_v<entrant_policy, unsafe_entrant>, allocator_type*, std::monostate
+	>;
+
+	static inline thread_local std::unique_ptr<allocator_type> allocator_;
+	static inline thread_local ref_count ref_count_{};
+
+	[[no_unique_address]] tls_handle_cache cached_handle_{};
+
+	// Compiler will optimise calls to this out when using unsafe_entrant
+	inline void initialise() {
+		if constexpr(std::is_same_v<entrant_policy, safe_entrant>) {
+			if(!allocator_) {
+				allocator_ = std::make_unique<allocator_type>();
+			}
+		}
+	}
+
+	inline allocator_type* allocator_handle() {
+		if constexpr(std::is_same_v<entrant_policy, unsafe_entrant>) {
+			return cached_handle_;
+		} else {
+			return allocator_.get();
+		}
+	}
+
+public:
+#ifdef HEXI_DEBUG_ALLOCATORS
+	std::size_t total_allocs = 0;
+	std::size_t total_deallocs = 0;
+	std::size_t active_allocs = 0;
+#endif
+
+	tls_block_allocator() {
+		thread_enter();
+	}
+
+	/*
+	 * When used in conjunction with unsafe_entrant, allows the owning object
+	 * to be executed on another thread without paying for checks on every
+	 * allocation
+	 */
+	inline void thread_enter() {
+		if(!allocator_) {
+			allocator_ = std::make_unique<allocator_type>();
+		}
+
+		if constexpr(std::is_same_v<entrant_policy, unsafe_entrant>) {
+			cached_handle_ = allocator_.get();
+		}
+
+		if constexpr(std::is_same_v<ref_count_policy, ref_counting>) {
+			++ref_count_;
+		}
+	}
+
+	inline void thread_exit() {
+		if constexpr(std::is_same_v<ref_count_policy, ref_counting>) {
+			--ref_count_;
+
+			if(ref_count_ == 0) {
+				allocator_.reset();
+			}
+		}
+	}
+
+	template<typename ...Args>
+	[[nodiscard]] inline _ty* allocate(Args&&... args) {
+		/*
+		 * When safe_entrant is set, need to do this here & in ctor unless
+		 * we can be 100% sure that any object using the allocator is created
+		 * on the same thread that ends up using it.
+		 */
+		initialise();
+
+#ifdef HEXI_DEBUG_ALLOCATORS
+		++total_allocs;
+		++active_allocs;
+#endif
+		return allocator_handle()->allocate(std::forward<Args>(args)...);
+	}
+
+	inline void deallocate(_ty* t) {
+		assert(t);
+
+#ifdef HEXI_DEBUG_ALLOCATORS
+		++total_deallocs;
+		--active_allocs;
+#endif
+		allocator_handle()->deallocate(t);
+	}
+
+#ifdef HEXI_DEBUG_ALLOCATORS
+	auto allocator() {
+		initialise();
+		return allocator_handle();
+	}
+#endif
+
+	~tls_block_allocator() {
+		thread_exit();
+
+#ifdef HEXI_DEBUG_ALLOCATORS
+		assert(active_allocs == 0);
+#endif
+	}
+};
+
+} // hexi
+
+#include <cstddef>
+
+namespace hexi {
+
+// dynamic_buffer backed by thread-local storage, meaning every
+// instance on the same thread shares the same underlying memory.
+// As a rule of thumb, an instance should never be touched by any thread
+// other than the one on which it was created, not even if synchronised
+// ... unless you're positive it won't result in the allocator being called.
+// 
+// Minimum memory usage is intrusive_storage<block_size> * count.
+// Additional blocks are not added if the original is exhausted ('colony' structure),
+// so the allocator will fall back to the system allocator instead.
+//
+// Pros: extremely fast allocation/deallocation for many instances per thread
+// Cons: everything else.
+// 
+// TL;DR Do not use unless you know what you're doing.
+template<decltype(auto) block_size,
+	std::size_t count,
+	typename ref_count_policy = no_ref_counting,
+	typename entrant_policy = safe_entrant,
+	typename storage_type = std::byte>
+using dynamic_tls_buffer = dynamic_buffer<block_size, storage_type,
+	tls_block_allocator<typename dynamic_buffer<block_size>::storage_type, count, no_ref_counting, entrant_policy>
+>;
+
+} // hexi
+
+// #include <hexi/exception.h>
+
+// #include <hexi/file_buffer.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/exception.h>
+
+// #include <hexi/shared.h>
+
+// #include <hexi/concepts.h>
+
+#include <filesystem>
+#include <cstddef>
+#include <cstdio>
+
+namespace hexi {
+
+using namespace detail;
+
+class file_buffer final {
+public:
+	using size_type       = std::size_t;
+	using offset_type     = long;
+	using value_type      = char;
+	using contiguous      = is_non_contiguous;
+	using seeking         = unsupported;
+
+	static constexpr auto npos { static_cast<size_type>(-1) };
+
+private:
+	FILE* file_ = nullptr;
+	offset_type read_ = 0;
+	offset_type write_ = 0;
+	bool error_ = false;
+
+public:
+	file_buffer(const std::filesystem::path& path)
+		: file_buffer(path.string().c_str()) { }
+
+	file_buffer(const char* path) {
+		file_ = std::fopen(path, "a+b");
+		
+		if(!file_) {
+			error_ = true;
+			return;
+		}
+		
+		if(std::fseek(file_, 0, SEEK_END)) {
+			error_ = true;
+		}
+
+		write_ = std::ftell(file_);
+
+		if(write_ == -1) {
+			error_ = true;
+		}
+	}
+
+	~file_buffer() {
+		close();
+	}
+
+	void close() {
+		if(file_) {
+			std::fclose(file_);
+			file_ = nullptr;
+		}
+	}
+
+	template<typename T>
+	void read(T* destination) {
+		read(destination, sizeof(T));
+	}
+
+	void read(void* destination, size_type length) {
+		if(error_) {
+			return;
+		}
+
+		if(std::fseek(file_, read_, 0)) {
+			error_ = true;
+			return;
+		}
+
+		std::fread(destination, length, 1, file_);
+		read_ += length;
+	}
+
+	template<typename T>
+	void copy(T* destination) {
+		copy(destination, sizeof(T));
+	}
+
+	void copy(void* destination, size_type length) {
+		if(error_) {
+			return;
+		} else if(length > size()) {
+			error_ = true;
+			throw buffer_underrun(length, read_, size());
+		}
+
+		if(std::fseek(file_, read_, SEEK_SET)) {
+			error_ = true;
+			return;
+		}
+		
+		if(std::fread(destination, length, 1, file_) != 1) {
+			error_ = true;
+			return;
+		}
+
+		if(std::fseek(file_, read_, SEEK_SET)) {
+			error_ = true;
+		}
+	}
+
+	size_type find_first_of(value_type val) noexcept {
+		if(error_) {
+			return npos;
+		}
+
+		if(std::fseek(file_, read_, SEEK_SET)) {
+			error_ = true;
+			return npos;
+		}
+
+		value_type buffer{};
+
+		for(std::size_t i = 0u; i < size(); ++i) {
+			if(std::fread(&buffer, sizeof(value_type), 1, file_) != 1) {
+				error_ = true;
+				return npos;
+			}
+
+			if(buffer == val) {
+				if(std::fseek(file_, read_, SEEK_SET)) {
+					error_ = true;
+					return npos;
+				}
+
+				return i;
+			}
+		}
+
+		if(std::fseek(file_, read_, SEEK_SET)) {
+			error_ = true;
+		}
+
+		return npos;
+	}
+
+	void skip(const size_type length) {
+		read_ += length;
+	}
+
+	void advance_write(size_type bytes) {
+		write_ += bytes;
+	}
+
+	[[nodiscard]]
+	bool empty() const {
+		return write_ == read_;
+	}
+
+	constexpr static bool can_write_seek() {
+		return std::is_same_v<seeking, supported>;
+	}
+
+	void write(const auto& source) {
+		write(&source, sizeof(source));
+	}
+
+	void write(const void* source, size_type length) {
+		if(error_) {
+			return;
+		}
+		
+		if(std::fseek(file_, write_, SEEK_SET)) {
+			error_ = true;
+			return;
+		}
+
+		if(std::fwrite(source, length, 1, file_) != 1) {
+			error_ = true;
+			return;
+		}
+
+		write_ += length;
+	}
+
+
+	size_type size() const {
+		return write_ - read_;
+	}
+
+	FILE* handle() {
+		return file_;
+	}
+
+	const FILE* handle() const {
+		return file_;
+	}
+
+	bool error() const {
+		return error_;
+	}
+
+	operator bool() const {
+		return !error();
+	}
+};
+
+} // hexi
+
+// #include <hexi/shared.h>
+
+// #include <hexi/static_buffer.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/exception.h>
+
+// #include <hexi/shared.h>
+
+// #include <hexi/concepts.h>
+
+#include <array>
+#include <span>
+#include <utility>
+#include <cassert>
+#include <cstddef>
+#include <cstring>
+
+namespace hexi {
+
+using namespace detail;
+
+template<byte_type storage_type, std::size_t buf_size>
+class static_buffer final {
+	std::array<storage_type, buf_size> buffer_ = {};
+	std::size_t read_ = 0;
+	std::size_t write_ = 0;
+
+public:
+	using size_type       = std::size_t;
+	using offset_type     = std::size_t;
+	using value_type      = storage_type;
+	using contiguous      = is_contiguous;
+	using seeking         = supported;
+
+	static constexpr auto npos { static_cast<size_type>(-1) };
+	
+	static_buffer() = default;
+
+	template<typename... T> 
+	static_buffer(T&&... vals) : buffer_{ std::forward<T>(vals)... } {
+		write_ = sizeof... (vals);
+	}
+
+	template<typename T>
+	void read(T* destination) {
+		read(destination, sizeof(T));
+	}
+
+	void read(void* destination, size_type length) {
+		copy(destination, length);
+		read_ += length;
+
+		if(read_ == write_) {
+			read_ = write_ = 0;
+		}
+	}
+
+	template<typename T>
+	void copy(T* destination) const {
+		copy(destination, sizeof(T));
+	}
+
+	void copy(void* destination, size_type length) const {
+		assert(!region_overlap(buffer_.data(), buffer_.size(), destination, length));
+
+		if(length > size()) {
+			throw buffer_underrun(length, read_, size());
+		}
+
+		std::memcpy(destination, read_ptr(), length);
+	}
+
+	size_type find_first_of(value_type val) const noexcept {
+		const auto data = read_ptr();
+
+		for(std::size_t i = 0u; i < size(); ++i) {
+			if(data[i] == val) {
+				return i;
+			}
+		}
+
+		return npos;
+	}
+
+	void skip(const size_type length) {
+		read_ += length;
+
+		if(read_ == write_) {
+			read_ = write_ = 0;
+		}
+	}
+
+	void advance_write(size_type bytes) {
+		assert(free() >= bytes);
+		write_ += bytes;
+	}
+
+	void clear() {
+		read_ = write_ = 0;
+	}
+
+	/*
+	 * Moves any unread data to the front of the buffer, freeing space at the end.
+	 * If a move is performed, pointers obtained from read/write_ptr() will be invalidated.
+	 * 
+	 * Return true if additional space was made available.
+	 */
+	bool defragment() {
+		if(read_ == 0) {
+			return false;
+		}
+
+		write_ = size();
+		std::memmove(buffer_.data(), read_ptr(), write_);
+		read_ = 0;
+		return true;
+	}
+
+	value_type& operator[](const size_type index) {
+		return read_ptr()[index];
+	}
+
+	const value_type& operator[](const size_type index) const {
+		return read_ptr()[index];
+	}
+
+	[[nodiscard]]
+	bool empty() const {
+		return write_ == read_;
+	}
+
+	bool full() const {
+		return write_ == capacity();
+	}
+
+	constexpr static bool can_write_seek() {
+		return std::is_same_v<seeking, supported>;
+	}
+
+	void write(const auto& source) {
+		write(&source, sizeof(source));
+	}
+
+	void write(const void* source, size_type length) {
+		assert(!region_overlap(source, length, buffer_.data(), buffer_.size()));
+
+		if(free() < length) {
+			throw buffer_overflow(length, write_, free());
+		}
+
+		std::memcpy(write_ptr(), source, length);
+		write_ += length;
+	}
+
+	void write_seek(const buffer_seek direction, const size_type offset) {
+		switch(direction) {
+			case buffer_seek::sk_backward:
+				write_ -= offset;
+				break;
+			case buffer_seek::sk_forward:
+				write_ += offset;
+				break;
+			case buffer_seek::sk_absolute:
+				write_ = offset;
+		}
+	}
+
+	auto begin() {
+		return buffer_.begin() + read_;
+	}
+
+	const auto begin() const {
+		return buffer_.begin() + read_;
+	}
+
+	auto end() {
+		return buffer_.begin() + write_;
+	}
+
+	const auto end() const {
+		return buffer_.begin() + write_;
+	}
+
+	constexpr static size_type capacity() {
+		return buf_size;
+	}
+
+	size_type size() const {
+		return write_ - read_;
+	}
+
+	size_type free() const {
+		return buf_size - write_;
+	}
+
+	const value_type* data() const {
+		return buffer_.data() + read_;
+	}
+
+	value_type* data() {
+		return buffer_.data() + read_;
+	}
+
+	const value_type* read_ptr() const {
+		return buffer_.data() + read_;
+	}
+
+	value_type* read_ptr() {
+		return buffer_.data() + read_;
+	}
+
+	const value_type* write_ptr() const {
+		return buffer_.data() + write_;
+	}
+
+	value_type* write_ptr() {
+		return buffer_.data() + write_;
+	}
+
+	value_type* storage() {
+		return buffer_.data();
+	}
+
+	const value_type* storage() const {
+		return buffer_.data();
+	}
+
+	std::span<const value_type> read_span() const {
+		return { read_ptr(), size() };
+	}
+
+	std::span<value_type> write_span() {
+		return { write_ptr(), free() };
+	}
+};
+
+} // hexi
+
+// #include <hexi/allocators/block_allocator.h>
+
+// #include <hexi/allocators/default_allocator.h>
+
+// #include <hexi/allocators/tls_block_allocator.h>
+
+// #include <hexi/detail/intrusive_storage.h>
+
+// #include <hexi/pmr/binary_stream.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmr/binary_stream_reader.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmr/stream_base.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmr/buffer_base.h>
+
+// #include <hexi/shared.h>
+
+
+namespace hexi::pmr {
+
+class stream_base {
+	buffer_base& buffer_;
+
+public:
+	explicit stream_base(buffer_base& buffer) : buffer_(buffer) { }
+
+	std::size_t size() const {
+		return buffer_.size();
+	}
+
+	[[nodiscard]]
+	bool empty() const {
+		return buffer_.empty();
+	}
+
+	virtual ~stream_base() = default;
+};
+
+} // pmr, hexi
+
+// #include <hexi/pmr/buffer_read.h>
+
+// #include <hexi/exception.h>
+
+// #include <hexi/shared.h>
+
+// #include <hexi/concepts.h>
+
+#include <algorithm>
+#include <ranges>
+#include <string>
+#include <cassert>
+#include <cstddef>
+#include <cstring>
+
+namespace hexi::pmr {
+
+using namespace detail;
+
+class binary_stream_reader : virtual public stream_base {
+	buffer_read& buffer_;
+	std::size_t total_read_;
+	const std::size_t read_limit_;
+	stream_state state_;
+
+	void check_read_bounds(std::size_t read_size) {
+		if(read_size > buffer_.size()) [[unlikely]] {
+			state_ = stream_state::buff_limit_err;
+			throw buffer_underrun(read_size, total_read_, buffer_.size());
+		}
+
+		const auto req_total_read = total_read_ + read_size;
+
+		if(read_limit_ && req_total_read > read_limit_) [[unlikely]] {
+			state_ = stream_state::read_limit_err;
+			throw stream_read_limit(read_size, total_read_, read_limit_);
+		}
+
+		total_read_ = req_total_read;
+	}
+
+public:
+	explicit binary_stream_reader(buffer_read& source, std::size_t read_limit = 0)
+		: stream_base(source),
+		  buffer_(source),
+		  total_read_(0),
+		  read_limit_(read_limit),
+		  state_(stream_state::ok) {}
+
+	// terminates when it hits a null byte, empty string if none found
+	binary_stream_reader& operator>>(std::string& dest) {
+		check_read_bounds(1); // just to prevent trying to read from an empty buffer
+		auto pos = buffer_.find_first_of(std::byte(0));
+
+		if(pos == buffer_read::npos) {
+			dest.clear();
+			return *this;
+		}
+
+		dest.resize_and_overwrite(pos, [&](char* strbuf, std::size_t size) {
+			total_read_ += size;
+			buffer_.read(strbuf, size);
+			return size;
+		});
+
+		buffer_.skip(1); // skip null term
+		return *this;
+	}
+
+	binary_stream_reader& operator>>(has_shr_override<binary_stream_reader> auto&& data) {
+		return data.operator>>(*this);
+	}
+
+	template<pod T>
+	requires (!has_shr_override<T, binary_stream_reader>)
+	binary_stream_reader& operator>>(T& data) {
+		check_read_bounds(sizeof(data));
+		buffer_.read(&data, sizeof(data));
+		return *this;
+	}
+
+	binary_stream_reader& operator>>(pod auto& data) {
+		check_read_bounds(sizeof(data));
+		buffer_.read(&data, sizeof(data));
+		return *this;
+	}
+
+	void get(std::string& dest) {
+		*this >> dest;
+	}
+
+	void get(std::string& dest, std::size_t size) {
+		check_read_bounds(size);
+		dest.resize_and_overwrite(size, [&](char* strbuf, std::size_t len) {
+			buffer_.read(strbuf, len);
+			return len;
+		});
+	}
+
+	template<typename T>
+	void get(T* dest, std::size_t count) {
+		assert(dest);
+		const auto read_size = count * sizeof(T);
+		check_read_bounds(read_size);
+		buffer_.read(dest, read_size);
+	}
+
+	template<typename It>
+	void get(It begin, const It end) {
+		for(; begin != end; ++begin) {
+			*this >> *begin;
+		}
+	}
+
+	template<std::ranges::contiguous_range range>
+	void get(range& dest) {
+		const auto read_size = dest.size() * sizeof(range::value_type);
+		check_read_bounds(read_size);
+		buffer_.read(dest.data(), read_size);
+	}
+
+	/**  Misc functions **/ 
+
+	void skip(std::size_t count) {
+		check_read_bounds(count);
+		buffer_.skip(count);
+	}
+
+	stream_state state() const {
+		return state_;
+	}
+
+	std::size_t total_read() const {
+		return total_read_;
+	}
+
+	std::size_t read_limit() const {
+		return read_limit_;
+	}
+
+	buffer_read* buffer() const {
+		return &buffer_;
+	}
+
+	bool good() const {
+		return state_ == stream_state::ok;
+	}
+
+	void clear_state() {
+		state_ = stream_state::ok;
+	}
+
+	operator bool() const {
+		return good();
+	}
+};
+
+} // pmr, hexi
+
+// #include <hexi/pmr/binary_stream_writer.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmr/stream_base.h>
+
+// #include <hexi/pmr/buffer_write.h>
+
+// #include <hexi/shared.h>
+
+// #include <hexi/concepts.h>
+
+#include <algorithm>
+#include <array>
+#include <string>
+#include <string_view>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+namespace hexi::pmr {
+
+using namespace detail;
+
+class binary_stream_writer : virtual public stream_base {
+private:
+	buffer_write& buffer_;
+	std::size_t total_write_;
+
+	template<std::size_t size>
+	auto generate_filled(const std::uint8_t value) {
+		std::array<std::uint8_t, size> target{};
+		std::ranges::fill(target, value);
+		return target;
+	}
+
+public:
+	explicit binary_stream_writer(buffer_write& source)
+		: stream_base(source),
+		  buffer_(source),
+		  total_write_(0) {}
+
+	binary_stream_writer& operator<<(has_shl_override<binary_stream_writer> auto&& data) {
+		return data.operator<<(*this);
+	}
+
+	template<pod T>
+	requires (!has_shl_override<T, binary_stream_writer>)
+	binary_stream_writer& operator<<(const T& data) {
+		buffer_.write(&data, sizeof(data));
+		total_write_ += sizeof(data);
+		return *this;
+	}
+
+	binary_stream_writer& operator<<(const std::string& data) {
+		buffer_.write(data.data(), data.size() + 1); // +1 also writes terminator
+		total_write_ += (data.size() + 1);
+		return *this;
+	}
+
+	binary_stream_writer& operator<<(const char* data) {
+		assert(data);
+		const auto len = std::strlen(data);
+		buffer_.write(data, len + 1); // include terminator
+		total_write_ += len + 1;
+		return *this;
+	}
+
+	binary_stream_writer& operator<<(std::string_view& data) {
+		buffer_.write(data.data(), data.size());
+		const char term = '\0';
+		buffer_.write(&term, sizeof(term));
+		total_write_ += (data.size() + 1);
+		return *this;
+	}
+
+	template<std::ranges::contiguous_range range>
+	void put(range& data) {
+		const auto write_size = data.size() * sizeof(range::value_type);
+		buffer_.write(data.data(), write_size);
+		total_write_ += write_size;
+	}
+
+	template<typename T>
+	void put(const T& data) requires(arithmetic<T>) {
+		buffer_.write(&data, sizeof(T));
+		total_write_ += sizeof(T);
+	}
+
+	template<pod T>
+	void put(const T* data, std::size_t count) {
+		assert(data);
+		const auto write_size = count * sizeof(T);
+		buffer_.write(data, write_size);
+		total_write_ += write_size;
+	}
+
+	template<typename It>
+	void put(It begin, const It end) {
+		for(auto it = begin; it != end; ++it) {
+			*this << *it;
+		}
+	}
+
+	template<std::size_t size>
+	void fill(const std::uint8_t value) {
+		const auto filled = generate_filled<size>(value);
+		buffer_.write(filled.data(), filled.size());
+		total_write_ += size;
+	}
+
+	/**  Misc functions **/ 
+
+	bool can_write_seek() const {
+		return buffer_.can_write_seek();
+	}
+
+	void write_seek(const stream_seek direction, const std::size_t offset) {
+		if(direction == stream_seek::sk_stream_absolute) {
+			buffer_.write_seek(buffer_seek::sk_backward, total_write_ - offset);
+		} else {
+			buffer_.write_seek(static_cast<buffer_seek>(direction), offset);
+		}
+	}
+
+	std::size_t size() const {
+		return buffer_.size();
+	}
+
+	[[nodiscard]]
+	bool empty() const {
+		return buffer_.empty();
+	}
+
+	std::size_t total_write() const {
+		return total_write_;
+	}
+
+	buffer_write* buffer() const {
+		return &buffer_;
+	}
+};
+
+} // pmr, hexi
+
+// #include <hexi/pmr/stream_base.h>
+
+// #include <hexi/pmr/buffer.h>
+
+#include <cstddef>
+
+namespace hexi::pmr {
+
+class binary_stream final : public binary_stream_reader, public binary_stream_writer {
+public:
+	explicit binary_stream(hexi::pmr::buffer& source, std::size_t read_limit = 0)
+		: stream_base(source),
+		  binary_stream_reader(source, read_limit),
+		  binary_stream_writer(source) {}
+
+	~binary_stream() override = default;
+};
+
+} // pmr, hexi
+
+// #include <hexi/pmr/binary_stream_reader.h>
+
+// #include <hexi/pmr/binary_stream_writer.h>
+
+// #include <hexi/pmr/buffer.h>
+
+// #include <hexi/pmr/buffer_adaptor.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmr/buffer.h>
+
+// #include <hexi/pmr/buffer_read_adaptor.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmr/buffer_read.h>
+
+// #include <hexi/shared.h>
+
+// #include <hexi/concepts.h>
+
+#include <ranges>
+#include <stdexcept>
+#include <utility>
+#include <cassert>
+#include <cstddef>
+#include <cstring>
+
+namespace hexi::pmr {
+
+using namespace detail;
+
+template<byte_oriented buf_type>
+requires std::ranges::contiguous_range<buf_type>
+class buffer_read_adaptor : public buffer_read {
+	buf_type& buffer_;
+	std::size_t read_;
+
+public:
+	buffer_read_adaptor(buf_type& buffer)
+		: buffer_(buffer),
+		  read_(0) {}
+
+	template<typename T>
+	void read(T* destination) {
+		read(destination, sizeof(T));
+	}
+
+	void read(void* destination, std::size_t length) override {
+		assert(destination && !region_overlap(buffer_.data(), buffer_.size(), destination, length));
+		std::memcpy(destination, buffer_.data() + read_, length);
+		read_ += length;
+	}
+
+	template<typename T>
+	void copy(T* destination) const {
+		copy(destination, sizeof(T));
+	}
+
+	void copy(void* destination, std::size_t length) const override {
+		assert(destination && !region_overlap(buffer_.data(), buffer_.size(), destination, length));
+		std::memcpy(destination, buffer_.data() + read_, length);
+	}
+
+	void skip(std::size_t length) override {
+		read_ += length;
+	}
+
+	std::size_t size() const override {
+		return buffer_.size() - read_;
+	}
+
+	[[nodiscard]]
+	bool empty() const override {
+		return !(buffer_.size() - read_);
+	}
+
+	const std::byte& operator[](const std::size_t index) const override {
+		return reinterpret_cast<const std::byte*>(buffer_.data() + read_)[index];
+	}
+
+	const auto read_ptr() const {
+		return buffer_.data() + read_;
+	}
+
+	const auto read_offset() const {
+		return read_;
+	}
+
+	std::size_t find_first_of(std::byte val) const override {
+		for(auto i = read_; i < size(); ++i) {
+			if(static_cast<std::byte>(buffer_[i]) == val) {
+				return i - read_;
+			}
+		}
+
+		return npos;
+	}
+
+	void reset() {
+		read_ = 0;
+		buffer_.clear();
+	}
+};
+
+} // pmr, hexi
+
+// #include <hexi/pmr/buffer_write_adaptor.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmr/buffer_write.h>
+
+// #include <hexi/shared.h>
+
+// #include <hexi/concepts.h>
+
+#include <ranges>
+#include <cassert>
+#include <cstddef>
+#include <cstring>
+
+namespace hexi::pmr {
+
+using namespace detail;
+
+template<byte_oriented buf_type>
+requires std::ranges::contiguous_range<buf_type>
+class buffer_write_adaptor : public buffer_write {
+	buf_type& buffer_;
+	std::size_t write_;
+
+public:
+	buffer_write_adaptor(buf_type& buffer)
+		: buffer_(buffer),
+		  write_(buffer.size()) {}
+
+	void write(auto& source) {
+		write(&source, sizeof(source));
+	}
+
+	void write(const void* source, std::size_t length) override {
+		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
+		const auto min_req_size = write_ + length;
+
+		// we don't use std::back_inserter so we can support seeks
+		if(buffer_.size() < min_req_size) {
+			if constexpr(has_resize_overwrite<buf_type>) {
+				buffer_.resize_and_overwrite(min_req_size, [](char*, std::size_t size) {
+					return size;
+				});
+			} else {
+				buffer_.resize(min_req_size);
+			}
+		}
+
+		std::memcpy(buffer_.data() + write_, source, length);
+		write_ += length;
+	}
+
+	void reserve(const std::size_t length) override {
+		buffer_.reserve(length);
+	}
+
+	bool can_write_seek() const override {
+		return true;
+	}
+
+	void write_seek(const buffer_seek direction, const std::size_t offset) override {
+		switch(direction) {
+			case buffer_seek::sk_backward:
+				write_ -= offset;
+				break;
+			case buffer_seek::sk_forward:
+				write_ += offset;
+				break;
+			case buffer_seek::sk_absolute:
+				write_ = offset;
+		}
+	}
+
+	const auto storage() const {
+		return buffer_.data();
+	}
+
+	auto storage() {
+		return buffer_.data();
+	}
+
+	auto write_ptr() {
+		return buffer_.data() + write_;
+	}
+
+	const auto write_ptr() const {
+		return buffer_.data() + write_;
+	}
+	
+	void reset() {
+		write_ = 0;
+		buffer_.clear();
+	}
+};
+
+} // pmr, hexi
+
+// #include <hexi/concepts.h>
+
+#include <ranges>
+
+namespace hexi::pmr {
+
+template<byte_oriented buf_type, bool allow_optimise  = true>
+requires std::ranges::contiguous_range<buf_type>
+class buffer_adaptor final : public buffer_read_adaptor<buf_type>,
+                            public buffer_write_adaptor<buf_type>,
+                            public buffer {
+	void reset() {
+		if(buffer_read_adaptor<buf_type>::read_ptr() == buffer_write_adaptor<buf_type>::write_ptr()) {
+			buffer_read_adaptor<buf_type>::reset();
+			buffer_write_adaptor<buf_type>::reset();
+		}
+	}
+public:
+	explicit buffer_adaptor(buf_type& buffer)
+		: buffer_read_adaptor<buf_type>(buffer),
+		  buffer_write_adaptor<buf_type>(buffer) {}
+
+	template<typename T>
+	void read(T* destination) {
+		buffer_read_adaptor<buf_type>::read(destination);
+
+		if constexpr(allow_optimise) {
+			reset();
+		}
+	}
+
+	void read(void* destination, std::size_t length) override {
+		buffer_read_adaptor<buf_type>::read(destination, length);
+
+		if constexpr(allow_optimise) {
+			reset();
+		}
+	};
+
+	void write(const auto& source) {
+		buffer_write_adaptor<buf_type>::write(source);
+	};
+
+	void write(const void* source, std::size_t length) {
+		buffer_write_adaptor<buf_type>::write(source, length);
+	};
+
+	void copy(auto* destination) const {
+		buffer_read_adaptor<buf_type>::copy(destination);
+	};
+
+	void copy(void* destination, std::size_t length) const override {
+		buffer_read_adaptor<buf_type>::copy(destination, length);
+	};
+
+	void skip(std::size_t length) override {
+		buffer_read_adaptor<buf_type>::skip(length);
+
+		if constexpr(allow_optimise) {
+			reset();
+		}
+	};
+
+	const std::byte& operator[](const std::size_t index) const override { 
+		return buffer_read_adaptor<buf_type>::operator[](index); 
+	};
+
+	std::byte& operator[](const std::size_t index) override {
+		const auto offset = buffer_read_adaptor<buf_type>::read_offset();
+		auto buffer = buffer_write_adaptor<buf_type>::storage();
+		return reinterpret_cast<std::byte*>(buffer + offset)[index];
+	}
+
+	void reserve(std::size_t length) override {
+		buffer_write_adaptor<buf_type>::reserve(length);
+	};
+
+	bool can_write_seek() const override { 
+		return buffer_write_adaptor<buf_type>::can_write_seek();
+	};
+
+	void write_seek(buffer_seek direction, std::size_t offset) override {
+		buffer_write_adaptor<buf_type>::write_seek(direction, offset);
+	};
+
+	std::size_t size() const override { 
+		return buffer_read_adaptor<buf_type>::size(); 
+	};
+
+	[[nodiscard]]
+	bool empty() const override { 
+		return buffer_read_adaptor<buf_type>::empty();
+	}
+
+	std::size_t find_first_of(std::byte val) const override { 
+		return buffer_read_adaptor<buf_type>::find_first_of(val);
+	}
+};
+
+} // pmr, hexi
+
+// #include <hexi/pmr/buffer_base.h>
+
+// #include <hexi/pmr/buffer_read.h>
+
+// #include <hexi/pmr/buffer_read_adaptor.h>
+
+// #include <hexi/pmr/buffer_write.h>
+
+// #include <hexi/pmr/buffer_write_adaptor.h>
+
+// #include <hexi/pmr/null_buffer.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmr/buffer_write.h>
+
+// #include <hexi/shared.h>
+
+// #include <hexi/exception.h>
+
+#include <cstddef>
+
+namespace hexi::pmr {
+
+class null_buffer final : public buffer_write {
+public:
+	using size_type       = std::size_t;
+	using value_type      = std::byte;
+	using contiguous      = is_contiguous;
+	using seeking         = unsupported;
+
+	void write(const auto& elem) {}
+	void write(const void* source, size_type length) override {};
+	void read(auto* elem) {}
+	void read(void* destination, size_type length) {};
+	void copy(auto* elem) const {}
+	void copy(void* destination, size_type length) const {};
+	void reserve(const size_type length) override {};
+	size_type size() const override{ return 0; };
+	[[nodiscard]] bool empty() const override { return true; };
+	bool can_write_seek() const override { return false; }
+
+	void write_seek(const buffer_seek direction, const std::size_t offset) override {
+		throw exception("Don't do this on a null_buffer"); 
+	};
+};
+
+} // pmr, hexi
+
+// #include <hexi/pmr/stream_base.h>

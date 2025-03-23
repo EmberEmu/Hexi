@@ -1,0 +1,10 @@
+{
+	"target": "hexi.h",
+	"sources": [
+		"include/hexi/hexi.h"
+	],
+	"include_paths": [
+		"include"
+	]
+}
+
