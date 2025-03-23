@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include <hexi/pmr/buffer_write.h>
+#include <hexi/pmc/buffer_write.h>
 #include <hexi/shared.h>
 #include <hexi/exception.h>
 #include <cstddef>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class null_buffer final : public buffer_write {
 public:
@@ -36,4 +36,4 @@ public:
 	};
 };
 
-} // pmr, hexi
+} // pmc, hexi

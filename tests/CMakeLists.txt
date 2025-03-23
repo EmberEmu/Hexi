@@ -8,9 +8,9 @@ set(EXECUTABLE_NAME unit_tests)
 
 set(EXECUTABLE_SRC
     binary_stream.cpp
-    binary_stream_pmr.cpp
+    binary_stream_pmc.cpp
     buffer_adaptor.cpp
-    buffer_adaptor_pmr.cpp
+    buffer_adaptor_pmc.cpp
     buffer_utility.cpp
     dynamic_buffer.cpp
     file_buffer.cpp

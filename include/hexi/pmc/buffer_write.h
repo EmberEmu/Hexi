@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include <hexi/pmr/buffer_base.h>
+#include <hexi/pmc/buffer_base.h>
 #include <hexi/shared.h>
 #include <cstddef>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class buffer_write : virtual public buffer_base {
 public:
@@ -23,4 +23,4 @@ public:
 	virtual void write_seek(buffer_seek direction, std::size_t offset) = 0;
 };
 
-} // pmr, hexi
+} // pmc, hexi

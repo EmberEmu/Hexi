@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <hexi/pmr/buffer_read.h>
-#include <hexi/pmr/buffer_write.h>
+#include <hexi/pmc/buffer_read.h>
+#include <hexi/pmc/buffer_write.h>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class buffer : public buffer_read, public buffer_write {
 public:
@@ -21,4 +21,4 @@ public:
 	virtual ~buffer() = default;
 };
 
-} // pmr, hexi
+} // pmc, hexi

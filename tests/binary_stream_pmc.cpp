@@ -4,8 +4,8 @@
 // | | | |  __/>  <| | Version 1.0
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
-#include <hexi/pmr/binary_stream.h>
-#include <hexi/pmr/buffer_adaptor.h>
+#include <hexi/pmc/binary_stream.h>
+#include <hexi/pmc/buffer_adaptor.h>
 #include <hexi/dynamic_buffer.h>
 #include <gtest/gtest.h>
 #include <algorithm>
@@ -16,7 +16,7 @@
 #include <cstdint>
 #include <cstdlib>
 
-TEST(binary_stream_pmr, message_read_limit) {
+TEST(binary_stream_pmc, message_read_limit) {
 	std::array<std::uint8_t, 14> ping {
 		0x00, 0x0C, 0xDC, 0x01, 0x00, 0x00, 0x01,
 		0x00, 0x00, 0x00, 0xF4, 0x01, 0x00, 0x00
@@ -28,7 +28,7 @@ TEST(binary_stream_pmr, message_read_limit) {
 	buffer.write(ping.data(), ping.size());
 
 	// read one packet back out (reuse the ping array)
-	hexi::pmr::binary_stream stream(buffer, ping.size());
+	hexi::pmc::binary_stream stream(buffer, ping.size());
 	ASSERT_EQ(stream.read_limit(), ping.size());
 	ASSERT_NO_THROW(stream.get(ping.data(), ping.size()))
 		<< "Failed to read packet back from stream";
@@ -40,7 +40,7 @@ TEST(binary_stream_pmr, message_read_limit) {
 		<< "Unexpected stream state";
 }
 
-TEST(binary_stream_pmr, buffer_limit) {
+TEST(binary_stream_pmc, buffer_limit) {
 	std::array<std::uint8_t, 14> ping {
 		0x00, 0x0C, 0xDC, 0x01, 0x00, 0x00, 0x01,
 		0x00, 0x00, 0x00, 0xF4, 0x01, 0x00, 0x00
@@ -51,7 +51,7 @@ TEST(binary_stream_pmr, buffer_limit) {
 	buffer.write(ping.data(), ping.size());
 
 	// read all data back out
-	hexi::pmr::binary_stream stream(buffer);
+	hexi::pmc::binary_stream stream(buffer);
 	ASSERT_NO_THROW(stream.get(ping.data(), ping.size()))
 		<< "Failed to read packet back from stream";
 
@@ -62,9 +62,9 @@ TEST(binary_stream_pmr, buffer_limit) {
 		<< "Unexpected stream state";
 }
 
-TEST(binary_stream_pmr, read_write_ints) {
+TEST(binary_stream_pmc, read_write_ints) {
 	hexi::dynamic_buffer<32> buffer;
-	hexi::pmr::binary_stream stream(buffer);
+	hexi::pmc::binary_stream stream(buffer);
 
 	const std::uint16_t in { 100 };
 	stream << in;
@@ -82,9 +82,9 @@ TEST(binary_stream_pmr, read_write_ints) {
 		<< "Unexpected stream state";
 }
 
-TEST(binary_stream_pmr, read_write_std_string) {
+TEST(binary_stream_pmc, read_write_std_string) {
 	hexi::dynamic_buffer<32> buffer;
-	hexi::pmr::binary_stream stream(buffer);
+	hexi::pmc::binary_stream stream(buffer);
 	const std::string in { "The quick brown fox jumped over the lazy dog" };
 	stream << in;
 
@@ -100,9 +100,9 @@ TEST(binary_stream_pmr, read_write_std_string) {
 		<< "Unexpected stream state";
 }
 
-TEST(binary_stream_pmr, read_write_c_string) {
+TEST(binary_stream_pmc, read_write_c_string) {
 	hexi::dynamic_buffer<32> buffer;
-	hexi::pmr::binary_stream stream(buffer);
+	hexi::pmc::binary_stream stream(buffer);
 	const char* in { "The quick brown fox jumped over the lazy dog" };
 	stream << in;
 
@@ -117,9 +117,9 @@ TEST(binary_stream_pmr, read_write_c_string) {
 		<< "Unexpected stream state";
 }
 
-TEST(binary_stream_pmr, read_write_vector) {
+TEST(binary_stream_pmc, read_write_vector) {
 	hexi::dynamic_buffer<32> buffer;
-	hexi::pmr::binary_stream stream(buffer);
+	hexi::pmc::binary_stream stream(buffer);
 
 	const auto time = std::chrono::system_clock::now().time_since_epoch();
 	const unsigned int seed = static_cast<unsigned int>(time.count());
@@ -151,9 +151,9 @@ TEST(binary_stream_pmr, read_write_vector) {
 		<< "Unexpected stream state";
 }
 
-TEST(binary_stream_pmr, clear) {
+TEST(binary_stream_pmc, clear) {
 	hexi::dynamic_buffer<32> buffer;
-	hexi::pmr::binary_stream stream(buffer);
+	hexi::pmc::binary_stream stream(buffer);
 	stream << 0xBADF00D;
 
 	ASSERT_TRUE(!stream.empty());
@@ -165,9 +165,9 @@ TEST(binary_stream_pmr, clear) {
 	ASSERT_TRUE(buffer.empty());
 }
 
-TEST(binary_stream_pmr, skip) {
+TEST(binary_stream_pmc, skip) {
 	hexi::dynamic_buffer<32> buffer;
-	hexi::pmr::binary_stream stream(buffer);
+	hexi::pmc::binary_stream stream(buffer);
 
 	const std::uint64_t in {0xBADF00D};
 	stream << in << in;
@@ -183,15 +183,15 @@ TEST(binary_stream_pmr, skip) {
 	ASSERT_EQ(in, out);
 }
 
-TEST(binary_stream_pmr, can_write_seek) {
+TEST(binary_stream_pmc, can_write_seek) {
 	hexi::dynamic_buffer<32> buffer;
-	hexi::pmr::binary_stream stream(buffer);
+	hexi::pmc::binary_stream stream(buffer);
 	ASSERT_EQ(buffer.can_write_seek(), stream.can_write_seek());
 }
 
-TEST(binary_stream_pmr, get_put) {
+TEST(binary_stream_pmc, get_put) {
 	hexi::dynamic_buffer<32> buffer;
-	hexi::pmr::binary_stream stream(buffer);
+	hexi::pmc::binary_stream stream(buffer);
 	std::vector<std::uint8_t> in { 1, 2, 3, 4, 5 };
 	std::vector<std::uint8_t> out(in.size());
 
@@ -203,10 +203,10 @@ TEST(binary_stream_pmr, get_put) {
 	ASSERT_EQ(in, out);
 }
 
-TEST(binary_stream_pmr, fill) {
+TEST(binary_stream_pmc, fill) {
 	std::vector<std::uint8_t> buffer;
-	hexi::pmr::buffer_adaptor adaptor(buffer);
-	hexi::pmr::binary_stream stream(adaptor);
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
 	stream.fill<30>(128);
 	ASSERT_EQ(buffer.size(), 30);
 	ASSERT_EQ(stream.total_write(), 30);
@@ -217,10 +217,10 @@ TEST(binary_stream_pmr, fill) {
 	ASSERT_EQ(it, buffer.end());
 }
 
-TEST(binary_stream_pmr, array) {
+TEST(binary_stream_pmc, array) {
 	std::vector<char> buffer;
-	hexi::pmr::buffer_adaptor adaptor(buffer);
-	hexi::pmr::binary_stream stream(adaptor);
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
 	const int arr[] = { 1, 2, 3 };
 	stream << arr;
 	int val = 0;
@@ -232,9 +232,9 @@ TEST(binary_stream_pmr, array) {
 	ASSERT_EQ(val, 3);
 }
 
-TEST(binary_stream_pmr, put_integral_literals) {
+TEST(binary_stream_pmc, put_integral_literals) {
 	hexi::dynamic_buffer<64> buffer;
-	hexi::pmr::binary_stream stream(buffer);
+	hexi::pmc::binary_stream stream(buffer);
 	stream.put<std::uint64_t>(std::numeric_limits<std::uint64_t>::max());
 	stream.put<std::uint32_t>(std::numeric_limits<std::uint32_t>::max());
 	stream.put<std::uint16_t>(std::numeric_limits<std::uint16_t>::max());
@@ -271,10 +271,10 @@ TEST(binary_stream_pmr, put_integral_literals) {
 	ASSERT_TRUE(stream);
 }
 
-TEST(binary_stream_pmr, string_view_write) {
+TEST(binary_stream_pmc, string_view_write) {
 	std::string buffer;
-	hexi::pmr::buffer_adaptor adaptor(buffer);
-	hexi::pmr::binary_stream stream(adaptor);
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
 	std::string_view view { "There's coffee in that nebula" };
 	stream << view;
 	std::string res;

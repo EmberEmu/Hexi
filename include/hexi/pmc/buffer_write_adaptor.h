@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <hexi/pmr/buffer_write.h>
+#include <hexi/pmc/buffer_write.h>
 #include <hexi/shared.h>
 #include <hexi/concepts.h>
 #include <ranges>
@@ -14,7 +14,7 @@
 #include <cstddef>
 #include <cstring>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 using namespace detail;
 
@@ -95,4 +95,4 @@ public:
 	}
 };
 
-} // pmr, hexi
+} // pmc, hexi

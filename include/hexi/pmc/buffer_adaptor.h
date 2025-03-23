@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include <hexi/pmr/buffer.h>
-#include <hexi/pmr/buffer_read_adaptor.h>
-#include <hexi/pmr/buffer_write_adaptor.h>
+#include <hexi/pmc/buffer.h>
+#include <hexi/pmc/buffer_read_adaptor.h>
+#include <hexi/pmc/buffer_write_adaptor.h>
 #include <hexi/concepts.h>
 #include <ranges>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 template<byte_oriented buf_type, bool allow_optimise  = true>
 requires std::ranges::contiguous_range<buf_type>
@@ -107,4 +107,4 @@ public:
 	}
 };
 
-} // pmr, hexi
+} // pmc, hexi

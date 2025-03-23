@@ -844,7 +844,7 @@ friend class const_iterator;
 
 
 
-// #include <hexi/pmr/buffer.h>
+// #include <hexi/pmc/buffer.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -853,7 +853,7 @@ friend class const_iterator;
 
 
 
-// #include <hexi/pmr/buffer_read.h>
+// #include <hexi/pmc/buffer_read.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -862,7 +862,7 @@ friend class const_iterator;
 
 
 
-// #include <hexi/pmr/buffer_base.h>
+// #include <hexi/pmc/buffer_base.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -873,7 +873,7 @@ friend class const_iterator;
 
 #include <cstddef>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class buffer_base {
 public:
@@ -882,11 +882,11 @@ public:
 	virtual ~buffer_base() = default;
 };
 
-} // pmr, hexi
+} // pmc, hexi
 
 #include <cstddef>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class buffer_read : virtual public buffer_base {
 public:
@@ -902,9 +902,9 @@ public:
 	virtual std::size_t find_first_of(std::byte val) const = 0;
 };
 
-} // pmr, hexi
+} // pmc, hexi
 
-// #include <hexi/pmr/buffer_write.h>
+// #include <hexi/pmc/buffer_write.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -913,13 +913,13 @@ public:
 
 
 
-// #include <hexi/pmr/buffer_base.h>
+// #include <hexi/pmc/buffer_base.h>
 
 // #include <hexi/shared.h>
 
 #include <cstddef>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class buffer_write : virtual public buffer_base {
 public:
@@ -932,10 +932,10 @@ public:
 	virtual void write_seek(buffer_seek direction, std::size_t offset) = 0;
 };
 
-} // pmr, hexi
+} // pmc, hexi
 
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class buffer : public buffer_read, public buffer_write {
 public:
@@ -947,7 +947,7 @@ public:
 	virtual ~buffer() = default;
 };
 
-} // pmr, hexi
+} // pmc, hexi
 
 // #include <hexi/shared.h>
 
@@ -1153,7 +1153,7 @@ template<decltype(auto) block_sz,
 	typename allocator = default_allocator<detail::intrusive_storage<block_sz, storage_value_type>>
 >
 requires int_gt_zero<block_sz>
-class dynamic_buffer final : public pmr::buffer {
+class dynamic_buffer final : public pmc::buffer {
 public:
 	using storage_type = intrusive_storage<block_sz, storage_value_type>;
 	using value_type   = storage_value_type;
@@ -2469,7 +2469,7 @@ public:
 
 // #include <hexi/detail/intrusive_storage.h>
 
-// #include <hexi/pmr/binary_stream.h>
+// #include <hexi/pmc/binary_stream.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -2478,7 +2478,7 @@ public:
 
 
 
-// #include <hexi/pmr/binary_stream_reader.h>
+// #include <hexi/pmc/binary_stream_reader.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -2487,7 +2487,7 @@ public:
 
 
 
-// #include <hexi/pmr/stream_base.h>
+// #include <hexi/pmc/stream_base.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -2496,12 +2496,12 @@ public:
 
 
 
-// #include <hexi/pmr/buffer_base.h>
+// #include <hexi/pmc/buffer_base.h>
 
 // #include <hexi/shared.h>
 
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class stream_base {
 	buffer_base& buffer_;
@@ -2521,9 +2521,9 @@ public:
 	virtual ~stream_base() = default;
 };
 
-} // pmr, hexi
+} // pmc, hexi
 
-// #include <hexi/pmr/buffer_read.h>
+// #include <hexi/pmc/buffer_read.h>
 
 // #include <hexi/exception.h>
 
@@ -2538,7 +2538,7 @@ public:
 #include <cstddef>
 #include <cstring>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 using namespace detail;
 
@@ -2680,9 +2680,9 @@ public:
 	}
 };
 
-} // pmr, hexi
+} // pmc, hexi
 
-// #include <hexi/pmr/binary_stream_writer.h>
+// #include <hexi/pmc/binary_stream_writer.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -2691,9 +2691,9 @@ public:
 
 
 
-// #include <hexi/pmr/stream_base.h>
+// #include <hexi/pmc/stream_base.h>
 
-// #include <hexi/pmr/buffer_write.h>
+// #include <hexi/pmc/buffer_write.h>
 
 // #include <hexi/shared.h>
 
@@ -2708,7 +2708,7 @@ public:
 #include <cstdint>
 #include <cstring>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 using namespace detail;
 
@@ -2831,19 +2831,19 @@ public:
 	}
 };
 
-} // pmr, hexi
+} // pmc, hexi
 
-// #include <hexi/pmr/stream_base.h>
+// #include <hexi/pmc/stream_base.h>
 
-// #include <hexi/pmr/buffer.h>
+// #include <hexi/pmc/buffer.h>
 
 #include <cstddef>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class binary_stream final : public binary_stream_reader, public binary_stream_writer {
 public:
-	explicit binary_stream(hexi::pmr::buffer& source, std::size_t read_limit = 0)
+	explicit binary_stream(hexi::pmc::buffer& source, std::size_t read_limit = 0)
 		: stream_base(source),
 		  binary_stream_reader(source, read_limit),
 		  binary_stream_writer(source) {}
@@ -2851,15 +2851,15 @@ public:
 	~binary_stream() override = default;
 };
 
-} // pmr, hexi
+} // pmc, hexi
 
-// #include <hexi/pmr/binary_stream_reader.h>
+// #include <hexi/pmc/binary_stream_reader.h>
 
-// #include <hexi/pmr/binary_stream_writer.h>
+// #include <hexi/pmc/binary_stream_writer.h>
 
-// #include <hexi/pmr/buffer.h>
+// #include <hexi/pmc/buffer.h>
 
-// #include <hexi/pmr/buffer_adaptor.h>
+// #include <hexi/pmc/buffer_adaptor.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -2868,9 +2868,9 @@ public:
 
 
 
-// #include <hexi/pmr/buffer.h>
+// #include <hexi/pmc/buffer.h>
 
-// #include <hexi/pmr/buffer_read_adaptor.h>
+// #include <hexi/pmc/buffer_read_adaptor.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -2879,7 +2879,7 @@ public:
 
 
 
-// #include <hexi/pmr/buffer_read.h>
+// #include <hexi/pmc/buffer_read.h>
 
 // #include <hexi/shared.h>
 
@@ -2892,7 +2892,7 @@ public:
 #include <cstddef>
 #include <cstring>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 using namespace detail;
 
@@ -2969,9 +2969,9 @@ public:
 	}
 };
 
-} // pmr, hexi
+} // pmc, hexi
 
-// #include <hexi/pmr/buffer_write_adaptor.h>
+// #include <hexi/pmc/buffer_write_adaptor.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -2980,7 +2980,7 @@ public:
 
 
 
-// #include <hexi/pmr/buffer_write.h>
+// #include <hexi/pmc/buffer_write.h>
 
 // #include <hexi/shared.h>
 
@@ -2991,7 +2991,7 @@ public:
 #include <cstddef>
 #include <cstring>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 using namespace detail;
 
@@ -3072,13 +3072,13 @@ public:
 	}
 };
 
-} // pmr, hexi
+} // pmc, hexi
 
 // #include <hexi/concepts.h>
 
 #include <ranges>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 template<byte_oriented buf_type, bool allow_optimise  = true>
 requires std::ranges::contiguous_range<buf_type>
@@ -3173,19 +3173,19 @@ public:
 	}
 };
 
-} // pmr, hexi
+} // pmc, hexi
 
-// #include <hexi/pmr/buffer_base.h>
+// #include <hexi/pmc/buffer_base.h>
 
-// #include <hexi/pmr/buffer_read.h>
+// #include <hexi/pmc/buffer_read.h>
 
-// #include <hexi/pmr/buffer_read_adaptor.h>
+// #include <hexi/pmc/buffer_read_adaptor.h>
 
-// #include <hexi/pmr/buffer_write.h>
+// #include <hexi/pmc/buffer_write.h>
 
-// #include <hexi/pmr/buffer_write_adaptor.h>
+// #include <hexi/pmc/buffer_write_adaptor.h>
 
-// #include <hexi/pmr/null_buffer.h>
+// #include <hexi/pmc/null_buffer.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -3194,7 +3194,7 @@ public:
 
 
 
-// #include <hexi/pmr/buffer_write.h>
+// #include <hexi/pmc/buffer_write.h>
 
 // #include <hexi/shared.h>
 
@@ -3202,7 +3202,7 @@ public:
 
 #include <cstddef>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class null_buffer final : public buffer_write {
 public:
@@ -3227,6 +3227,6 @@ public:
 	};
 };
 
-} // pmr, hexi
+} // pmc, hexi
 
-// #include <hexi/pmr/stream_base.h>
+// #include <hexi/pmc/stream_base.h>

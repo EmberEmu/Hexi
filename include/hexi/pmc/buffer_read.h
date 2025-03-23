@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <hexi/pmr/buffer_base.h>
+#include <hexi/pmc/buffer_base.h>
 #include <cstddef>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class buffer_read : virtual public buffer_base {
 public:
@@ -25,4 +25,4 @@ public:
 	virtual std::size_t find_first_of(std::byte val) const = 0;
 };
 
-} // pmr, hexi
+} // pmc, hexi

@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <hexi/pmr/buffer_base.h>
+#include <hexi/pmc/buffer_base.h>
 #include <hexi/shared.h>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class stream_base {
 	buffer_base& buffer_;
@@ -29,4 +29,4 @@ public:
 	virtual ~stream_base() = default;
 };
 
-} // pmr, hexi
+} // pmc, hexi

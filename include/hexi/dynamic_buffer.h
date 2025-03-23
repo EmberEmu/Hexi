@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <hexi/pmr/buffer.h>
+#include <hexi/pmc/buffer.h>
 #include <hexi/shared.h>
 #include <hexi/allocators/default_allocator.h>
 #include <hexi/detail/intrusive_storage.h>
@@ -35,7 +35,7 @@ template<decltype(auto) block_sz,
 	typename allocator = default_allocator<detail::intrusive_storage<block_sz, storage_value_type>>
 >
 requires int_gt_zero<block_sz>
-class dynamic_buffer final : public pmr::buffer {
+class dynamic_buffer final : public pmc::buffer {
 public:
 	using storage_type = intrusive_storage<block_sz, storage_value_type>;
 	using value_type   = storage_value_type;

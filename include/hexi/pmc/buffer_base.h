@@ -8,7 +8,7 @@
 
 #include <cstddef>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class buffer_base {
 public:
@@ -17,4 +17,4 @@ public:
 	virtual ~buffer_base() = default;
 };
 
-} // pmr, hexi
+} // pmc, hexi

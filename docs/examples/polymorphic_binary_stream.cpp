@@ -12,7 +12,7 @@ struct UserPacket {
 	uint8_t has_optional_field;
 	uint32_t optional_field;
 
-	auto& operator>>(hexi::pmr::binary_stream_reader& stream) {
+	auto& operator>>(hexi::pmc::binary_stream_reader& stream) {
 		stream >> user_id >> username >> timestamp >> has_optional_field;
 
 		if (has_optional_field) {
@@ -22,7 +22,7 @@ struct UserPacket {
 		return stream;
 	}
 
-	auto& operator<<(hexi::pmr::binary_stream_writer& stream) const {
+	auto& operator<<(hexi::pmc::binary_stream_writer& stream) const {
 		stream << user_id << username << timestamp << has_optional_field;
 
 		if (has_optional_field) {
@@ -43,8 +43,8 @@ struct UserPacket {
 
 int main() {
 	std::vector<char> buffer;
-	hexi::pmr::buffer_adaptor adaptor(buffer);
-	hexi::pmr::binary_stream stream(adaptor);
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
 
 	UserPacket packet_in {
 		.user_id = 0,

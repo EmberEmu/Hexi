@@ -5,6 +5,7 @@
 # |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 set(HEADERS
+    hexi/hexi.h
     hexi/exception.h
     hexi/dynamic_buffer.h
     hexi/dynamic_tls_buffer.h
@@ -17,18 +18,18 @@ set(HEADERS
     hexi/concepts.h
     hexi/detail/intrusive_storage.h
     hexi/file_buffer.h
-    hexi/pmr/buffer_base.h
-    hexi/pmr/buffer_read.h
-    hexi/pmr/buffer_write.h
-    hexi/pmr/buffer.h
-    hexi/pmr/null_buffer.h
-    hexi/pmr/binary_stream.h
-    hexi/pmr/binary_stream_reader.h
-    hexi/pmr/binary_stream_writer.h
-    hexi/pmr/stream_base.h
-    hexi/pmr/buffer_adaptor.h
-    hexi/pmr/buffer_read_adaptor.h
-    hexi/pmr/buffer_write_adaptor.h
+    hexi/pmc/buffer_base.h
+    hexi/pmc/buffer_read.h
+    hexi/pmc/buffer_write.h
+    hexi/pmc/buffer.h
+    hexi/pmc/null_buffer.h
+    hexi/pmc/binary_stream.h
+    hexi/pmc/binary_stream_reader.h
+    hexi/pmc/binary_stream_writer.h
+    hexi/pmc/stream_base.h
+    hexi/pmc/buffer_adaptor.h
+    hexi/pmc/buffer_read_adaptor.h
+    hexi/pmc/buffer_write_adaptor.h
     hexi/allocators/default_allocator.h
     hexi/allocators/tls_block_allocator.h
     hexi/allocators/block_allocator.h

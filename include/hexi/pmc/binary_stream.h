@@ -6,17 +6,17 @@
 
 #pragma once
 
-#include <hexi/pmr/binary_stream_reader.h>
-#include <hexi/pmr/binary_stream_writer.h>
-#include <hexi/pmr/stream_base.h>
-#include <hexi/pmr/buffer.h>
+#include <hexi/pmc/binary_stream_reader.h>
+#include <hexi/pmc/binary_stream_writer.h>
+#include <hexi/pmc/stream_base.h>
+#include <hexi/pmc/buffer.h>
 #include <cstddef>
 
-namespace hexi::pmr {
+namespace hexi::pmc {
 
 class binary_stream final : public binary_stream_reader, public binary_stream_writer {
 public:
-	explicit binary_stream(hexi::pmr::buffer& source, std::size_t read_limit = 0)
+	explicit binary_stream(hexi::pmc::buffer& source, std::size_t read_limit = 0)
 		: stream_base(source),
 		  binary_stream_reader(source, read_limit),
 		  binary_stream_writer(source) {}
@@ -24,4 +24,4 @@ public:
 	~binary_stream() override = default;
 };
 
-} // pmr, hexi
+} // pmc, hexi
