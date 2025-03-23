@@ -17,8 +17,8 @@ namespace hexi::pmc {
 template<byte_oriented buf_type, bool allow_optimise  = true>
 requires std::ranges::contiguous_range<buf_type>
 class buffer_adaptor final : public buffer_read_adaptor<buf_type>,
-                            public buffer_write_adaptor<buf_type>,
-                            public buffer {
+                             public buffer_write_adaptor<buf_type>,
+                             public buffer {
 	void reset() {
 		if(buffer_read_adaptor<buf_type>::read_ptr() == buffer_write_adaptor<buf_type>::write_ptr()) {
 			buffer_read_adaptor<buf_type>::reset();
