@@ -91,4 +91,4 @@ friend class const_iterator;
 
 } // hexi
 
-#endif // HEXI_ENABLE_BUFFER_SEQUENCE
+#endif // #if defined HEXI_WITH_ASIO || defined HEXI_WITH_BOOST_ASIO

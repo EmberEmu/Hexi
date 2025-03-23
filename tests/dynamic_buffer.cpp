@@ -261,8 +261,7 @@ TEST(dynamic_buffer, write_seek) {
 		<< "Buffer contains incorrect data pattern";
 }
 
-#ifdef HEXI_ENABLE_BUFFER_SEQUENCE
-
+#if defined HEXI_WITH_ASIO || defined HEXI_WITH_BOOST_ASIO
 TEST(dynamic_buffer, read_iterator) {
 	hexi::dynamic_buffer<16> chain; // ensure the string is split over multiple buffers
 	hexi::buffer_sequence sequence(chain);
