@@ -162,14 +162,15 @@ concept has_shr_override =
 
 #include <format>
 #include <stdexcept>
+#include <utility>
 #include <cstddef>
 
 namespace hexi {
 
 class exception : public std::runtime_error {
 public:
-	exception(const std::string& msg)
-		: std::runtime_error(msg) {}
+	exception(std::string msg)
+		: std::runtime_error(std::move(msg)) {}
 };
 
 class buffer_underrun final : public exception {
@@ -2250,8 +2251,8 @@ class static_buffer final {
 	std::size_t write_ = 0;
 
 public:
-	using size_type       = std::size_t;
-	using offset_type     = std::size_t;
+	using size_type       = decltype(buffer_)::size;
+	using offset_type     = size_type;
 	using value_type      = storage_type;
 	using contiguous      = is_contiguous;
 	using seeking         = supported;
@@ -2712,7 +2713,6 @@ namespace hexi::pmc {
 using namespace detail;
 
 class binary_stream_writer : virtual public stream_base {
-private:
 	buffer_write& buffer_;
 	std::size_t total_write_;
 
@@ -2770,10 +2770,9 @@ public:
 		total_write_ += write_size;
 	}
 
-	template<typename T>
-	void put(const T& data) requires(arithmetic<T>) {
-		buffer_.write(&data, sizeof(T));
-		total_write_ += sizeof(T);
+	void put(const arithmetic auto& data) {
+		buffer_.write(&data, sizeof(data));
+		total_write_ += sizeof(data);
 	}
 
 	template<pod T>
