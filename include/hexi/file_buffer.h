@@ -82,7 +82,11 @@ public:
 			return;
 		}
 
-		std::fread(destination, length, 1, file_);
+		if(std::fread(destination, length, 1, file_) != 1) {
+			error_ = true;
+			return;
+		}
+
 		read_ += length;
 	}
 

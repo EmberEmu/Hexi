@@ -437,7 +437,7 @@ public:
 		return block_sz;
 	}
 
-	value_type& operator[](const size_type index) {
+	value_type& operator[](const size_type index) override {
 		return byte_at_index(index);
 	}
 
@@ -459,7 +459,7 @@ public:
 		return count;
 	}
 
-	size_type find_first_of(value_type val) const {
+	size_type find_first_of(value_type val) const override {
 		size_type index = 0;
 		auto head = root_.next;
 
