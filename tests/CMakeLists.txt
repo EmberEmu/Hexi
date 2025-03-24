@@ -23,5 +23,10 @@ add_executable(${EXECUTABLE_NAME} ${EXECUTABLE_SRC})
 target_link_libraries(${EXECUTABLE_NAME} gtest gtest_main)
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ../include)
 gtest_discover_tests(${EXECUTABLE_NAME})
+
+add_custom_command(TARGET ${EXECUTABLE_NAME} PRE_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy_directory
+                   ${CMAKE_SOURCE_DIR}/tests/data ${CMAKE_CURRENT_BINARY_DIR}/data)
+
 INSTALL(TARGETS ${EXECUTABLE_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
 INSTALL(DIRECTORY data/ DESTINATION ${CMAKE_INSTALL_PREFIX}/data)
