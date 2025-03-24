@@ -3,16 +3,6 @@
 #include <string_view>
 #include <vector>
 
-void exceptions() {
-
-}
-
-void no_exceptions(std::span<int> buffer) try {
-
-} catch (const hexi::exception& e) {
-	std::print(e.what());
-}
-
 int main() {
 	std::string str { "The quick brown fox jumped over the lazy dog"};
 
