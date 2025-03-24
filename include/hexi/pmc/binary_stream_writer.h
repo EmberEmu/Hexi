@@ -24,7 +24,6 @@ namespace hexi::pmc {
 using namespace detail;
 
 class binary_stream_writer : virtual public stream_base {
-private:
 	buffer_write& buffer_;
 	std::size_t total_write_;
 
