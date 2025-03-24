@@ -281,3 +281,16 @@ TEST(binary_stream_pmc, string_view_write) {
 	stream >> res;
 	ASSERT_EQ(view, res);
 }
+
+TEST(binary_stream_pmc, set_error_state) {
+	std::string buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+	ASSERT_TRUE(stream);
+	ASSERT_TRUE(stream.good());
+	ASSERT_TRUE(stream.state() == hexi::stream_state::ok);
+	stream.set_error_state();
+	ASSERT_FALSE(stream);
+	ASSERT_FALSE(stream.good());
+	ASSERT_TRUE(stream.state() == hexi::stream_state::user_defined_err);
+}

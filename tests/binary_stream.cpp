@@ -504,3 +504,15 @@ TEST(binary_stream, file_buffer_write) {
 	const auto created = read_file(path);
 	ASSERT_TRUE(std::ranges::equal(reference, created));
 }
+
+TEST(binary_stream, set_error_state) {
+	hexi::static_buffer<char, 64> buffer;
+	hexi::binary_stream stream(buffer);
+	ASSERT_TRUE(stream);
+	ASSERT_TRUE(stream.good());
+	ASSERT_TRUE(stream.state() == hexi::stream_state::ok);
+	stream.set_error_state();
+	ASSERT_FALSE(stream);
+	ASSERT_FALSE(stream.good());
+	ASSERT_TRUE(stream.state() == hexi::stream_state::user_defined_err);
+}
