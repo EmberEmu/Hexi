@@ -81,10 +81,9 @@ public:
 		total_write_ += write_size;
 	}
 
-	template<typename T>
-	void put(const T& data) requires(arithmetic<T>) {
-		buffer_.write(&data, sizeof(T));
-		total_write_ += sizeof(T);
+	void put(const arithmetic auto& data) {
+		buffer_.write(&data, sizeof(data));
+		total_write_ += sizeof(data);
 	}
 
 	template<pod T>
