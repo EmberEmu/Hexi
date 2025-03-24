@@ -66,7 +66,7 @@ TEST(file_buffer, write) {
 	std::uint16_t x = 49197;
 	std::uint32_t y = 2173709693;
 	std::uint64_t z = 1438110846748337907;
-	std::string str { "The quick brown fox jumped over the lazy dog."};
+	std::string str { "The quick brown fox jumped over the lazy dog." };
 
 	//boost::endian::native_to_little_inplace(x);
 	//boost::endian::native_to_little_inplace(y);

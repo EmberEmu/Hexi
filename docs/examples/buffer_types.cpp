@@ -1,6 +1,8 @@
 #include <hexi.h>
 #include <array>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 int main() {
