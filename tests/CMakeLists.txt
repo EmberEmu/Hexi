@@ -17,6 +17,8 @@ set(EXECUTABLE_SRC
     intrusive_storage.cpp
     static_buffer.cpp
     tls_block_allocator.cpp
+	helpers.h
+	final_action.h
     )
 
 add_executable(${EXECUTABLE_NAME} ${EXECUTABLE_SRC})
