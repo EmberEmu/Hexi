@@ -2,6 +2,7 @@
 #include <print>
 #include <span>
 #include <vector>
+#include <cstddef>
 
 void error_codes(std::span<const std::byte> buffer) {
 	hexi::buffer_adaptor adaptor(buffer);
