@@ -7,6 +7,10 @@
     <img src="https://img.shields.io/badge/MSVC-17-EC71A0">
 </p>
 
+<p align="center">
+<img src="https://img.shields.io/github/actions/workflow/status/emberemu/hexi/cmake-multi-platform.yml?logo=githubactions&label=Unit%20Tests&logoColor=white&color=EC71A0">
+</p>
+
 Hexi is a lightweight, header-only C++23 library for safely handling binary data from arbitrary sources (but primarily network data). It sits somewhere between manually memcpying bytes from network buffers and full-blown serialisation libraries.</p>
 <p>The design goals are ease of use, safety when dealing with untrusted data, a reasonable level of flexibility, and keeping overhead to a minimum.
 <p>What Hexi doesn't offer: versioning, conversion between different formats, handling of text-based formats, unloading the dishwasher.</p>
