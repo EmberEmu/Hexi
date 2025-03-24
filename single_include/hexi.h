@@ -2503,9 +2503,17 @@ namespace hexi::pmc {
 
 class stream_base {
 	buffer_base& buffer_;
+	stream_state state_;
+
+protected:
+	void set_state(stream_state state) {
+		state_ = state;
+	}
 
 public:
-	explicit stream_base(buffer_base& buffer) : buffer_(buffer) { }
+	explicit stream_base(buffer_base& buffer)
+		: buffer_(buffer),
+		  state_(stream_state::ok) { }
 
 	std::size_t size() const {
 		return buffer_.size();
@@ -2514,6 +2522,26 @@ public:
 	[[nodiscard]]
 	bool empty() const {
 		return buffer_.empty();
+	}
+
+	stream_state state() const {
+		return state_;
+	}
+
+	bool good() const {
+		return state() == stream_state::ok;
+	}
+
+	void clear_state() {
+		set_state(stream_state::ok);
+	}
+
+	operator bool() const {
+		return good();
+	}
+
+	void set_error_state() {
+		set_state(stream_state::user_defined_err);
 	}
 
 	virtual ~stream_base() = default;
@@ -2544,18 +2572,17 @@ class binary_stream_reader : virtual public stream_base {
 	buffer_read& buffer_;
 	std::size_t total_read_;
 	const std::size_t read_limit_;
-	stream_state state_;
 
 	void check_read_bounds(std::size_t read_size) {
 		if(read_size > buffer_.size()) [[unlikely]] {
-			state_ = stream_state::buff_limit_err;
+			set_state(stream_state::buff_limit_err);
 			throw buffer_underrun(read_size, total_read_, buffer_.size());
 		}
 
 		const auto req_total_read = total_read_ + read_size;
 
 		if(read_limit_ && req_total_read > read_limit_) [[unlikely]] {
-			state_ = stream_state::read_limit_err;
+			set_state(stream_state::read_limit_err);
 			throw stream_read_limit(read_size, total_read_, read_limit_);
 		}
 
@@ -2567,8 +2594,7 @@ public:
 		: stream_base(source),
 		  buffer_(source),
 		  total_read_(0),
-		  read_limit_(read_limit),
-		  state_(stream_state::ok) {}
+		  read_limit_(read_limit) {}
 
 	// terminates when it hits a null byte, empty string if none found
 	binary_stream_reader& operator>>(std::string& dest) {
@@ -2649,10 +2675,6 @@ public:
 		buffer_.skip(count);
 	}
 
-	stream_state state() const {
-		return state_;
-	}
-
 	std::size_t total_read() const {
 		return total_read_;
 	}
@@ -2663,18 +2685,6 @@ public:
 
 	buffer_read* buffer() const {
 		return &buffer_;
-	}
-
-	bool good() const {
-		return state_ == stream_state::ok;
-	}
-
-	void clear_state() {
-		state_ = stream_state::ok;
-	}
-
-	operator bool() const {
-		return good();
 	}
 };
 
