@@ -12,12 +12,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED OFF)
 
 option(ENABLE_TESTING OFF)
 
-find_package(Threads REQUIRED)
-
 ##############################
 #         Google Test        #
 ##############################
 if(ENABLE_TESTING)
+	find_package(Threads REQUIRED)
     include(FetchContent)
 
     FetchContent_Declare(
