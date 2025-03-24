@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-<img src="https://img.shields.io/github/actions/workflow/status/emberemu/hexi/cmake-multi-platform.yml?logo=githubactions&label=Unit%20Tests&logoColor=white&color=EC71A0">
+    <img src="https://img.shields.io/github/actions/workflow/status/emberemu/hexi/cmake-multi-platform.yml?logo=githubactions&label=Unit%20Tests&logoColor=white&color=EC71A0">
 </p>
 
 Hexi is a lightweight, header-only C++23 library for safely handling binary data from arbitrary sources (but primarily network data). It sits somewhere between manually memcpying bytes from network buffers and full-blown serialisation libraries.</p>
@@ -58,7 +58,11 @@ Now, for reasons of portability, it's not recommended that you do things this wa
 
 The two classes you'll primarily deal with are `buffer_adaptor` and `binary_stream`.
 
-`buffer_adaptor` wraps the buffer containing (or that will contain) your data, which can be any contiguous container or view that provides `data` and `size` member functions. From the standard library, that means the following can be used out of the box:
+`binary_stream` takes a container as its argument and is used to do the reading and writing. It doesn't know much about the details of the underlying container.
+
+To support containers that weren't written to be used with Hexi, `buffer_adaptor` is used as a wrapper that `binary_stream` can interface with. As with `binary_stream`, it also provides read and write operations but at a lower level. 
+
+`buffer_adaptor` can wrap any contiguous container or view that provides `data` and `size` member functions and optionally `resize()` for write support. From the standard library, that means the following can be used out of the box:
 - [x] std::array
 - [x] std::span
 - [x] std::string_view
@@ -67,13 +71,13 @@ The two classes you'll primarily deal with are `buffer_adaptor` and `binary_stre
 
 Plenty of non-standard library containers will work out of the box, too, as long as they provide a vaguely similar API.
 
-`binary_stream` takes a `buffer_adaptor` and uses it do the hard work of reading and writing your data from and to the underlying buffer, without caring too much about implementation details. 
-
-The buffer's value type must be a byte type (e.g. `char`, `std::byte`, `uint8_t`, etc). `std::as_bytes` and `std::as_writable_bytes` can be used as a workaround if this poses a problem.
+The container's value type must be a byte type (e.g. `char`, `std::byte`, `uint8_t`). `std::as_bytes` can be used as a workaround if this poses a problem.
 
 <img src="docs/assets/frog-bring-your-own-containers.png">
 
-Hexi supports custom containers, including non-contiguous containers. In fact, there's a non-contiguous container included in the library. You simply need to provide a few functions such as `read` and `size` to allow the `binary_stream` class to be able to use it.
+Hexi supports custom containers, including non-contiguous containers. In fact, there's a non-contiguous container included in the library. You simply need to provide a few functions such as `read` and `size` to allow the `binary_stream` class to be able to use it. 
+
+`static_buffer.h` provides a simple example of a custom container that can be used directly with `binary_stream`.
 
 <img src="docs/assets/frog-i-can-help-you-avoid-segfaults.png">
 
