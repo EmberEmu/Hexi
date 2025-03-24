@@ -8,14 +8,15 @@
 
 #include <format>
 #include <stdexcept>
+#include <utility>
 #include <cstddef>
 
 namespace hexi {
 
 class exception : public std::runtime_error {
 public:
-	exception(const std::string& msg)
-		: std::runtime_error(msg) {}
+	exception(std::string msg)
+		: std::runtime_error(std::move(msg)) {}
 };
 
 class buffer_underrun final : public exception {
