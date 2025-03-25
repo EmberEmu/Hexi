@@ -42,6 +42,11 @@ public:
 		  read_(0),
 		  write_(buffer.size()) {}
 
+	buffer_adaptor(buffer_adaptor&& rhs) = delete;
+	buffer_adaptor& operator=(buffer_adaptor&&) = delete;
+	buffer_adaptor& operator=(const buffer_adaptor&) = delete;
+	buffer_adaptor(const buffer_adaptor&) = delete;
+
 	template<typename T>
 	void read(T* destination) {
 		read(destination, sizeof(T));

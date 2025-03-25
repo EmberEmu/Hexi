@@ -56,6 +56,26 @@ public:
 		}
 	}
 
+	file_buffer(file_buffer&& rhs) noexcept {
+		file_ = rhs.file_;
+		read_ = rhs.read_;
+		write_ = rhs.write_;
+		error_ = rhs.error_;
+		rhs.file_ = nullptr;
+	}
+
+	file_buffer& operator=(file_buffer&& rhs) noexcept {
+		file_ = rhs.file_;
+		read_ = rhs.read_;
+		write_ = rhs.write_;
+		error_ = rhs.error_;
+		rhs.file_ = nullptr;
+		return *this;
+	}
+
+	file_buffer& operator=(const file_buffer&) = delete;
+	file_buffer(const file_buffer&) = delete;
+
 	~file_buffer() {
 		close();
 	}

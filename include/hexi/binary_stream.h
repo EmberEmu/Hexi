@@ -90,6 +90,11 @@ public:
 		: buffer_(source),
 		  read_limit_(read_limit) {};
 
+	binary_stream(binary_stream&& rhs) = delete;
+	binary_stream& operator=(binary_stream&&) = delete;
+	binary_stream& operator=(binary_stream&) = delete;
+	binary_stream(binary_stream&) = delete;
+
 	/*** Write ***/
 
 	binary_stream& operator <<(has_shl_override<binary_stream> auto&& data)

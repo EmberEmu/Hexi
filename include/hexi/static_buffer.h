@@ -42,6 +42,11 @@ public:
 		write_ = sizeof... (vals);
 	}
 
+	static_buffer(static_buffer&& rhs) = default;
+	static_buffer& operator=(static_buffer&&) = default;
+	static_buffer& operator=(const static_buffer&) = default;
+	static_buffer(const static_buffer&) = default;
+
 	template<typename T>
 	void read(T* destination) {
 		read(destination, sizeof(T));

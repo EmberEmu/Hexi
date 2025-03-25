@@ -51,6 +51,11 @@ public:
 		  total_read_(0),
 		  read_limit_(read_limit) {}
 
+	binary_stream_reader(binary_stream_reader&& rhs) = delete;
+	binary_stream_reader& operator=(binary_stream_reader&&) = delete;
+	binary_stream_reader& operator=(const binary_stream_reader&) = delete;
+	binary_stream_reader(const binary_stream_reader&) = delete;
+
 	// terminates when it hits a null byte, empty string if none found
 	binary_stream_reader& operator>>(std::string& dest) {
 		check_read_bounds(1); // just to prevent trying to read from an empty buffer

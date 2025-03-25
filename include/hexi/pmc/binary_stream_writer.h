@@ -41,6 +41,11 @@ public:
 		  buffer_(source),
 		  total_write_(0) {}
 
+	binary_stream_writer(binary_stream_writer&& rhs) = delete;
+	binary_stream_writer& operator=(binary_stream_writer&&) = delete;
+	binary_stream_writer& operator=(const binary_stream_writer&) = delete;
+	binary_stream_writer(const binary_stream_writer&) = delete;
+
 	binary_stream_writer& operator<<(has_shl_override<binary_stream_writer> auto&& data) {
 		return data.operator<<(*this);
 	}

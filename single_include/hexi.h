@@ -424,6 +424,11 @@ public:
 		: buffer_(source),
 		  read_limit_(read_limit) {};
 
+	binary_stream(binary_stream&& rhs) = delete;
+	binary_stream& operator=(binary_stream&&) = delete;
+	binary_stream& operator=(binary_stream&) = delete;
+	binary_stream(binary_stream&) = delete;
+
 	/*** Write ***/
 
 	binary_stream& operator <<(has_shl_override<binary_stream> auto&& data)
@@ -747,6 +752,11 @@ public:
 		: buffer_(buffer),
 		  read_(0),
 		  write_(buffer.size()) {}
+
+	buffer_adaptor(buffer_adaptor&& rhs) = delete;
+	buffer_adaptor& operator=(buffer_adaptor&&) = delete;
+	buffer_adaptor& operator=(const buffer_adaptor&) = delete;
+	buffer_adaptor(const buffer_adaptor&) = delete;
 
 	template<typename T>
 	void read(T* destination) {
@@ -2219,6 +2229,26 @@ public:
 		}
 	}
 
+	file_buffer(file_buffer&& rhs) noexcept {
+		file_ = rhs.file_;
+		read_ = rhs.read_;
+		write_ = rhs.write_;
+		error_ = rhs.error_;
+		rhs.file_ = nullptr;
+	}
+
+	file_buffer& operator=(file_buffer&& rhs) noexcept {
+		file_ = rhs.file_;
+		read_ = rhs.read_;
+		write_ = rhs.write_;
+		error_ = rhs.error_;
+		rhs.file_ = nullptr;
+		return *this;
+	}
+
+	file_buffer& operator=(const file_buffer&) = delete;
+	file_buffer(const file_buffer&) = delete;
+
 	~file_buffer() {
 		close();
 	}
@@ -2428,6 +2458,11 @@ public:
 	static_buffer(T&&... vals) : buffer_{ std::forward<T>(vals)... } {
 		write_ = sizeof... (vals);
 	}
+
+	static_buffer(static_buffer&& rhs) = default;
+	static_buffer& operator=(static_buffer&&) = default;
+	static_buffer& operator=(const static_buffer&) = default;
+	static_buffer(const static_buffer&) = default;
 
 	template<typename T>
 	void read(T* destination) {
@@ -2763,6 +2798,11 @@ public:
 		  total_read_(0),
 		  read_limit_(read_limit) {}
 
+	binary_stream_reader(binary_stream_reader&& rhs) = delete;
+	binary_stream_reader& operator=(binary_stream_reader&&) = delete;
+	binary_stream_reader& operator=(const binary_stream_reader&) = delete;
+	binary_stream_reader(const binary_stream_reader&) = delete;
+
 	// terminates when it hits a null byte, empty string if none found
 	binary_stream_reader& operator>>(std::string& dest) {
 		check_read_bounds(1); // just to prevent trying to read from an empty buffer
@@ -2928,6 +2968,11 @@ public:
 		: stream_base(source),
 		  buffer_(source),
 		  total_write_(0) {}
+
+	binary_stream_writer(binary_stream_writer&& rhs) = delete;
+	binary_stream_writer& operator=(binary_stream_writer&&) = delete;
+	binary_stream_writer& operator=(const binary_stream_writer&) = delete;
+	binary_stream_writer(const binary_stream_writer&) = delete;
 
 	binary_stream_writer& operator<<(has_shl_override<binary_stream_writer> auto&& data) {
 		return data.operator<<(*this);
