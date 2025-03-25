@@ -65,8 +65,8 @@ public:
 	}
 
 	void copy(void* destination, size_type length) const {
-		assert(!region_overlap(buffer_.data(), buffer_.size(), destination, length));
 		assert(destination);
+		assert(!region_overlap(buffer_.data(), buffer_.size(), destination, length));
 		std::memcpy(destination, read_ptr(), length);
 	}
 
