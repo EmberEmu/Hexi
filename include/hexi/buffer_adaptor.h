@@ -157,11 +157,11 @@ public:
 		return buffer_.data() + read_;
 	}
 
-	const auto write_ptr() const {
+	const auto write_ptr() const requires(has_resize<buf_type>) {
 		return buffer_.data() + write_;
 	}
 
-	auto write_ptr() {
+	auto write_ptr() requires(has_resize<buf_type>) {
 		return buffer_.data() + write_;
 	}
 
