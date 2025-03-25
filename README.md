@@ -139,14 +139,14 @@ struct UserPacket {
     std::string username;
     uint64_t timestamp;
     uint8_t has_optional_field;
-    uint32_t optional_field;
+    uint32_t optional_field;  // pretend this is big endian in the protocol
 
     // deserialise
     auto& operator>>(auto& stream) {
         stream >> user_id >> username >> timestamp >> has_optional_field;
 
         if (has_optional_field) {
-            stream >> optional_field;
+            stream >> hexi::endian::big_to_native(optional_field);
         }
 
         // we can manually trigger an error if something went wrong
@@ -159,7 +159,7 @@ struct UserPacket {
         stream << user_id << username << timestamp << has_optional_field;
 
         if (has_optional_field) {
-            stream << optional_field;
+            stream << hexi::endian::native_to_big(optional_field);
         }
 
         return stream;
@@ -224,6 +224,8 @@ Here's a very quick rundown on some of the included extras.
     - Resizeable buffer for when you want to deal with occasional large read/writes without having to allocate the space up front. Internally, it adds additional allocations to accomodate extra data rather than requesting a larger allocation and copying data as `std::vector` would. It reuses allocated blocks where possible and has support for Asio (Boost or standalone). Effectively, it's a linked list buffer.
 - `hexi::tls_block_allocator`
     - Allows many instances of `dynamic_buffer` to share a larger pool of pre-allocated memory, with each thread having its own pool. This is useful when you have many network sockets to handle and want to avoid the general purpose allocator. The caveat is that a deallocation must be made by the same thread that made the allocation, thus limiting access to the buffer to a single thread (with some exceptions).
+- `hexi::endian`
+    - Provides functionality for handling endianness of integral types.
 
 <img src="docs/assets/frog-before.png" alt="Before we wrap up, look at these tidbits...">
 

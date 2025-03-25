@@ -131,4 +131,7 @@ constexpr auto convert(arithmetic auto value) -> decltype(value) {
 	};
 }
 
+template<arithmetic T>
+using endian_func = T(*)(T);
+
 } // endian, hexi
