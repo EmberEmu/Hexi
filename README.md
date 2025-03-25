@@ -146,7 +146,8 @@ struct UserPacket {
         stream >> user_id >> username >> timestamp >> has_optional_field;
 
         if (has_optional_field) {
-            stream >> hexi::endian::big_to_native(optional_field);
+            stream >> optional_field;
+			hexi::endian::big_to_native_inplace(optional_field);
         }
 
         // we can manually trigger an error if something went wrong
