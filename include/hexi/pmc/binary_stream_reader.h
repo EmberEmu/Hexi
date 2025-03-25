@@ -8,9 +8,10 @@
 
 #include <hexi/pmc/stream_base.h>
 #include <hexi/pmc/buffer_read.h>
+#include <hexi/concepts.h>
+#include <hexi/endian.h>
 #include <hexi/exception.h>
 #include <hexi/shared.h>
-#include <hexi/concepts.h>
 #include <algorithm>
 #include <ranges>
 #include <string>
@@ -120,6 +121,29 @@ public:
 		const auto read_size = dest.size() * sizeof(range::value_type);
 		check_read_bounds(read_size);
 		buffer_.read(dest.data(), read_size);
+	}
+
+	template<arithmetic T>
+	T get() {
+		check_read_bounds(sizeof(T));
+		T t{};
+		buffer_.read(&t, sizeof(T));
+		return t;
+	}
+
+	template<endian::conversion conversion>
+	void get(arithmetic auto& dest) {
+		check_read_bounds(sizeof(dest));
+		buffer_.read(&dest, sizeof(dest));
+		dest = endian::convert<conversion>(dest);
+	}
+
+	template<arithmetic T, endian::conversion conversion>
+	T get() {
+		check_read_bounds(sizeof(T));
+		T t{};
+		buffer_.read(&t, sizeof(T));
+		return endian::convert<conversion>(t);
 	}
 
 	/**  Misc functions **/ 

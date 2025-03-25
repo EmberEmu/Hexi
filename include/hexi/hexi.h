@@ -13,6 +13,7 @@
 #include <hexi/dynamic_buffer.h>
 #include <hexi/dynamic_tls_buffer.h>
 #include <hexi/exception.h>
+#include <hexi/endian.h>
 #include <hexi/file_buffer.h>
 #include <hexi/shared.h>
 #include <hexi/static_buffer.h>

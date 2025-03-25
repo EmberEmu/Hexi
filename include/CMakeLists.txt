@@ -7,6 +7,7 @@
 set(HEADERS
     hexi/hexi.h
     hexi/exception.h
+    hexi/endian.h
     hexi/dynamic_buffer.h
     hexi/dynamic_tls_buffer.h
     hexi/shared.h

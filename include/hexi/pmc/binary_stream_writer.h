@@ -8,8 +8,9 @@
 
 #include <hexi/pmc/stream_base.h>
 #include <hexi/pmc/buffer_write.h>
-#include <hexi/shared.h>
 #include <hexi/concepts.h>
+#include <hexi/endian.h>
+#include <hexi/shared.h>
 #include <algorithm>
 #include <array>
 #include <string>
@@ -83,6 +84,13 @@ public:
 
 	void put(const arithmetic auto& data) {
 		buffer_.write(&data, sizeof(data));
+		total_write_ += sizeof(data);
+	}
+
+	template<endian::conversion conversion>
+	void put(const arithmetic auto& data) {
+		const auto swapped = endian::convert<conversion>(data);
+		buffer_.write(&swapped, sizeof(swapped));
 		total_write_ += sizeof(data);
 	}
 

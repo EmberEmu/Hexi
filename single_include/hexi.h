@@ -208,6 +208,142 @@ public:
 
 } // hexi
 
+// #include <hexi/endian.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/concepts.h>
+
+#include <bit>
+#include <type_traits>
+#include <utility>
+#include <cstdint>
+
+namespace hexi::endian {
+
+enum class conversion {
+	big_to_native,
+	native_to_big,
+	little_to_native,
+	native_to_little
+};
+
+constexpr auto conditional_reverse(arithmetic auto value, std::endian from, std::endian to) {
+	using type = decltype(value);
+
+	if(from != to) {
+		if constexpr(std::is_same_v<type, float>) {
+			value = std::bit_cast<type>(std::byteswap(std::bit_cast<std::uint32_t>(value)));
+		} else if constexpr(std::is_same_v<type, double>) {
+			value = std::bit_cast<type>(std::byteswap(std::bit_cast<std::uint64_t>(value)));
+		} else {
+			value = std::byteswap(value);
+		}
+	}
+
+	return value;
+}
+
+template<std::endian from, std::endian to>
+constexpr auto conditional_reverse(arithmetic auto value) {
+	using type = decltype(value);
+
+	if constexpr(from != to) {
+		if constexpr(std::is_same_v<type, float>) {
+			value = std::bit_cast<type>(std::byteswap(std::bit_cast<std::uint32_t>(value)));
+		} else if constexpr(std::is_same_v<type, double>) {
+			value = std::bit_cast<type>(std::byteswap(std::bit_cast<std::uint64_t>(value)));
+		} else {
+			value = std::byteswap(value);
+		}
+	}
+
+	return value;
+}
+
+constexpr auto little_to_native(arithmetic auto value) {
+	return conditional_reverse<std::endian::little, std::endian::native>(value);
+}
+
+constexpr auto big_to_native(arithmetic auto value) {
+	return conditional_reverse<std::endian::big, std::endian::native>(value);
+}
+
+constexpr auto native_to_little(arithmetic auto value) {
+	return conditional_reverse<std::endian::native, std::endian::little>(value);
+}
+
+constexpr auto native_to_big(arithmetic auto value) {
+	return conditional_reverse<std::endian::native, std::endian::big>(value);
+}
+
+template<std::endian from, std::endian to>
+constexpr auto conditional_reverse_inplace(arithmetic auto& value) {
+	using type = std::remove_reference_t<decltype(value)>;
+
+	if constexpr(from != to) {
+		if constexpr(std::is_same_v<type, float>) {
+			value = std::bit_cast<type>(std::byteswap(std::bit_cast<std::uint32_t>(value)));
+		} else if constexpr(std::is_same_v<type, double>) {
+			value = std::bit_cast<type>(std::byteswap(std::bit_cast<std::uint64_t>(value)));
+		} else {
+			value = std::byteswap(value);
+		}
+	}
+}
+
+constexpr auto conditional_reverse_inplace(arithmetic auto& value, std::endian from, std::endian to) {
+	using type = std::remove_reference_t<decltype(value)>;
+
+	if(from != to) {
+		if constexpr(std::is_same_v<type, float>) {
+			value = std::bit_cast<type>(std::byteswap(std::bit_cast<std::uint32_t>(value)));
+		} else if constexpr(std::is_same_v<type, double>) {
+			value = std::bit_cast<type>(std::byteswap(std::bit_cast<std::uint64_t>(value)));
+		} else {
+			value = std::byteswap(value);
+		}
+	}
+}
+
+constexpr void little_to_native_inplace(arithmetic auto& value) {
+	conditional_reverse_inplace<std::endian::little, std::endian::native>(value);
+}
+
+constexpr void big_to_native_inplace(arithmetic auto& value) {
+	conditional_reverse_inplace<std::endian::big, std::endian::native>(value);
+}
+
+constexpr void native_to_little_inplace(arithmetic auto& value) {
+	conditional_reverse_inplace<std::endian::native, std::endian::little>(value);
+}
+
+constexpr void native_to_big_inplace(arithmetic auto& value) {
+	conditional_reverse_inplace<std::endian::native, std::endian::big>(value);
+}
+
+template<conversion _conversion>
+constexpr auto convert(arithmetic auto value) -> decltype(value) {
+	switch(_conversion) {
+		case conversion::big_to_native:
+			return big_to_native(value);
+		case conversion::native_to_big:
+			return native_to_big(value);
+		case conversion::little_to_native:
+			return little_to_native(value);
+		case conversion::native_to_little:
+			return native_to_little(value);
+		default:
+			std::unreachable();
+	};
+}
+
+} // endian, hexi
 #include <algorithm>
 #include <array>
 #include <concepts>
@@ -337,6 +473,13 @@ public:
 		total_write_ += sizeof(data);
 	}
 
+	template<endian::conversion conversion>
+	void put(const arithmetic auto& data) requires(writeable<buf_type>) {
+		const auto swapped = endian::convert<conversion>(data);
+		buffer_.write(&swapped, sizeof(data));
+		total_write_ += sizeof(data);
+	}
+
 	template<pod T>
 	void put(const T* data, size_type count) requires(writeable<buf_type>) {
 		const auto write_size = count * sizeof(T);
@@ -411,6 +554,22 @@ public:
 		buffer_.read(&t, sizeof(T));
 		return t;
 	}
+
+	template<endian::conversion conversion>
+	void get(arithmetic auto& dest) {
+		STREAM_READ_BOUNDS_CHECK(sizeof(dest), void());
+		buffer_.read(&dest, sizeof(dest));
+		dest = endian::convert<conversion>(dest);
+	}
+
+	template<arithmetic T, endian::conversion conversion>
+	T get() {
+		STREAM_READ_BOUNDS_CHECK(sizeof(T), void());
+		T t{};
+		buffer_.read(&t, sizeof(T));
+		return endian::convert<conversion>(t);
+	}
+
 
 	void get(std::string& dest) {
 		*this >> dest;
@@ -612,8 +771,8 @@ public:
 	}
 
 	void copy(void* destination, size_type length) const {
-		assert(!region_overlap(buffer_.data(), buffer_.size(), destination, length));
 		assert(destination);
+		assert(!region_overlap(buffer_.data(), buffer_.size(), destination, length));
 		std::memcpy(destination, read_ptr(), length);
 	}
 
@@ -704,11 +863,11 @@ public:
 		return buffer_.data() + read_;
 	}
 
-	const auto write_ptr() const {
+	const auto write_ptr() const requires(has_resize<buf_type>) {
 		return buffer_.data() + write_;
 	}
 
-	auto write_ptr() {
+	auto write_ptr() requires(has_resize<buf_type>) {
 		return buffer_.data() + write_;
 	}
 
@@ -1553,7 +1712,7 @@ public:
 		return block_sz;
 	}
 
-	value_type& operator[](const size_type index) {
+	value_type& operator[](const size_type index) override {
 		return byte_at_index(index);
 	}
 
@@ -1575,7 +1734,7 @@ public:
 		return count;
 	}
 
-	size_type find_first_of(value_type val) const {
+	size_type find_first_of(value_type val) const override {
 		size_type index = 0;
 		auto head = root_.next;
 
@@ -1996,6 +2155,8 @@ using dynamic_tls_buffer = dynamic_buffer<block_size, storage_type,
 
 // #include <hexi/exception.h>
 
+// #include <hexi/endian.h>
+
 // #include <hexi/file_buffer.h>
 //  _               _ 
 // | |__   _____  _(_)
@@ -2084,7 +2245,11 @@ public:
 			return;
 		}
 
-		std::fread(destination, length, 1, file_);
+		if(std::fread(destination, length, 1, file_) != 1) {
+			error_ = true;
+			return;
+		}
+
 		read_ += length;
 	}
 
@@ -2551,11 +2716,13 @@ public:
 
 // #include <hexi/pmc/buffer_read.h>
 
+// #include <hexi/concepts.h>
+
+// #include <hexi/endian.h>
+
 // #include <hexi/exception.h>
 
 // #include <hexi/shared.h>
-
-// #include <hexi/concepts.h>
 
 #include <algorithm>
 #include <ranges>
@@ -2668,6 +2835,29 @@ public:
 		buffer_.read(dest.data(), read_size);
 	}
 
+	template<arithmetic T>
+	T get() {
+		check_read_bounds(sizeof(T));
+		T t{};
+		buffer_.read(&t, sizeof(T));
+		return t;
+	}
+
+	template<endian::conversion conversion>
+	void get(arithmetic auto& dest) {
+		check_read_bounds(sizeof(dest));
+		buffer_.read(&dest, sizeof(dest));
+		dest = endian::convert<conversion>(dest);
+	}
+
+	template<arithmetic T, endian::conversion conversion>
+	T get() {
+		check_read_bounds(sizeof(T));
+		T t{};
+		buffer_.read(&t, sizeof(T));
+		return endian::convert<conversion>(t);
+	}
+
 	/**  Misc functions **/ 
 
 	void skip(std::size_t count) {
@@ -2703,9 +2893,11 @@ public:
 
 // #include <hexi/pmc/buffer_write.h>
 
-// #include <hexi/shared.h>
-
 // #include <hexi/concepts.h>
+
+// #include <hexi/endian.h>
+
+// #include <hexi/shared.h>
 
 #include <algorithm>
 #include <array>
@@ -2780,6 +2972,13 @@ public:
 
 	void put(const arithmetic auto& data) {
 		buffer_.write(&data, sizeof(data));
+		total_write_ += sizeof(data);
+	}
+
+	template<endian::conversion conversion>
+	void put(const arithmetic auto& data) {
+		const auto swapped = endian::convert<conversion>(data);
+		buffer_.write(&swapped, sizeof(swapped));
 		total_write_ += sizeof(data);
 	}
 
@@ -3123,7 +3322,7 @@ public:
 		buffer_write_adaptor<buf_type>::write(source);
 	};
 
-	void write(const void* source, std::size_t length) {
+	void write(const void* source, std::size_t length) override {
 		buffer_write_adaptor<buf_type>::write(source, length);
 	};
 

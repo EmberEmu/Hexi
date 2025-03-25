@@ -9,6 +9,7 @@
 #include <hexi/shared.h>
 #include <hexi/concepts.h>
 #include <hexi/exception.h>
+#include <hexi/endian.h>
 #include <algorithm>
 #include <array>
 #include <concepts>
@@ -138,6 +139,13 @@ public:
 		total_write_ += sizeof(data);
 	}
 
+	template<endian::conversion conversion>
+	void put(const arithmetic auto& data) requires(writeable<buf_type>) {
+		const auto swapped = endian::convert<conversion>(data);
+		buffer_.write(&swapped, sizeof(data));
+		total_write_ += sizeof(data);
+	}
+
 	template<pod T>
 	void put(const T* data, size_type count) requires(writeable<buf_type>) {
 		const auto write_size = count * sizeof(T);
@@ -212,6 +220,22 @@ public:
 		buffer_.read(&t, sizeof(T));
 		return t;
 	}
+
+	template<endian::conversion conversion>
+	void get(arithmetic auto& dest) {
+		STREAM_READ_BOUNDS_CHECK(sizeof(dest), void());
+		buffer_.read(&dest, sizeof(dest));
+		dest = endian::convert<conversion>(dest);
+	}
+
+	template<arithmetic T, endian::conversion conversion>
+	T get() {
+		STREAM_READ_BOUNDS_CHECK(sizeof(T), void());
+		T t{};
+		buffer_.read(&t, sizeof(T));
+		return endian::convert<conversion>(t);
+	}
+
 
 	void get(std::string& dest) {
 		*this >> dest;
