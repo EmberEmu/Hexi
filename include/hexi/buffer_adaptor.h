@@ -111,7 +111,7 @@ public:
 	size_type find_first_of(value_type val) const {
 		const auto data = read_ptr();
 
-		for(size_type i = 0; i < size(); ++i) {
+		for(size_type i = 0, j = size(); i < j; ++i) {
 			if(data[i] == val) {
 				return i;
 			}
