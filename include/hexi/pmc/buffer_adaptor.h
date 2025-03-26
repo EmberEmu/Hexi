@@ -163,7 +163,7 @@ public:
 	};
 
 	/**
-	 * Returns the size of the container.
+	 * @brief Returns the size of the container.
 	 * 
 	 * @return The number of bytes of data available to read within the stream.
 	 */
