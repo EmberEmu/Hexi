@@ -33,6 +33,21 @@ private:
 	offset_type write_ = 0;
 	bool error_ = false;
 
+	/**
+	* @brief Explicitly Close the underlying file handle.
+	* 
+	* This function will be called by the object's destructor
+	* and does not need to be called explicitly.
+	* 
+	* @note Idempotent.
+	*/
+	void close() {
+		if(file_) {
+			std::fclose(file_);
+			file_ = nullptr;
+		}
+	}
+
 public:
 	file_buffer(const std::filesystem::path& path)
 		: file_buffer(path.string().c_str()) { }
@@ -80,19 +95,12 @@ public:
 		close();
 	}
 
+
 	/**
-	* @brief Explicitly Close the underlying file handle.
-	* 
-	* This function will be called by the object's destructor
-	* and does not need to be called explicitly.
-	* 
-	* @note Idempotent.
-	*/
-	void close() {
-		if(file_) {
-			std::fclose(file_);
-			file_ = nullptr;
-		}
+	 * @brief Flush unwritten data.
+	 */
+	void flush() {
+		std::fflush(file_);
 	}
 
 	/**
