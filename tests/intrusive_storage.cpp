@@ -64,12 +64,12 @@ TEST(intrusive_storage, skip) {
 TEST(intrusive_storage, read_write_string_view) {
 	hexi::detail::intrusive_storage<128, char> buffer;
 	std::string_view str { "The quick brown fox jumped over the lazy dog" };
-	buffer.write(str.data(), str.size()+1);
-	ASSERT_EQ(str.size() + 1, buffer.size());
+	buffer.write(str.data(), str.size());
+	ASSERT_EQ(str.size(), buffer.size());
 	ASSERT_STREQ(str.data(), buffer.read_data());
 
 	std::array<char, 128> out{};
-	buffer.read(out.data(), str.size() + 1);
+	buffer.read(out.data(), str.size());
 	ASSERT_STREQ(str.data(), out.data());
 	ASSERT_TRUE(buffer.size() == 0);
 }
@@ -89,7 +89,7 @@ TEST(intrusive_storage, read_wrie_ints) {
 TEST(intrusive_storage, subscript) {
 	hexi::detail::intrusive_storage<8, char> buffer;
 	std::string_view str { "ABC" };
-	buffer.write(str.data(), str.size()+1);
+	buffer.write(str.data(), str.size());
 	ASSERT_EQ(str[0], buffer[0]);
 	ASSERT_EQ(str[1], buffer[1]);
 	ASSERT_EQ(str[2], buffer[2]);
