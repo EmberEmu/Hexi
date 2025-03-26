@@ -498,7 +498,7 @@ TEST(binary_stream, file_buffer_write) {
 	//boost::endian::native_to_little_inplace(z);
 
 	stream << w << x << y << z << str;
-	buffer.close(); // flush to OS
+	buffer.flush(); // ensure data is written before following read
 
 	const auto reference = read_file("data/filebuffer");
 	const auto created = read_file(path);
