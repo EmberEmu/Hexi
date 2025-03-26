@@ -16,7 +16,7 @@ Hexi is a lightweight, header-only C++23 library for safely handling binary data
 <p>What Hexi doesn't offer: versioning, conversion between different formats, handling of text-based formats, unloading the dishwasher.</p>
 <img src="docs/assets/frog-getting-started.png" alt="Getting started">
 
-Incorporating Hexi into your project is simple! The easiest way is to simply copy `hexi.h` into your own project. If you'd rather only include what you use, you can add `include` to your include paths or incorporate it into your own CMake project with `target_link_library`. To build the unit tests, run CMake with `ENABLE_TESTING`.
+Incorporating Hexi into your project is simple! The easiest way is to simply copy `hexi.h` from `single_include` into your own project. If you'd rather only include what you use, you can add `include` to your include paths or incorporate it into your own CMake project with `target_link_library`. To build the unit tests, run CMake with `ENABLE_TESTING`.
 
 Here's what some libraries might call a very simple motivating example:
 
