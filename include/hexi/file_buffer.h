@@ -197,7 +197,7 @@ public:
 
 		value_type buffer{};
 
-		for(std::size_t i = 0u; i < size(); ++i) {
+		for(std::size_t i = 0u, j = size(); i < j; ++i) {
 			if(std::fread(&buffer, sizeof(value_type), 1, file_) != 1) {
 				error_ = true;
 				return npos;

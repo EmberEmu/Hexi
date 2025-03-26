@@ -77,7 +77,7 @@ TEST(file_buffer, write) {
 	buffer.write(y);
 	buffer.write(z);
 	buffer.write(str.data(), str.size() + 1); // write terminator
-	buffer.flush(); // ensure data has been written
+	buffer.flush(); // ensure data has been written before the read
 
 	const auto reference = read_file("data/filebuffer");
 	const auto created = read_file(path);
