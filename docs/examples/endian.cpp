@@ -9,14 +9,14 @@ int main() {
 	hexi::buffer_adaptor adaptor(buffer);
 	hexi::binary_stream stream(adaptor);
 
-	{ // serialise foo & bar as big endian
+	{ // serialise foo & bar as big/little endian
 		const std::uint64_t foo = 100;
 		const std::uint32_t bar = 200;
 		stream.put<hexi::endian::conversion::native_to_big>(foo);
 		stream.put<hexi::endian::conversion::native_to_little>(bar);
 	}
 
-	{ // deserialise foo & bar as big endian
+	{ // deserialise foo & bar as big/little endian
 		std::uint64_t foo = 0;
 
 		// write to existing variable or return result

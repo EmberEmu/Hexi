@@ -147,7 +147,7 @@ struct UserPacket {
 
         if (has_optional_field) {
             stream >> optional_field;
-			hexi::endian::big_to_native_inplace(optional_field);
+            hexi::endian::big_to_native_inplace(optional_field);
         }
 
         // we can manually trigger an error if something went wrong
@@ -178,7 +178,7 @@ void read() {
 
     switch (packet_type) {
         case packet_type::user_packet:
-            result = handle_user_packet(std::span(buffer));
+            result = handle_user_packet(buffer);
             break;
     }
 
@@ -212,7 +212,7 @@ How you structure your code is up to you, this is just one way of doing it.
 
 When using `binary_stream`, strings are always treated as null-terminated. Writing a `char*`, `std::string_view` or `std::string` will always write a terminating byte to the stream. If you require otherwise, use one of the `put` functions.
 
-Likewise, reading to `std::string` assumes the buffer contains a null-terminator. If it does not, an empty string will be returned.
+Likewise, reading to `std::string` assumes the buffer contains a null-terminator. If it does not, an empty string will be returned. If you know the length of the string or need to support a custom terminating/sentinel value, use `get()` and `find_first_of()`.
 
 <img src="docs/assets/frog-what-else-is-in-the-box.png" alt="What else is in the box?">
 
@@ -234,7 +234,7 @@ We're at the end of the overview, but there's more to discover if you decide to 
 
 - `binary_stream` allows you to perform write seeking within the stream, when the underlying buffer supports it. This is nice if, for example, you need to update a message header with information that you might not know until the rest of the message has been written; checksums, sizes, etc.
 - `binary_stream` provides overloaded `put` and `get` member functions, which allow for fine-grained control, such as reading/writing a specific number of bytes.
-- `binary_stream` allows for writing to `std::string_view` and `std::span` with `view()` as long as the underlying container is contiguous. This allows you to create views into the buffer's data, providing a fast, zero-copy way to read strings and arrays from the stream. If you do this, you should avoid writing to the same buffer while holding views to the data.
+- `binary_stream` allows for writing to `std::string_view` and `std::span` with `view()` and `span()` as long as the underlying container is contiguous. This allows you to create views into the buffer's data, providing a fast, zero-copy way to read strings and arrays from the stream. If you do this, you should avoid writing to the same buffer while holding views to the data.
 - `buffer_adaptor` provides a template option, `space_optimise`. This is enabled by default and allows it to avoid resizing containers in cases where all data has been read by the stream. Disabling it allows for preserving data even after having been read. This option is only relevant in scenarios where a single buffer is being both written to and read from.
 - `buffer_adaptor` provides `find_first_of`, making it easy to find a specific sentinel value within your buffer.
 
