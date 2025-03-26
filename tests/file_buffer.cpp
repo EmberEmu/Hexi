@@ -7,6 +7,7 @@
 #include "final_action.h"
 #include "helpers.h"
 #include <hexi/file_buffer.h>
+#include <hexi/endian.h>
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <filesystem>
@@ -38,9 +39,9 @@ TEST(file_buffer, read) {
 
 	ASSERT_TRUE(buffer) << "File read error occurred";
 
-	//boost::endian::little_to_native_inplace(x);
-	//boost::endian::little_to_native_inplace(y);
-	//boost::endian::little_to_native_inplace(z);
+	hexi::endian::little_to_native_inplace(x);
+	hexi::endian::little_to_native_inplace(y);
+	hexi::endian::little_to_native_inplace(z);
 
 	ASSERT_EQ(w, 47) << "Wrong uint8 value";
 	ASSERT_EQ(x, 49197) << "Wrong uint16 value";
@@ -68,9 +69,9 @@ TEST(file_buffer, write) {
 	std::uint64_t z = 1438110846748337907;
 	std::string str { "The quick brown fox jumped over the lazy dog." };
 
-	//boost::endian::native_to_little_inplace(x);
-	//boost::endian::native_to_little_inplace(y);
-	//boost::endian::native_to_little_inplace(z);
+	hexi::endian::native_to_little_inplace(x);
+	hexi::endian::native_to_little_inplace(y);
+	hexi::endian::native_to_little_inplace(z);
 
 	buffer.write(w);
 	buffer.write(x);
