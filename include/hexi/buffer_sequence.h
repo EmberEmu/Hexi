@@ -31,10 +31,10 @@ public:
 		: buffer_(buffer) { }
 
 	class const_iterator {
-		using Node = typename buffer_type::node_type;
+		using node = typename buffer_type::node_type;
 
 	public:
-		const_iterator(const buffer_type& buffer, const Node* curr_node)
+		const_iterator(const buffer_type& buffer, const node* curr_node)
 			: buffer_(buffer),
 			  curr_node_(curr_node) {}
 
@@ -75,7 +75,7 @@ public:
 
 	private:
 		const buffer_type& buffer_;
-		const Node* curr_node_;
+		const node* curr_node_;
 	};
 
 const_iterator begin() const {
