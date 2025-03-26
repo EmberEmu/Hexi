@@ -137,7 +137,7 @@ public:
 		return read_ptr()[index];
 	}
 
-	consteval static bool can_write_seek() requires(has_resize<buf_type>) {
+	constexpr static bool can_write_seek() requires(has_resize<buf_type>) {
 		return std::is_same_v<seeking, supported>;
 	}
 
