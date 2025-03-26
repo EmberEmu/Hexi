@@ -400,9 +400,9 @@ private:
 			return;
 		}
 
-		const auto req_total_read = total_read_ + read_size;
+		const auto max_read_remaining = read_limit_ - total_read_;
 
-		if(read_limit_ && req_total_read > read_limit_) [[unlikely]] {
+		if(read_limit_ && read_size > max_read_remaining) [[unlikely]] {
 			state_ = stream_state::read_limit_err;
 
 			if constexpr(std::is_same_v<exceptions, allow_throw>) {
@@ -412,7 +412,7 @@ private:
 			return;
 		}
 
-		total_read_ = req_total_read;
+		total_read_ += read_size;
 	}
 
 	template<size_type size>
@@ -3016,7 +3016,7 @@ public:
 	 * @return The number of bytes of data available to read from the file.
 	 */
 	size_type size() const {
-		return write_ - read_;
+		return static_cast<size_type>(write_) - read_;
 	}
 
 	/** 
@@ -3588,14 +3588,14 @@ class binary_stream_reader : virtual public stream_base {
 			throw buffer_underrun(read_size, total_read_, buffer_.size());
 		}
 
-		const auto req_total_read = total_read_ + read_size;
+		const auto max_read_remaining = read_limit_ - total_read_;
 
-		if(read_limit_ && req_total_read > read_limit_) [[unlikely]] {
+		if(read_limit_ && read_size > max_read_remaining) [[unlikely]] {
 			set_state(stream_state::read_limit_err);
 			throw stream_read_limit(read_size, total_read_, read_limit_);
 		}
 
-		total_read_ = req_total_read;
+		total_read_ += read_size;
 	}
 
 public:
