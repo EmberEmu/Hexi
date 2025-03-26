@@ -89,7 +89,7 @@ public:
 		return buffer_.data() + write_;
 	}
 	
-	void reset() {
+	void clear() {
 		write_ = 0;
 		buffer_.clear();
 	}
