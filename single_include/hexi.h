@@ -1631,10 +1631,28 @@ struct intrusive_storage final {
 	}
 
 	/**
+	 * @brief Retrieve a pointer to the readable portion of the buffer.
+	 * 
+	 * @return Pointer to the reable portion of the buffer.
+	 */
+	value_type* read_data() {
+		return storage.data() + read_offset;
+	}
+
+	/**
 	 * @brief Retrieve a pointer to the writeable portion of the buffer.
 	 * 
 	 * @return Pointer to the writeable portion of the buffer.
 	 */
+	const value_type* write_data() const {
+		return storage.data() + write_offset;
+	}
+
+	/**
+	* @brief Retrieve a pointer to the writeable portion of the buffer.
+	* 
+	* @return Pointer to the writeable portion of the buffer.
+	*/
 	value_type* write_data() {
 		return storage.data() + write_offset;
 	}
