@@ -71,7 +71,7 @@ constexpr auto native_to_big(arithmetic auto value) {
 }
 
 template<std::endian from, std::endian to>
-constexpr auto conditional_reverse_inplace(arithmetic auto& value) {
+constexpr void conditional_reverse_inplace(arithmetic auto& value) {
 	using type = std::remove_reference_t<decltype(value)>;
 
 	if constexpr(from != to) {
@@ -85,7 +85,7 @@ constexpr auto conditional_reverse_inplace(arithmetic auto& value) {
 	}
 }
 
-constexpr auto conditional_reverse_inplace(arithmetic auto& value, std::endian from, std::endian to) {
+constexpr void conditional_reverse_inplace(arithmetic auto& value, std::endian from, std::endian to) {
 	using type = std::remove_reference_t<decltype(value)>;
 
 	if(from != to) {
