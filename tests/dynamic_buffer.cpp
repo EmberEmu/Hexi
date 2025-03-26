@@ -155,8 +155,7 @@ TEST(dynamic_buffer, pop_front_push_back) {
 	ASSERT_EQ(0, chain.size()) << "Chain size is incorrect";
 	chain.push_back(buffer);
 	ASSERT_EQ(written, chain.size()) << "Chain size is incorrect";
-	auto front = chain.pop_front();
-	chain.get_allocator().deallocate(front);
+	chain.pop_front();
 	ASSERT_EQ(0, chain.size()) << "Chain size is incorrect";
 }
 
@@ -362,8 +361,7 @@ TEST(dynamic_buffer, block_count) {
 	chain.write(&value, sizeof(value));
 	chain.write(&value, sizeof(value));
 	ASSERT_EQ(chain.block_count(), 4);
-	auto node = chain.pop_front();
-	chain.get_allocator().deallocate(node);
+	chain.pop_front();
 	ASSERT_EQ(chain.block_count(), 3);
 }
 

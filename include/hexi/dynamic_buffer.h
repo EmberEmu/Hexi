@@ -11,6 +11,8 @@
 #include <hexi/allocators/default_allocator.h>
 #include <hexi/detail/intrusive_storage.h>
 #include <concepts>
+#include <functional>
+#include <memory>
 #include <utility>
 #ifdef HEXI_BUFFER_DEBUG
 #include <algorithm>
@@ -46,6 +48,8 @@ public:
 	using seeking      = supported;
 
 	static constexpr auto npos { static_cast<size_type>(-1) };
+
+	using unique_storage = std::unique_ptr<storage_type, std::function<void(storage_type*)>>;
 
 private:
 	intrusive_node root_;
@@ -349,11 +353,13 @@ public:
 		return buffer_from_node(root_.next);
 	}
 
-	[[nodiscard]] auto pop_front() {
+	auto pop_front() {
 		auto buffer = buffer_from_node(root_.next);
 		size_ -= buffer->size();
 		unlink_node(root_.next);
-		return buffer;
+		return unique_storage(buffer, [&](auto ptr) {
+			deallocate(ptr);
+		});
 	}
 
 	void push_back(storage_type* buffer) {
