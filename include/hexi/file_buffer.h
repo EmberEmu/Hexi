@@ -295,7 +295,7 @@ public:
 	 * @return The number of bytes of data available to read from the file.
 	 */
 	size_type size() const {
-		return write_ - read_;
+		return static_cast<size_type>(write_) - read_;
 	}
 
 	/** 
