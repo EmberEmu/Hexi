@@ -283,7 +283,7 @@ constexpr auto native_to_big(arithmetic auto value) {
 }
 
 template<std::endian from, std::endian to>
-constexpr auto conditional_reverse_inplace(arithmetic auto& value) {
+constexpr void conditional_reverse_inplace(arithmetic auto& value) {
 	using type = std::remove_reference_t<decltype(value)>;
 
 	if constexpr(from != to) {
@@ -297,7 +297,7 @@ constexpr auto conditional_reverse_inplace(arithmetic auto& value) {
 	}
 }
 
-constexpr auto conditional_reverse_inplace(arithmetic auto& value, std::endian from, std::endian to) {
+constexpr void conditional_reverse_inplace(arithmetic auto& value, std::endian from, std::endian to) {
 	using type = std::remove_reference_t<decltype(value)>;
 
 	if(from != to) {
@@ -352,6 +352,7 @@ constexpr auto convert(arithmetic auto value) -> decltype(value) {
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -380,8 +381,10 @@ public:
 	using contiguous_type    = typename buf_type::contiguous;
 	
 private:
+	using cond_size_type = std::conditional_t<writeable<buf_type>, size_type, std::monostate>;
+
 	buf_type& buffer_;
-	size_type total_write_ = 0;
+	[[no_unique_address]] cond_size_type total_write_{};
 	size_type total_read_ = 0;
 	stream_state state_ = stream_state::ok;
 	const size_type read_limit_;
@@ -466,6 +469,11 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Writes a contiguous range to the stream.
+	 * 
+	 * @param data The contiguous range to be written to the stream.
+	 */
 	template<std::ranges::contiguous_range range>
 	void put(const range& data) requires(writeable<buf_type>) {
 		const auto write_size = data.size() * sizeof(typename range::value_type);
@@ -473,11 +481,21 @@ public:
 		total_write_ += write_size;
 	}
 
+	/**
+	 * @brief Writes a the provided value to the stream.
+	 * 
+	 * @param data The value to be written to the stream.
+	 */
 	void put(const arithmetic auto& data) requires(writeable<buf_type>) {
 		buffer_.write(&data, sizeof(data));
 		total_write_ += sizeof(data);
 	}
 
+	/**
+	 * @brief Writes data to the stream.
+	 * 
+	 * @param data The element to be written to the stream.
+	 */
 	template<endian::conversion conversion>
 	void put(const arithmetic auto& data) requires(writeable<buf_type>) {
 		const auto swapped = endian::convert<conversion>(data);
@@ -485,6 +503,12 @@ public:
 		total_write_ += sizeof(data);
 	}
 
+	/**
+	 * @brief Writes count elements from the provided buffer to the stream.
+	 * 
+	 * @param data Pointer to the buffer from which data will be copied to the stream.
+	 * @param count The number of elements to write.
+	 */
 	template<pod T>
 	void put(const T* data, size_type count) requires(writeable<buf_type>) {
 		const auto write_size = count * sizeof(T);
@@ -492,6 +516,12 @@ public:
 		total_write_ += write_size;
 	}
 
+	/**
+	 * @brief Writes the data from the iterator range to the stream.
+	 * 
+	 * @param begin Iterator to the beginning of the data.
+	 * @param end Iterator to the end of the data.
+	 */
 	template<typename It>
 	void put(It begin, const It end) requires(writeable<buf_type>) {
 		for(auto it = begin; it != end; ++it) {
@@ -499,6 +529,12 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Allows for writing a provided byte value a specified number of times to
+	 * the stream.
+	 * 
+	 * @param The byte value that will fill the specified number of bytes.
+	 */
 	template<size_type size>
 	void fill(const std::uint8_t value) requires(writeable<buf_type>) {
 		const auto filled = generate_filled<size>(value);
@@ -547,11 +583,21 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Read an arithmetic type from the stream.
+	 * 
+	 * @return The destination for the read value.
+	 */
 	void get(arithmetic auto& dest) {
 		STREAM_READ_BOUNDS_CHECK(sizeof(dest), void());
 		buffer_.read(&dest, sizeof(dest));
 	}
 
+	/**
+	 * @brief Read an arithmetic type from the stream.
+	 * 
+	 * @return The arithmetic value.
+	 */
 	template<arithmetic T>
 	T get() {
 		STREAM_READ_BOUNDS_CHECK(sizeof(T), void());
@@ -560,6 +606,12 @@ public:
 		return t;
 	}
 
+	/**
+	 * @brief Read an arithmetic type from the stream, allowing for endian
+	 * conversion.
+	 * 
+	 * @param The destination for the read value.
+	 */
 	template<endian::conversion conversion>
 	void get(arithmetic auto& dest) {
 		STREAM_READ_BOUNDS_CHECK(sizeof(dest), void());
@@ -567,6 +619,12 @@ public:
 		dest = endian::convert<conversion>(dest);
 	}
 
+	/**
+	 * @brief Read an arithmetic type from the stream, allowing for endian
+	 * conversion.
+	 * 
+	 * @return The arithmetic value.
+	 */
 	template<arithmetic T, endian::conversion conversion>
 	T get() {
 		STREAM_READ_BOUNDS_CHECK(sizeof(T), void());
@@ -576,10 +634,21 @@ public:
 	}
 
 
+	/**
+	 * @brief Reads a string from the stream.
+	 * 
+	 * @param dest The destination string.
+	 */
 	void get(std::string& dest) {
 		*this >> dest;
 	}
 
+	/**
+	 * @brief Reads a fixed-length string from the stream.
+	 * 
+	 * @param dest The destination string.
+	 * @param The number of bytes to be read.
+	 */
 	void get(std::string& dest, size_type size) {
 		STREAM_READ_BOUNDS_CHECK(size, void());
 		dest.resize_and_overwrite(size, [&](char* strbuf, size_type len) {
@@ -588,6 +657,12 @@ public:
 		});
 	}
 
+	/**
+	 * @brief Read data from the stream into the provided destination argument.
+	 * 
+	 * @param dest The destination buffer.
+	 * @param The number of bytes to be read into the destination.
+	 */
 	template<typename T>
 	void get(T* dest, size_type count) {
 		assert(dest);
@@ -596,6 +671,12 @@ public:
 		buffer_.read(dest, read_size);
 	}
 
+	/**
+	 * @brief Read data from the stream to the destination represented by the iterators.
+	 * 
+	 * @param begin The beginning iterator.
+	 * @param end The end iterator.
+	 */
 	template<typename It>
 	void get(It begin, const It end) {
 		for(; begin != end; ++begin) {
@@ -603,6 +684,11 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Read data from the stream into the provided destination argument.
+	 * 
+	 * @param dest A contiguous range into which the data should be read.
+	 */
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
 		const auto read_size = dest.size() * sizeof(range::value_type);
@@ -610,13 +696,28 @@ public:
 		buffer_.read(dest.data(), read_size);
 	}
 
+	/**
+	 * @brief Skip over count bytes
+	 *
+	 * Skips over a number of bytes from the stream. This should be used
+	 * if the stream holds data that you don't care about but don't want
+	 * to have to read it to another buffer to move beyond it.
+	 * 
+	 * @param length The number of bytes to skip.
+	 */
 	void skip(const size_type count) {
 		STREAM_READ_BOUNDS_CHECK(count, void());
 		buffer_.skip(count);
 	}
 
-	// Reads a string_view from the buffer, up to the terminator value
-	// Returns an empty string_view if a terminator is not found
+	/**
+	 * @brief Provides a string_view over the stream's data, up to the terminator value.
+	 * 
+	 * @param terminator An optional terminating/sentinel value.
+	 * 
+	 * @return A string view over data up to the provided terminator.
+	 * An empty string_view if a terminator is not found
+	 */
 	std::string_view view(value_type terminator = value_type(0)) requires(contiguous<buf_type>) {
 		const auto pos = buffer_.find_first_of(terminator);
 
@@ -630,8 +731,16 @@ public:
 		return view;
 	}
 
-	// Reads a span<T> from the buffer
-	// Fails if buffer length < requested bytes
+	/**
+	 * @brief Provides a span over the specified number of elements in the stream.
+	 * 
+	 * @param count The number of elements the span will provide a view over.
+	 * 
+	 * @return A span representing a view over the requested number of elements
+	 * in the stream.
+	 * 
+	 * @note The stream will error if the stream does not contain the requested amount of data.
+	 */
 	template<typename out_type = value_type>
 	std::span<out_type> span(size_type count) requires(contiguous<buf_type>) {
 		STREAM_READ_BOUNDS_CHECK(sizeof(out_type) * count, {});
@@ -642,11 +751,27 @@ public:
 
 	/**  Misc functions **/
 
-	consteval static bool can_write_seek() requires(writeable<buf_type>) {
+	/**
+	 * @brief Determine whether the adaptor supports write seeking.
+	 * 
+	 * This is determined at compile-time and does not need to checked at
+	 * run-time.
+	 * 
+	 * @return True if write seeking is supported, otherwise false.
+	 */
+	constexpr static bool can_write_seek() requires(writeable<buf_type>) {
 		return std::is_same_v<seeking, supported>;
 	}
 
-	void write_seek(const stream_seek direction, const offset_type offset) requires(seekable<buf_type>) {
+	/**
+	 * @brief Performs write seeking within the stream.
+	 * 
+	 * @param direction Specify whether to seek in a given direction or to absolute seek.
+	 * @param offset The offset relative to the seek direction or the absolute value
+	 * when using absolute seeking.
+	 */
+	void write_seek(const stream_seek direction, const offset_type offset)
+		requires(seekable<buf_type> && writeable<buf_type>) {
 		if(direction == stream_seek::sk_stream_absolute) {
 			buffer_.write_seek(buffer_seek::sk_backward, total_write_ - offset);
 		} else {
@@ -654,43 +779,80 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Returns the size of the stream.
+	 * 
+	 * @return The number of bytes of data available to read within the stream.
+	 */
 	size_type size() const {
 		return buffer_.size();
 	}
 
+	/**
+	 * @brief Whether the stream is empty.
+	 * 
+	 * @return Returns true if the stream is empty (has no data to be read).
+	 */
 	[[nodiscard]]
 	bool empty() const {
 		return buffer_.empty();
 	}
 
+	/**
+	 * @return The total number of bytes written to the stream.
+	 */
 	size_type total_write() const requires(writeable<buf_type>) {
 		return total_write_;
 	}
 
+	/**
+	 * @return Pointer to stream's underlying buffer.
+	 */
 	const buf_type* buffer() const {
 		return &buffer_;
 	}
 
+	/**
+	 * @return Pointer to stream's underlying buffer.
+	 */
 	buf_type* buffer() {
 		return &buffer_;
 	}
 
+	/**
+	 * @return The stream's state.
+	 */
 	stream_state state() const {
 		return state_;
 	}
 
+	/**
+	 * @return The total number of bytes read from the stream.
+	 */
 	size_type total_read() const {
 		return total_read_;
 	}
 
+	/**
+	 * @return If provided to the constructor, the upper limit on how much data
+	 * can be read from this stream before an error is triggers.
+	 */
 	size_type read_limit() const {
 		return read_limit_;
 	}
 
+	/**
+	 * @brief Determine whether the stream is in an error state.
+	 * 
+	 * @return True if no errors occurred on this stream.
+	 */
 	bool good() const {
 		return state_ == stream_state::ok;
 	}
 
+	/**
+	 * @brief Clears the reset state of the stream if an error has occurred.
+	 */
 	void clear_error_state() {
 		state_ = stream_state::ok;
 	}
@@ -699,6 +861,9 @@ public:
 		return good();
 	}
 
+	/**
+	 * @brief Set the stream to an error state.
+	 */
 	void set_error_state() {
 		state_ = stream_state::user_defined_err;
 	}
@@ -758,11 +923,22 @@ public:
 	buffer_adaptor& operator=(const buffer_adaptor&) = delete;
 	buffer_adaptor(const buffer_adaptor&) = delete;
 
+	/**
+	 * @brief Reads a number of bytes to the provided buffer.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 */
 	template<typename T>
 	void read(T* destination) {
 		read(destination, sizeof(T));
 	}
 
+	/**
+	 * @brief Reads a number of bytes to the provided buffer.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 * @param length The number of bytes to read into the buffer.
+	 */
 	void read(void* destination, size_type length) {
 		assert(destination);
 		copy(destination, length);
@@ -775,17 +951,39 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Copies a number of bytes to the provided buffer but without advancing
+	 * the read cursor.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 */
 	template<typename T>
 	void copy(T* destination) const {
 		copy(destination, sizeof(T));
 	}
 
+	/**
+	 * @brief Copies a number of bytes to the provided buffer but without advancing
+	 * the read cursor.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 * @param length The number of bytes to copy.
+	 */
 	void copy(void* destination, size_type length) const {
 		assert(destination);
 		assert(!region_overlap(buffer_.data(), buffer_.size(), destination, length));
 		std::memcpy(destination, read_ptr(), length);
 	}
 
+	/**
+	 * @brief Skip over length bytes.
+	 * 
+	 * Skips over a number of bytes from the container. This should be used
+	 * if the container holds data that you don't care about but don't want
+	 * to have to read it to another buffer to move beyond it.
+	 * 
+	 * @param length The number of bytes to skip.
+	 */
 	void skip(size_type length) {
 		read_ += length;
 
@@ -796,10 +994,21 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Write data to the container.
+	 * 
+	 * @param source Pointer to the data to be written.
+	 */
 	void write(const auto& source) requires(has_resize<buf_type>) {
 		write(source, sizeof(source));
 	}
 
+	/**
+	 * @brief Write provided data to the container.
+	 * 
+	 * @param source Pointer to the data to be written.
+	 * @param length Number of bytes to write from the source.
+	 */
 	void write(const void* source, size_type length) requires(has_resize<buf_type>) {
 		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
 		const auto min_req_size = write_ + length;
@@ -819,10 +1028,17 @@ public:
 		write_ += length;
 	}
 
+	/**
+	 * @brief Attempts to locate the provided value within the container.
+	 * 
+	 * @param value The value to locate.
+	 * 
+	 * @return The position of value or npos if not found.
+	 */
 	size_type find_first_of(value_type val) const {
 		const auto data = read_ptr();
 
-		for(size_type i = 0; i < size(); ++i) {
+		for(size_type i = 0, j = size(); i < j; ++i) {
 			if(data[i] == val) {
 				return i;
 			}
@@ -831,27 +1047,66 @@ public:
 		return npos;
 	}
 	
+	/**
+	 * @brief Returns the size of the container.
+	 * 
+	 * @return The number of bytes of data available to read within the container.
+	 */
 	size_type size() const {
 		return buffer_.size() - read_;
 	}
 
+	/**
+	 * @brief Whether the container is empty.
+	 * 
+	 * @return Returns true if the container is empty (has no data to be read).
+	 */
 	[[nodiscard]]
 	bool empty() const {
 		return read_ == write_;
 	}
 
+	/**
+	 * @brief Retrieves a reference to the specified index within the container.
+	 * 
+	 * @param index The index within the container.
+	 * 
+	 * @return A reference to the value at the specified index.
+	 */
 	value_type& operator[](const size_type index) {
 		return read_ptr()[index];
 	}
 
+	/**
+	 * @brief Retrieves a reference to the specified index within the container.
+	 * 
+	 * @param index The index within the container.
+	 * 
+	 * @return A reference to the value at the specified index.
+	 */
 	const value_type& operator[](const size_type index) const {
 		return read_ptr()[index];
 	}
 
-	consteval static bool can_write_seek() requires(has_resize<buf_type>) {
+	/**
+	 * @brief Determine whether the adaptor supports write seeking.
+	 * 
+	 * This is determined at compile-time and does not need to checked at
+	 * run-time.
+	 * 
+	 * @return True if write seeking is supported, otherwise false.
+	 */
+	constexpr static bool can_write_seek() requires(has_resize<buf_type>) {
 		return std::is_same_v<seeking, supported>;
 	}
 
+	/**
+	 * @brief Performs write seeking within the container.
+	 * 
+	 * @param direction Specify whether to seek in a given direction or to absolute seek.
+	 * @param offset The offset relative to the seek direction or the absolute value
+	 * when using absolute seeking.
+	 */
 	void write_seek(const buffer_seek direction, const offset_type offset) requires(has_resize<buf_type>) {
 		switch(direction) {
 			case buffer_seek::sk_backward:
@@ -865,38 +1120,69 @@ public:
 		}
 	}
 
+	/**
+	 * @return Pointer to the data available for reading.
+	 */
 	const auto read_ptr() const {
 		return buffer_.data() + read_;
 	}
 
+	/**
+	 * @return Pointer to the data available for reading.
+	 */
 	auto read_ptr() {
 		return buffer_.data() + read_;
 	}
 
+	/**
+	 * @return Pointer to the location within the buffer where the next write
+	 * will be made.
+	 */
 	const auto write_ptr() const requires(has_resize<buf_type>) {
 		return buffer_.data() + write_;
 	}
 
+	/**
+	 * @return Pointer to the location within the buffer where the next write
+	 * will be made.
+	 */
 	auto write_ptr() requires(has_resize<buf_type>) {
 		return buffer_.data() + write_;
 	}
 
+	/**
+	 * @return Pointer to the data available for reading.
+	 */
 	const auto data() const {
 		return buffer_.data() + read_;
 	}
 
+	/**
+	 * @return Pointer to the data available for reading.
+	 */
 	auto data() {
 		return buffer_.data() + read_;
 	}
 
+	/**
+	 * @return Pointer to the underlying storage.
+	 */
 	const auto storage() const {
 		return buffer_.data();
 	}
 
+	/**
+	 * @return Pointer to the underlying storage.
+	 */
 	auto storage() {
 		return buffer_.data();
 	}
 
+	/**
+	 * @brief Advances the write cursor.
+	 * 
+	 * @param size The number of bytes by which to advance the write cursor.
+	 */
 	void advance_write(size_type bytes) {
 		assert(buffer_.size() >= (write_ + bytes));
 		write_ += bytes;
@@ -939,10 +1225,10 @@ public:
 		: buffer_(buffer) { }
 
 	class const_iterator {
-		using Node = typename buffer_type::node_type;
+		using node = typename buffer_type::node_type;
 
 	public:
-		const_iterator(const buffer_type& buffer, const Node* curr_node)
+		const_iterator(const buffer_type& buffer, const node* curr_node)
 			: buffer_(buffer),
 			  curr_node_(curr_node) {}
 
@@ -983,7 +1269,7 @@ public:
 
 	private:
 		const buffer_type& buffer_;
-		const Node* curr_node_;
+		const node* curr_node_;
 	};
 
 const_iterator begin() const {
@@ -1186,11 +1472,24 @@ struct intrusive_storage final {
 	intrusive_node node {};
 	std::array<value_type, block_size> storage;
 
-	void reset() {
+	/**
+	 * @brief Clear the container.
+	 * 
+	 * Resets the read and write offsets, does not explicitly
+	 * erase the data contained within the buffer but should
+	 * be treated as such.
+	 */
+	void clear() {
 		read_offset = 0;
 		write_offset = 0;
 	}
 
+	/**
+	 * @brief Write provided data to the container.
+	 * 
+	 * @param source Pointer to the data to be written.
+	 * @param length Number of bytes to write from the source.
+	 */
 	std::size_t write(const auto source, std::size_t length) {
 		assert(!region_overlap(source, length, storage.data(), storage.size()));
 		std::size_t write_len = block_size - write_offset;
@@ -1204,6 +1503,13 @@ struct intrusive_storage final {
 		return write_len;
 	}
 
+	/**
+	 * @brief Copies a number of bytes to the provided buffer but without advancing
+	 * the read cursor.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 * @param length The number of bytes to copy.
+	 */
 	std::size_t copy(auto destination, const std::size_t length) const {
 		assert(!region_overlap(storage.data(), storage.size(), destination, length));
 		std::size_t read_len = block_size - read_offset;
@@ -1216,17 +1522,34 @@ struct intrusive_storage final {
 		return read_len;
 	}
 
+	/**
+	* @brief Reads a number of bytes to the provided buffer.
+	* 
+	* @param length The number of bytes to skip.
+	* @param destination The buffer to copy the data to.
+	* @param allow_optimise Whether the buffer can reuse its space where possible.
+	*/
 	std::size_t read(auto destination, const std::size_t length, const bool allow_optimise = false) {
 		std::size_t read_len = copy(destination, length);
 		read_offset += static_cast<OffsetType>(read_len);
 
 		if(read_offset == write_offset && allow_optimise) {
-			reset();
+			clear();
 		}
 
 		return read_len;
 	}
 
+	/**
+	* @brief Skip over requested number of bytes.
+	*
+	* Skips over a number of bytes from the stream. This should be used
+	* if the stream holds data that you don't care about but don't want
+	* to have to read it to another buffer to move beyond it.
+	* 
+	* @param length The number of bytes to skip.
+	* @param allow_optimise Whether the buffer can reuse its space where possible.
+	*/
 	std::size_t skip(const std::size_t length, const bool allow_optimise = false) {
 		std::size_t skip_len = block_size - read_offset;
 
@@ -1237,20 +1560,37 @@ struct intrusive_storage final {
 		read_offset += static_cast<OffsetType>(skip_len);
 
 		if(read_offset == write_offset && allow_optimise) {
-			reset();
+			clear();
 		}
 
 		return skip_len;
 	}
 
+	/**
+	 * @brief Returns the size of the container.
+	 * 
+	 * @return The number of bytes of data available to read within the stream.
+	 */
 	std::size_t size() const {
 		return write_offset - read_offset;
 	}
 
+	/**
+	 * @brief The amount of free space.
+	 * 
+	 * @return The number of bytes of free space within the container.
+	 */
 	std::size_t free() const {
 		return block_size - write_offset;
 	}
 
+	/**
+	 * @brief Performs write seeking within the container.
+	 * 
+	 * @param direction Specify whether to seek in a given direction or to absolute seek.
+	 * @param offset The offset relative to the seek direction or the absolute value
+	 * when using absolute seeking.
+	 */
 	void write_seek(const buffer_seek direction, const std::size_t offset) {
 		switch(direction) {
 			case buffer_seek::sk_absolute:
@@ -1265,6 +1605,11 @@ struct intrusive_storage final {
 		}
 	}
 
+	/**
+	 * @brief Advances the write cursor.
+	 * 
+	 * @param size The number of bytes by which to advance the write cursor.
+	 */
 	std::size_t advance_write(std::size_t size) {
 		const auto remaining = free();
 
@@ -1276,18 +1621,42 @@ struct intrusive_storage final {
 		return size;
 	}
 
+	/**
+	 * @brief Retrieve a pointer to the readable portion of the buffer.
+	 * 
+	 * @return Pointer to the reable portion of the buffer.
+	 */
 	const value_type* read_data() const {
 		return storage.data() + read_offset;
 	}
 
+	/**
+	 * @brief Retrieve a pointer to the writeable portion of the buffer.
+	 * 
+	 * @return Pointer to the writeable portion of the buffer.
+	 */
 	value_type* write_data() {
 		return storage.data() + write_offset;
 	}
 
+	/**
+	 * @brief Retrieves a reference to the specified index within the container.
+	 * 
+	 * @param index The index within the container.
+	 * 
+	 * @return A reference to the value at the specified index.
+	 */
 	value_type& operator[](const std::size_t index) {
 		return *(storage.data() + index);
 	}
 
+	/**
+	 * @brief Retrieves a reference to the specified index within the container.
+	 * 
+	 * @param index The index within the container.
+	 * 
+	 * @return A reference to the value at the specified index.
+	 */
 	value_type& operator[](const std::size_t index) const {
 		return *(storage.data() + index);
 	}
@@ -1296,6 +1665,8 @@ struct intrusive_storage final {
 } // detail, hexi
 
 #include <concepts>
+#include <functional>
+#include <memory>
 #include <utility>
 #ifdef HEXI_BUFFER_DEBUG
 #include <algorithm>
@@ -1331,6 +1702,8 @@ public:
 	using seeking      = supported;
 
 	static constexpr auto npos { static_cast<size_type>(-1) };
+
+	using unique_storage = std::unique_ptr<storage_type, std::function<void(storage_type*)>>;
 
 private:
 	intrusive_node root_;
@@ -1464,11 +1837,22 @@ public:
 		return *this;
 	}
 
+	/**
+	* Reads a number of bytes to the provided buffer.
+	* 
+	* @param destination The buffer to copy the data to.
+	*/
 	template<typename T>
 	void read(T* destination) {
 		read(destination, sizeof(T));
 	}
 
+	/**
+	* Reads a number of bytes to the provided buffer.
+	* 
+	* @param destination The buffer to copy the data to.
+	* @param length The number of bytes to read into the buffer.
+	*/
 	void read(void* destination, size_type length) override {
 		assert(length <= size_ && "Chained buffer read too large!");
 		size_type remaining = length;
@@ -1491,11 +1875,24 @@ public:
 		size_ -= length;
 	}
 
+	/**
+	* Copies a number of bytes to the provided buffer but without advancing
+	* the container's read cursor.
+	* 
+	* @param destination The buffer to copy the data to.
+	*/
 	template<typename T>
 	void copy(T* destination) const {
 		copy(destination, sizeof(T));
 	}
 
+	/**
+	* Copies a number of bytes to the provided buffer but without advancing
+	* the container's read cursor.
+	* 
+	* @param destination The buffer to copy the data to.
+	* @param length The number of bytes to copy.
+	*/
 	void copy(void* destination, const size_type length) const override {
 		assert(length <= size_ && "Chained buffer copy too large!");
 		size_type remaining = length;
@@ -1544,6 +1941,13 @@ public:
 	}
 #endif
 
+	/**
+	* Skips over a number of bytes from the container. This should be used
+	* if the container holds data that you don't care about but don't want
+	* to have to read it to another buffer to move beyond it.
+	* 
+	* @param length The number of bytes to skip.
+	*/
 	void skip(const size_type length) override {
 		assert(length <= size_ && "Chained buffer skip too large!");
 		size_type remaining = length;
@@ -1563,10 +1967,21 @@ public:
 		size_ -= length;
 	}
 
+	/**
+	* Write data to the container.
+	* 
+	* @param source Pointer to the data to be written.
+	*/
 	void write(const auto& source) {
 		write(&source, sizeof(source));
 	}
 
+	/**
+	* Write provided data to the container.
+	* 
+	* @param source Pointer to the data to be written.
+	* @param length Number of bytes to write from the source.
+	*/
 	void write(const void* source, const size_type length) override {
 		size_type remaining = length;
 		intrusive_node* tail = root_.prev;
@@ -1592,6 +2007,11 @@ public:
 		size_ += length;
 	}
 
+	/**
+	* Reserves a number of bytes within the container for future use.
+	* 
+	* @param length The number of bytes that the container should reserve.
+	*/
 	void reserve(const size_type length) override {
 		size_type remaining = length;
 		intrusive_node* tail = root_.prev;
@@ -1614,10 +2034,22 @@ public:
 		size_ += length;
 	}
 
+	/**
+	* Returns the size of the container.
+	* 
+	* @return The number of bytes of data available to read within the container.
+	*/
 	size_type size() const override {
 		return size_;
 	}
 
+	/**
+	* Retrieves the last buffer in the container's list.
+	* 
+	* @return A reference to the value at the specified index.
+	* @note The container retains ownership over the buffer, so it must not
+	* be deallocated by the caller.
+	*/
 	storage_type* back() const {
 		if(root_.prev == &root_) {
 			return nullptr;
@@ -1626,6 +2058,12 @@ public:
 		return buffer_from_node(root_.prev);
 	}
 
+	/**
+	* Retrieves the buffer's block sized.
+	* 
+	* @param index The index within the buffer.
+	* @return A reference to the value at the specified index.
+	*/
 	storage_type* front() const {
 		if(root_.next == &root_) {
 			return nullptr;
@@ -1634,18 +2072,43 @@ public:
 		return buffer_from_node(root_.next);
 	}
 
-	[[nodiscard]] auto pop_front() {
+	/**
+	* Removes the first buffer from the container.
+	* 
+	* @return A pointer to the popped buffer.
+	* 
+	* @note Removing the buffer from the container also transfers ownership.
+	* Therefore, the caller assumes responsibility for deallocating the buffer
+	* when it is no longer required. Alternatively, it can be pushed back into
+	* the container to transfer ownership back.
+	*/
+	auto pop_front() {
 		auto buffer = buffer_from_node(root_.next);
 		size_ -= buffer->size();
 		unlink_node(root_.next);
-		return buffer;
+		return unique_storage(buffer, [&](auto ptr) {
+			deallocate(ptr);
+		});
 	}
 
+	/**
+	* Attaches additional storage to the container.
+	* 
+	* @param buffer The block to add to the container.
+	* 
+	* @note Once pushed, the container is assumed to have ownership over the buffer.
+	* The buffer storage must have been allocated by the same allocator as the container.
+	*/
 	void push_back(storage_type* buffer) {
 		link_tail_node(&buffer->node);
 		size_ += buffer->write_offset;
 	}
 
+	/**
+	* Advances the write cursor.
+	* 
+	* @param size The number of bytes by which the write cursor to advance the cursor.
+	*/
 	void advance_write(const size_type size) {
 		auto buffer = buffer_from_node(root_.prev);
 		const auto actual = buffer->advance_write(size);
@@ -1654,19 +2117,34 @@ public:
 		size_ += size;
 	}
 
+	/**
+	 * @brief Determine whether the adaptor supports write seeking.
+	 * 
+	 * This is determined at compile-time and does not need to checked at
+	 * run-time.
+	 * 
+	 * @return True if write seeking is supported, otherwise false.
+	 */
 	bool can_write_seek() const override {
 		return std::is_same_v<seeking, supported>;
 	}
 
-	void write_seek(const buffer_seek mode, size_type offset) override {
+	/**
+	 * Performs write seeking within the container.
+	 * 
+	 * @param direction Specify whether to seek in a given direction or to absolute seek.
+	 * @param offset The offset relative to the seek direction or the absolute value
+	 * when using absolute seeking.
+	 */
+	void write_seek(const buffer_seek direction, size_type offset) override {
 		// nothing to do in this case
-		if(mode == buffer_seek::sk_absolute && offset == size_) {
+		if(direction == buffer_seek::sk_absolute && offset == size_) {
 			return;
 		}
 
 		auto tail = root_.prev;
 
-		switch(mode) {
+		switch(direction) {
 			case buffer_seek::sk_backward:
 				size_ -= offset;
 				break;
@@ -1679,18 +2157,19 @@ public:
 				break;
 		}
 
-		const bool rewind = (mode == buffer_seek::sk_backward
-							 || (mode == buffer_seek::sk_absolute && offset < size_));
+		const bool rewind
+			= (direction == buffer_seek::sk_backward
+			   || (direction == buffer_seek::sk_absolute && offset < size_));
 
 		while(offset) {
 			auto buffer = buffer_from_node(tail);
 			const auto max_seek = rewind? buffer->size() : buffer->free();
 
 			if(max_seek >= offset) {
-				buffer->write_seek(mode, offset);
+				buffer->write_seek(direction, offset);
 				offset = 0;
 			} else {
-				buffer->write_seek(mode, max_seek);
+				buffer->write_seek(direction, max_seek);
 				offset -= max_seek;
 				tail = rewind? tail->prev : tail->next;
 			}
@@ -1699,6 +2178,9 @@ public:
 		root_.prev = tail;
 	}
 
+	/**
+	* Clears the container.
+	*/
 	void clear() {
 		intrusive_node* head = root_.next;
 
@@ -1713,23 +2195,52 @@ public:
 		size_ = 0;
 	}
 
+	/**
+	* Whether the container is empty.
+	* 
+	* @return Returns true if the container is empty (has no data to be read).
+	*/
 	[[nodiscard]]
 	bool empty() const override {
 		return !size_;
 	}
-	
+
+	/**
+	* Retrieves the container's block size.
+	* 
+	* @return The block size.
+	*/
 	consteval static size_type block_size() {
 		return block_sz;
 	}
 
+	/**
+	* Retrieves a reference to the specified index within the container.
+	* 
+	* @param index The index within the container.
+	* 
+	* @return A reference to the value at the specified index.
+	*/
 	value_type& operator[](const size_type index) override {
 		return byte_at_index(index);
 	}
 
+	/**
+	* Retrieves a reference to the specified index within the container.
+	* 
+	* @param index The index within the container.
+	* 
+	* @return A reference to the value at the specified index.
+	*/
 	const value_type& operator[](const size_type index) const override {
 		return byte_at_index(index);
 	}
 
+	/**
+	* Retrieves the number of allocated blocks currently being used by the container.
+	* 
+	* @return The number of allocated blocks.
+	*/
 	size_type block_count() {
 		auto node = &root_;
 		size_type count = 0;
@@ -1744,7 +2255,14 @@ public:
 		return count;
 	}
 
-	size_type find_first_of(value_type val) const override {
+	/**
+	* Attempts to locate the provided value within the container.
+	* 
+	* @param value The value to locate.
+	* 
+	* @return The position of value or npos if not found.
+	*/
+	size_type find_first_of(value_type value) const override {
 		size_type index = 0;
 		auto head = root_.next;
 
@@ -1753,7 +2271,7 @@ public:
 			const auto data = buffer->read_data();
 			
 			for(size_type i = 0, j = buffer->size(); i < j; ++i, ++index) {
-				if(data[i] == val) {
+				if(data[i] == value) {
 					return index;
 				}
 			}
@@ -1764,10 +2282,20 @@ public:
 		return npos;
 	}
 
+	/**
+	* Retrieves the container's allocator.
+	* 
+	* @return The memory allocator.
+	*/
 	auto& get_allocator() {
 		return allocator_;
 	}
 
+	/**
+	* Retrieves the container's allocator.
+	* 
+	* @return The memory allocator.
+	*/
 	const auto& get_allocator() const {
 		return allocator_;
 	}
@@ -1842,7 +2370,7 @@ using namespace detail;
 struct no_validate_dealloc {};
 struct validate_dealloc : no_validate_dealloc {};
 
-/*
+/**
  * Basic fixed-size block stack allocator that preallocates a slab of memory
  * capable of holding a compile-time determined number of elements.
  * When constructed, a linked list of chunks is built within the slab and
@@ -2206,6 +2734,21 @@ private:
 	offset_type write_ = 0;
 	bool error_ = false;
 
+	/**
+	* @brief Explicitly Close the underlying file handle.
+	* 
+	* This function will be called by the object's destructor
+	* and does not need to be called explicitly.
+	* 
+	* @note Idempotent.
+	*/
+	void close() {
+		if(file_) {
+			std::fclose(file_);
+			file_ = nullptr;
+		}
+	}
+
 public:
 	file_buffer(const std::filesystem::path& path)
 		: file_buffer(path.string().c_str()) { }
@@ -2253,18 +2796,30 @@ public:
 		close();
 	}
 
-	void close() {
-		if(file_) {
-			std::fclose(file_);
-			file_ = nullptr;
-		}
+
+	/**
+	 * @brief Flush unwritten data.
+	 */
+	void flush() {
+		std::fflush(file_);
 	}
 
+	/**
+	 * @brief Reads a number of bytes to the provided buffer.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 */
 	template<typename T>
 	void read(T* destination) {
 		read(destination, sizeof(T));
 	}
 
+	/**
+	 * @brief Reads a number of bytes to the provided buffer.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 * @param length The number of bytes to read into the buffer.
+	 */
 	void read(void* destination, size_type length) {
 		if(error_) {
 			return;
@@ -2283,11 +2838,24 @@ public:
 		read_ += length;
 	}
 
+	/**
+	 * @brief Copies a number of bytes to the provided buffer but without advancing
+	 * the read cursor.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 */
 	template<typename T>
 	void copy(T* destination) {
 		copy(destination, sizeof(T));
 	}
 
+	/**
+	 * @brief Copies a number of bytes to the provided buffer but without advancing
+	 * the read cursor.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 * @param length The number of bytes to copy.
+	 */
 	void copy(void* destination, size_type length) {
 		if(error_) {
 			return;
@@ -2311,6 +2879,13 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Attempts to locate the provided value within the container.
+	 * 
+	 * @param value The value to locate.
+	 * 
+	 * @return The position of value or npos if not found.
+	 */
 	size_type find_first_of(value_type val) noexcept {
 		if(error_) {
 			return npos;
@@ -2323,7 +2898,7 @@ public:
 
 		value_type buffer{};
 
-		for(std::size_t i = 0u; i < size(); ++i) {
+		for(std::size_t i = 0u, j = size(); i < j; ++i) {
 			if(std::fread(&buffer, sizeof(value_type), 1, file_) != 1) {
 				error_ = true;
 				return npos;
@@ -2346,27 +2921,56 @@ public:
 		return npos;
 	}
 
+	/**
+	 * @brief Skip a requested number of bytes.
+	 *
+	 * Skips over a number of bytes from the file. This should be used
+	 * if the file holds data that you don't care about but don't want
+	 * to have to read it to another buffer to move beyond it.
+	 * 
+	 * @param length The number of bytes to skip.
+	 */
 	void skip(const size_type length) {
 		read_ += length;
 	}
 
-	void advance_write(size_type bytes) {
-		write_ += bytes;
-	}
-
+	/**
+	 * @brief Whether the container is empty.
+	 * 
+	 * @return Returns true if the container is empty (has no data to be read).
+	 */
 	[[nodiscard]]
 	bool empty() const {
 		return write_ == read_;
 	}
 
+	/**
+	 * @brief Determine whether the adaptor supports write seeking.
+	 * 
+	 * This is determined at compile-time and does not need to checked at
+	 * run-time.
+	 * 
+	 * @return True if write seeking is supported, otherwise false.
+	 */
 	constexpr static bool can_write_seek() {
 		return std::is_same_v<seeking, supported>;
 	}
 
+	/**
+	 * @brief Write data to the container.
+	 * 
+	 * @param source Pointer to the data to be written.
+	 */
 	void write(const auto& source) {
 		write(&source, sizeof(source));
 	}
 
+	/**
+	 * @brief Write provided data to the file.
+	 * 
+	 * @param source Pointer to the data to be written.
+	 * @param length Number of bytes to write from the source.
+	 */
 	void write(const void* source, size_type length) {
 		if(error_) {
 			return;
@@ -2386,22 +2990,43 @@ public:
 	}
 
 
+	/**
+	 * @brief Returns the amount of data available in the file.
+	 * 
+	 * @return The number of bytes of data available to read from the file.
+	 */
 	size_type size() const {
 		return write_ - read_;
 	}
 
+	/** 
+	 * @brief Retrieve the file handle.
+	 * 
+	 * @return The file handle.
+	 */
 	FILE* handle() {
 		return file_;
 	}
 
+	/** 
+	 * @brief Retrieve the file handle.
+	 * 
+	 * @return The file handle.
+	 */
 	const FILE* handle() const {
 		return file_;
 	}
 
+	/** 
+	 * @return True if an error has occurred during file operations.
+	 */
 	bool error() const {
 		return error_;
 	}
 
+	/** 
+	 * @return True if no error has occurred during file operations.
+	 */
 	operator bool() const {
 		return !error();
 	}
@@ -2464,11 +3089,22 @@ public:
 	static_buffer& operator=(const static_buffer&) = default;
 	static_buffer(const static_buffer&) = default;
 
+	/**
+	 * @brief Reads a number of bytes to the provided buffer.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 */
 	template<typename T>
 	void read(T* destination) {
 		read(destination, sizeof(T));
 	}
 
+	/**
+	 * @brief Reads a number of bytes to the provided buffer.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 * @param length The number of bytes to read into the buffer.
+	 */
 	void read(void* destination, size_type length) {
 		copy(destination, length);
 		read_ += length;
@@ -2478,11 +3114,24 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Copies a number of bytes to the provided buffer but without advancing
+	 * the read cursor.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 */
 	template<typename T>
 	void copy(T* destination) const {
 		copy(destination, sizeof(T));
 	}
 
+	/**
+	 * @brief Copies a number of bytes to the provided buffer but without advancing
+	 * the read cursor.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 * @param length The number of bytes to copy.
+	 */
 	void copy(void* destination, size_type length) const {
 		assert(!region_overlap(buffer_.data(), buffer_.size(), destination, length));
 
@@ -2493,10 +3142,17 @@ public:
 		std::memcpy(destination, read_ptr(), length);
 	}
 
+	/**
+	 * @brief Attempts to locate the provided value within the container.
+	 * 
+	 * @param value The value to locate.
+	 * 
+	 * @return The position of value or npos if not found.
+	 */
 	size_type find_first_of(value_type val) const noexcept {
 		const auto data = read_ptr();
 
-		for(std::size_t i = 0u; i < size(); ++i) {
+		for(std::size_t i = 0u, j = size(); i < j; ++i) {
 			if(data[i] == val) {
 				return i;
 			}
@@ -2505,6 +3161,15 @@ public:
 		return npos;
 	}
 
+	/**
+	 * @brief Skip over length bytes.
+	 * 
+	 * Skips over a number of bytes from the container. This should be used
+	 * if the container holds data that you don't care about but don't want
+	 * to have to read it to another buffer to move beyond it.
+	 * 
+	 * @param length The number of bytes to skip.
+	 */
 	void skip(const size_type length) {
 		read_ += length;
 
@@ -2513,20 +3178,30 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Advances the write cursor.
+	 * 
+	 * @param size The number of bytes by which to advance the write cursor.
+	 */
 	void advance_write(size_type bytes) {
 		assert(free() >= bytes);
 		write_ += bytes;
 	}
 
+	/**
+	 * @brief Clears the container.
+	 */
 	void clear() {
 		read_ = write_ = 0;
 	}
 
-	/*
-	 * Moves any unread data to the front of the buffer, freeing space at the end.
+	/**
+	 * @brief Moves any unread data to the front of the buffer, freeing space at the end.
 	 * If a move is performed, pointers obtained from read/write_ptr() will be invalidated.
 	 * 
-	 * Return true if additional space was made available.
+	 * If the buffer contains no data available for reading, this function will have no effect.
+	 * 
+	 * @return True if additional space was made available.
 	 */
 	bool defragment() {
 		if(read_ == 0) {
@@ -2539,31 +3214,72 @@ public:
 		return true;
 	}
 
+	/**
+	 * @brief Retrieves a reference to the specified index within the container.
+	 * 
+	 * @param index The index within the container.
+	 * 
+	 * @return A reference to the value at the specified index.
+	 */
 	value_type& operator[](const size_type index) {
 		return read_ptr()[index];
 	}
 
+	/**
+	 * @brief Retrieves a reference to the specified index within the container.
+	 * 
+	 * @param index The index within the container.
+	 * 
+	 * @return A reference to the value at the specified index.
+	 */
 	const value_type& operator[](const size_type index) const {
 		return read_ptr()[index];
 	}
 
+	/**
+	 * @brief Whether the container is empty.
+	 * 
+	 * @return Returns true if the container is empty (has no data to be read).
+	 */
 	[[nodiscard]]
 	bool empty() const {
 		return write_ == read_;
 	}
 
+	/**
+	 * @return Whether the container is full and cannot be further written to.
+	 */
 	bool full() const {
 		return write_ == capacity();
 	}
 
+	/**
+	 * @brief Determine whether the adaptor supports write seeking.
+	 * 
+	 * This is determined at compile-time and does not need to checked at
+	 * run-time.
+	 * 
+	 * @return True if write seeking is supported, otherwise false.
+	 */
 	constexpr static bool can_write_seek() {
 		return std::is_same_v<seeking, supported>;
 	}
 
+	/**
+	 * @brief Write data to the container.
+	 * 
+	 * @param source Pointer to the data to be written.
+	 */
 	void write(const auto& source) {
 		write(&source, sizeof(source));
 	}
 
+	/**
+	 * @brief Write provided data to the container.
+	 * 
+	 * @param source Pointer to the data to be written.
+	 * @param length Number of bytes to write from the source.
+	 */
 	void write(const void* source, size_type length) {
 		assert(!region_overlap(source, length, buffer_.data(), buffer_.size()));
 
@@ -2575,6 +3291,13 @@ public:
 		write_ += length;
 	}
 
+	/**
+	 * @brief Performs write seeking within the container.
+	 * 
+	 * @param direction Specify whether to seek in a given direction or to absolute seek.
+	 * @param offset The offset relative to the seek direction or the absolute value
+	 * when using absolute seeking.
+	 */
 	void write_seek(const buffer_seek direction, const size_type offset) {
 		switch(direction) {
 			case buffer_seek::sk_backward:
@@ -2588,70 +3311,134 @@ public:
 		}
 	}
 
+	/**
+	 * @return An iterator to the beginning of data available for reading.
+	 */
 	auto begin() {
 		return buffer_.begin() + read_;
 	}
 
+	/**
+	 * @return An iterator to the beginning of data available for reading.
+	 */
 	const auto begin() const {
 		return buffer_.begin() + read_;
 	}
 
+	/**
+	 * @return An iterator to the end of data available for reading.
+	 */
 	auto end() {
 		return buffer_.begin() + write_;
 	}
 
+	/**
+	 * @return An iterator to the end of data available for reading.
+	 */
 	const auto end() const {
 		return buffer_.begin() + write_;
 	}
 
+	/**
+	 * @brief Overall capacity of the container.
+	 * 
+	 * @return The container's total size in bytes.
+	 */
 	constexpr static size_type capacity() {
 		return buf_size;
 	}
 
+	/**
+	 * @brief Returns the size of the container.
+	 * 
+	 * @return The number of bytes of data available to read within the container.
+	 */
 	size_type size() const {
 		return write_ - read_;
 	}
 
+	/**
+	 * @brief The amount of free space.
+	 * 
+	 * @return The number of bytes of free space within the container.
+	 */
 	size_type free() const {
 		return buf_size - write_;
 	}
 
+	/**
+	 * @return Pointer to the data available for reading.
+	 */
 	const value_type* data() const {
 		return buffer_.data() + read_;
 	}
 
+	/**
+	 * @return Pointer to the data available for reading.
+	 */
 	value_type* data() {
 		return buffer_.data() + read_;
 	}
 
+	/**
+	 * @return Pointer to the data available for reading.
+	 */
 	const value_type* read_ptr() const {
 		return buffer_.data() + read_;
 	}
 
+	/**
+	 * @return Pointer to the data available for reading.
+	 */
 	value_type* read_ptr() {
 		return buffer_.data() + read_;
 	}
 
+	/**
+	 * @return Pointer to the location within the buffer where the next write
+	 * will be made.
+	 */
 	const value_type* write_ptr() const {
 		return buffer_.data() + write_;
 	}
 
+	/**
+	 * @return Pointer to the location within the buffer where the next write
+	 * will be made.
+	 */
 	value_type* write_ptr() {
 		return buffer_.data() + write_;
 	}
 
+	/**
+	 * @return Pointer to the underlying storage.
+	 */
 	value_type* storage() {
 		return buffer_.data();
 	}
 
+	/**
+	 * @return Pointer to the underlying storage.
+	 */
 	const value_type* storage() const {
 		return buffer_.data();
 	}
 
+	/**
+	 * @brief Retrieves a span representing the data available for reading contained within
+	 * underlying storage.
+	 * 
+	 * @return A span over the data waiting to be read from the container.
+	 */
 	std::span<const value_type> read_span() const {
 		return { read_ptr(), size() };
 	}
 
+	/**
+	 * @brief Retrieves a span representing the free space within the underlying storage.
+	 * 
+	 * @return A span over the container's free space.
+	 */
 	std::span<value_type> write_span() {
 		return { write_ptr(), free() };
 	}
@@ -2841,10 +3628,21 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Reads a string from the stream.
+	 * 
+	 * @param dest The destination string.
+	 */
 	void get(std::string& dest) {
 		*this >> dest;
 	}
 
+	/**
+	 * @brief Reads a fixed-length string from the stream.
+	 * 
+	 * @param dest The destination string.
+	 * @param The number of bytes to be read.
+	 */
 	void get(std::string& dest, std::size_t size) {
 		check_read_bounds(size);
 		dest.resize_and_overwrite(size, [&](char* strbuf, std::size_t len) {
@@ -2853,6 +3651,12 @@ public:
 		});
 	}
 
+	/**
+	 * @brief Read data from the stream into the provided destination argument.
+	 * 
+	 * @param dest The destination buffer.
+	 * @param The number of bytes to be read into the destination.
+	 */
 	template<typename T>
 	void get(T* dest, std::size_t count) {
 		assert(dest);
@@ -2861,6 +3665,12 @@ public:
 		buffer_.read(dest, read_size);
 	}
 
+	/**
+	 * @brief Read data from the stream to the destination represented by the iterators.
+	 * 
+	 * @param begin The beginning iterator.
+	 * @param end The end iterator.
+	 */
 	template<typename It>
 	void get(It begin, const It end) {
 		for(; begin != end; ++begin) {
@@ -2868,6 +3678,11 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Read data from the stream into the provided destination argument.
+	 * 
+	 * @param dest A contiguous range into which the data should be read.
+	 */
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
 		const auto read_size = dest.size() * sizeof(range::value_type);
@@ -2875,6 +3690,11 @@ public:
 		buffer_.read(dest.data(), read_size);
 	}
 
+	/**
+	 * @brief Read an arithmetic type from the stream.
+	 * 
+	 * @return The arithmetic value.
+	 */
 	template<arithmetic T>
 	T get() {
 		check_read_bounds(sizeof(T));
@@ -2883,6 +3703,22 @@ public:
 		return t;
 	}
 
+	/**
+	 * @brief Read an arithmetic type from the stream.
+	 * 
+	 * @return The arithmetic value.
+	 */
+	void get(arithmetic auto& dest) {
+		check_read_bounds(sizeof(dest));
+		buffer_.read(&dest, sizeof(dest));
+	}
+
+	/**
+	 * @brief Read an arithmetic type from the stream, allowing for endian
+	 * conversion.
+	 * 
+	 * @param The destination for the read value.
+	 */
 	template<endian::conversion conversion>
 	void get(arithmetic auto& dest) {
 		check_read_bounds(sizeof(dest));
@@ -2890,6 +3726,12 @@ public:
 		dest = endian::convert<conversion>(dest);
 	}
 
+	/**
+	 * @brief Read an arithmetic type from the stream, allowing for endian
+	 * conversion.
+	 * 
+	 * @return The arithmetic value.
+	 */
 	template<arithmetic T, endian::conversion conversion>
 	T get() {
 		check_read_bounds(sizeof(T));
@@ -2900,19 +3742,38 @@ public:
 
 	/**  Misc functions **/ 
 
+	/**
+	 * @brief Skip over count bytes
+	 *
+	 * Skips over a number of bytes from the container. This should be used
+	 * if the container holds data that you don't care about but don't want
+	 * to have to read it to another buffer to move beyond it.
+	 * 
+	 * @param length The number of bytes to skip.
+	 */
 	void skip(std::size_t count) {
 		check_read_bounds(count);
 		buffer_.skip(count);
 	}
 
+	/**
+	 * @return The total number of bytes read from the stream.
+	 */
 	std::size_t total_read() const {
 		return total_read_;
 	}
 
+	/**
+	 * @return If provided to the constructor, the upper limit on how much data
+	 * can be read from this stream before an error is triggers.
+	 */
 	std::size_t read_limit() const {
 		return read_limit_;
 	}
 
+	/**
+	 * @return Pointer to stream's underlying buffer.
+	 */
 	buffer_read* buffer() const {
 		return &buffer_;
 	}
@@ -3008,6 +3869,11 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Writes a contiguous range to the stream.
+	 * 
+	 * @param data The contiguous range to be written to the stream.
+	 */
 	template<std::ranges::contiguous_range range>
 	void put(range& data) {
 		const auto write_size = data.size() * sizeof(range::value_type);
@@ -3015,11 +3881,21 @@ public:
 		total_write_ += write_size;
 	}
 
+	/**
+	 * @brief Writes a the provided value to the stream.
+	 * 
+	 * @param data The value to be written to the stream.
+	 */
 	void put(const arithmetic auto& data) {
 		buffer_.write(&data, sizeof(data));
 		total_write_ += sizeof(data);
 	}
 
+	/**
+	 * @brief Writes data to the stream.
+	 * 
+	 * @param data The element to be written to the stream.
+	 */
 	template<endian::conversion conversion>
 	void put(const arithmetic auto& data) {
 		const auto swapped = endian::convert<conversion>(data);
@@ -3027,6 +3903,12 @@ public:
 		total_write_ += sizeof(data);
 	}
 
+	/**
+	 * @brief Writes count elements from the provided buffer to the stream.
+	 * 
+	 * @param data Pointer to the buffer from which data will be copied to the stream.
+	 * @param count The number of elements to write.
+	 */
 	template<pod T>
 	void put(const T* data, std::size_t count) {
 		assert(data);
@@ -3035,13 +3917,24 @@ public:
 		total_write_ += write_size;
 	}
 
+	/**
+	 * @brief Writes the data from the iterator range to the stream.
+	 * 
+	 * @param begin Iterator to the beginning of the data.
+	 * @param end Iterator to the end of the data.
+	 */
 	template<typename It>
 	void put(It begin, const It end) {
 		for(auto it = begin; it != end; ++it) {
 			*this << *it;
 		}
 	}
-
+	/**
+	 * @brief Allows for writing a provided byte value a specified number of times to
+	 * the stream.
+	 * 
+	 * @param The byte value that will fill the specified number of bytes.
+	 */
 	template<std::size_t size>
 	void fill(const std::uint8_t value) {
 		const auto filled = generate_filled<size>(value);
@@ -3051,10 +3944,22 @@ public:
 
 	/**  Misc functions **/ 
 
+	/**
+	 * @brief Determines whether this container can write seek.
+	 * 
+	 * @return Whether this container is capable of write seeking.
+	 */
 	bool can_write_seek() const {
 		return buffer_.can_write_seek();
 	}
 
+	/**
+	 * @brief Performs write seeking within the container.
+	 * 
+	 * @param direction Specify whether to seek in a given direction or to absolute seek.
+	 * @param offset The offset relative to the seek direction or the absolute value
+	 * when using absolute seeking.
+	 */
 	void write_seek(const stream_seek direction, const std::size_t offset) {
 		if(direction == stream_seek::sk_stream_absolute) {
 			buffer_.write_seek(buffer_seek::sk_backward, total_write_ - offset);
@@ -3063,20 +3968,47 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Returns the size of the container.
+	 * 
+	 * @return The number of bytes of data available to read within the stream.
+	 */
 	std::size_t size() const {
 		return buffer_.size();
 	}
 
+	/**
+	 * @brief Whether the container is empty.
+	 * 
+	 * @return Returns true if the container is empty (has no data to be read).
+	 */
 	[[nodiscard]]
 	bool empty() const {
 		return buffer_.empty();
 	}
 
+	/**
+	 * @return The total number of bytes written to the stream.
+	 */
 	std::size_t total_write() const {
 		return total_write_;
 	}
 
-	buffer_write* buffer() const {
+	/** 
+	 * @brief Get a pointer to the buffer.
+	 *
+	 * @return Pointer to the underlying buffer. 
+	 */
+	buffer_write* buffer() {
+		return &buffer_;
+	}
+
+	/** 
+	 * @brief Get a pointer to the buffer.
+	 *
+	 * @return Pointer to the underlying buffer. 
+	 */
+	const buffer_write* buffer() const {
 		return &buffer_;
 	}
 };
@@ -3157,52 +4089,115 @@ public:
 		: buffer_(buffer),
 		  read_(0) {}
 
+	/**
+	 * @brief Reads a number of bytes to the provided buffer.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 */
 	template<typename T>
 	void read(T* destination) {
 		read(destination, sizeof(T));
 	}
 
+	/**
+	 * @brief Reads a number of bytes to the provided buffer.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 * @param length The number of bytes to read into the buffer.
+	 */
 	void read(void* destination, std::size_t length) override {
 		assert(destination && !region_overlap(buffer_.data(), buffer_.size(), destination, length));
 		std::memcpy(destination, buffer_.data() + read_, length);
 		read_ += length;
 	}
 
+	/**
+	 * @brief Copies a number of bytes to the provided buffer but without advancing
+	 * the read cursor.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 */
 	template<typename T>
 	void copy(T* destination) const {
 		copy(destination, sizeof(T));
 	}
 
+	/**
+	 * @brief Copies a number of bytes to the provided buffer but without advancing
+	 * the read cursor.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 * @param length The number of bytes to copy.
+	 */
 	void copy(void* destination, std::size_t length) const override {
 		assert(destination && !region_overlap(buffer_.data(), buffer_.size(), destination, length));
 		std::memcpy(destination, buffer_.data() + read_, length);
 	}
 
+	/**
+	 * @brief Skip over requested number of bytes.
+	 *
+	 * Skips over a number of bytes from the container. This should be used
+	 * if the container holds data that you don't care about but don't want
+	 * to have to read it to another buffer to move beyond it.
+	 * 
+	 * @param length The number of bytes to skip.
+	 */
 	void skip(std::size_t length) override {
 		read_ += length;
 	}
 
+	/**
+	 * @brief Returns the size of the container.
+	 * 
+	 * @return The number of bytes of data available to read within the stream.
+	 */
 	std::size_t size() const override {
 		return buffer_.size() - read_;
 	}
 
+	/**
+	 * @brief Whether the container is empty.
+	 * 
+	 * @return Returns true if the container is empty (has no data to be read).
+	 */
 	[[nodiscard]]
 	bool empty() const override {
 		return !(buffer_.size() - read_);
 	}
 
+	/**
+	 * @brief Retrieves a reference to the specified index within the container.
+	 * 
+	 * @param index The index within the container.
+	 * 
+	 * @return A reference to the value at the specified index.
+	 */
 	const std::byte& operator[](const std::size_t index) const override {
 		return reinterpret_cast<const std::byte*>(buffer_.data() + read_)[index];
 	}
 
+	/**
+	 * @return Pointer to the data available for reading.
+	 */
 	const auto read_ptr() const {
 		return buffer_.data() + read_;
 	}
 
+	/**
+	 * @return The current read offset.
+	 */
 	const auto read_offset() const {
 		return read_;
 	}
 
+	/**
+	 * @brief Attempts to locate the provided value within the container.
+	 * 
+	 * @param value The value to locate.
+	 * 
+	 * @return The position of value or npos if not found.
+	 */
 	std::size_t find_first_of(std::byte val) const override {
 		for(auto i = read_; i < size(); ++i) {
 			if(static_cast<std::byte>(buffer_[i]) == val) {
@@ -3213,7 +4208,10 @@ public:
 		return npos;
 	}
 
-	void reset() {
+	/**
+	 * @brief Clear the underlying buffer and reset state.
+	 */
+	void clear() {
 		read_ = 0;
 		buffer_.clear();
 	}
@@ -3256,10 +4254,21 @@ public:
 		: buffer_(buffer),
 		  write_(buffer.size()) {}
 
+	/**
+	 * @brief Write data to the container.
+	 * 
+	 * @param source Pointer to the data to be written.
+	 */
 	void write(auto& source) {
 		write(&source, sizeof(source));
 	}
 
+	/**
+	 * @brief Write provided data to the container.
+	 * 
+	 * @param source Pointer to the data to be written.
+	 * @param length Number of bytes to write from the source.
+	 */
 	void write(const void* source, std::size_t length) override {
 		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
 		const auto min_req_size = write_ + length;
@@ -3279,14 +4288,31 @@ public:
 		write_ += length;
 	}
 
+	/**
+	 * @brief Reserves a number of bytes within the container for future use.
+	 * 
+	 * @param length The number of bytes that the container should reserve.
+	 */
 	void reserve(const std::size_t length) override {
 		buffer_.reserve(length);
 	}
 
+	/**
+	 * @brief Determines whether this container can write seek.
+	 * 
+	 * @return Whether this container is capable of write seeking.
+	 */
 	bool can_write_seek() const override {
 		return true;
 	}
 
+	/**
+	 * @brief Performs write seeking within the container.
+	 * 
+	 * @param direction Specify whether to seek in a given direction or to absolute seek.
+	 * @param offset The offset relative to the seek direction or the absolute value
+	 * when using absolute seeking.
+	 */
 	void write_seek(const buffer_seek direction, const std::size_t offset) override {
 		switch(direction) {
 			case buffer_seek::sk_backward:
@@ -3300,23 +4326,40 @@ public:
 		}
 	}
 
+	/**
+	 * @return Pointer to the underlying storage.
+	 */
 	const auto storage() const {
 		return buffer_.data();
 	}
 
+	/**
+	 * @return Pointer to the underlying storage.
+	 */
 	auto storage() {
 		return buffer_.data();
 	}
 
+	/**
+	 * @return Pointer to the location within the buffer where the next write
+	 * will be made.
+	 */
 	auto write_ptr() {
 		return buffer_.data() + write_;
 	}
 
+	/**
+	 * @return Pointer to the location within the buffer where the next write
+	 * will be made.
+	 */
 	const auto write_ptr() const {
 		return buffer_.data() + write_;
 	}
 	
-	void reset() {
+	/**
+	 * @brief Clear the underlying buffer and reset state.
+	 */
+	void clear() {
 		write_ = 0;
 		buffer_.clear();
 	}
@@ -3335,10 +4378,10 @@ requires std::ranges::contiguous_range<buf_type>
 class buffer_adaptor final : public buffer_read_adaptor<buf_type>,
                              public buffer_write_adaptor<buf_type>,
                              public buffer {
-	void reset() {
+	void clear() {
 		if(buffer_read_adaptor<buf_type>::read_ptr() == buffer_write_adaptor<buf_type>::write_ptr()) {
-			buffer_read_adaptor<buf_type>::reset();
-			buffer_write_adaptor<buf_type>::reset();
+			buffer_read_adaptor<buf_type>::clear();
+			buffer_write_adaptor<buf_type>::clear();
 		}
 	}
 public:
@@ -3346,27 +4389,49 @@ public:
 		: buffer_read_adaptor<buf_type>(buffer),
 		  buffer_write_adaptor<buf_type>(buffer) {}
 
+	/**
+	 * @brief Reads a number of bytes to the provided buffer.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 */
 	template<typename T>
 	void read(T* destination) {
 		buffer_read_adaptor<buf_type>::read(destination);
 
 		if constexpr(allow_optimise) {
-			reset();
+			clear();
 		}
 	}
 
+	/**
+	 * @brief Reads a number of bytes to the provided buffer.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 * @param length The number of bytes to read into the buffer.
+	 */
 	void read(void* destination, std::size_t length) override {
 		buffer_read_adaptor<buf_type>::read(destination, length);
 
 		if constexpr(allow_optimise) {
-			reset();
+			clear();
 		}
 	};
 
+	/**
+	 * @brief Write data to the container.
+	 * 
+	 * @param source Pointer to the data to be written.
+	 */
 	void write(const auto& source) {
 		buffer_write_adaptor<buf_type>::write(source);
 	};
 
+	/**
+	 * @brief Write provided data to the container.
+	 * 
+	 * @param source Pointer to the data to be written.
+	 * @param length Number of bytes to write from the source.
+	 */
 	void write(const void* source, std::size_t length) override {
 		buffer_write_adaptor<buf_type>::write(source, length);
 	};
@@ -3375,49 +4440,113 @@ public:
 		buffer_read_adaptor<buf_type>::copy(destination);
 	};
 
+	/**
+	 * @brief Copies a number of bytes to the provided buffer but without advancing
+	 * the read cursor.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 * @param length The number of bytes to copy.
+	 */
 	void copy(void* destination, std::size_t length) const override {
 		buffer_read_adaptor<buf_type>::copy(destination, length);
 	};
 
+	/**
+	 * @brief Skip over requested number of bytes.
+	 *
+	 * Skips over a number of bytes from the container. This should be used
+	 * if the container holds data that you don't care about but don't want
+	 * to have to read it to another buffer to move beyond it.
+	 * 
+	 * @param length The number of bytes to skip.
+	 */
 	void skip(std::size_t length) override {
 		buffer_read_adaptor<buf_type>::skip(length);
 
 		if constexpr(allow_optimise) {
-			reset();
+			clear();
 		}
 	};
 
+	/**
+	 * @brief Retrieves a reference to the specified index within the container.
+	 * 
+	 * @param index The index within the container.
+	 * 
+	 * @return A reference to the value at the specified index.
+	 */
 	const std::byte& operator[](const std::size_t index) const override { 
 		return buffer_read_adaptor<buf_type>::operator[](index); 
 	};
 
+	/**
+	 * @brief Retrieves a reference to the specified index within the container.
+	 * 
+	 * @param index The index within the container.
+	 * 
+	 * @return A reference to the value at the specified index.
+	 */
 	std::byte& operator[](const std::size_t index) override {
 		const auto offset = buffer_read_adaptor<buf_type>::read_offset();
 		auto buffer = buffer_write_adaptor<buf_type>::storage();
 		return reinterpret_cast<std::byte*>(buffer + offset)[index];
 	}
 
+	/**
+	 * @brief Reserves a number of bytes within the container for future use.
+	 * 
+	 * @param length The number of bytes that the container should reserve.
+	 */
 	void reserve(std::size_t length) override {
 		buffer_write_adaptor<buf_type>::reserve(length);
 	};
 
+	/**
+	 * @brief Determines whether this container can write seek.
+	 * 
+	 * @return Whether this container is capable of write seeking.
+	 */
 	bool can_write_seek() const override { 
 		return buffer_write_adaptor<buf_type>::can_write_seek();
 	};
 
+	/**
+	 * @brief Performs write seeking within the container.
+	 * 
+	 * @param direction Specify whether to seek in a given direction or to absolute seek.
+	 * @param offset The offset relative to the seek direction or the absolute value
+	 * when using absolute seeking.
+	 */
 	void write_seek(buffer_seek direction, std::size_t offset) override {
 		buffer_write_adaptor<buf_type>::write_seek(direction, offset);
 	};
 
+	/**
+	 * Returns the size of the container.
+	 * 
+	 * @return The number of bytes of data available to read within the stream.
+	 */
 	std::size_t size() const override { 
 		return buffer_read_adaptor<buf_type>::size(); 
 	};
 
+	/**
+	 * @brief Whether the container is empty.
+	 * 
+	 * @return Returns true if the container is empty (has no data to be read).
+	 */
 	[[nodiscard]]
 	bool empty() const override { 
 		return buffer_read_adaptor<buf_type>::empty();
 	}
 
+	/**
+	 * @brief Attempts to locate the provided value within the container.
+	 * 
+	 * @param value The value to locate.
+	 * 
+	 * @return The position of value or npos if not found.
+	 */
 	std::size_t find_first_of(std::byte val) const override { 
 		return buffer_read_adaptor<buf_type>::find_first_of(val);
 	}
