@@ -41,7 +41,7 @@ using namespace detail;
 struct no_validate_dealloc {};
 struct validate_dealloc : no_validate_dealloc {};
 
-/*
+/**
  * Basic fixed-size block stack allocator that preallocates a slab of memory
  * capable of holding a compile-time determined number of elements.
  * When constructed, a linked list of chunks is built within the slab and

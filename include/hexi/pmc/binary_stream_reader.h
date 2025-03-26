@@ -94,10 +94,21 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Reads a string from the stream.
+	 * 
+	 * @param dest The destination string.
+	 */
 	void get(std::string& dest) {
 		*this >> dest;
 	}
 
+	/**
+	 * @brief Reads a fixed-length string from the stream.
+	 * 
+	 * @param dest The destination string.
+	 * @param The number of bytes to be read.
+	 */
 	void get(std::string& dest, std::size_t size) {
 		check_read_bounds(size);
 		dest.resize_and_overwrite(size, [&](char* strbuf, std::size_t len) {
@@ -106,6 +117,12 @@ public:
 		});
 	}
 
+	/**
+	 * @brief Read data from the stream into the provided destination argument.
+	 * 
+	 * @param dest The destination buffer.
+	 * @param The number of bytes to be read into the destination.
+	 */
 	template<typename T>
 	void get(T* dest, std::size_t count) {
 		assert(dest);
@@ -114,6 +131,12 @@ public:
 		buffer_.read(dest, read_size);
 	}
 
+	/**
+	 * @brief Read data from the stream to the destination represented by the iterators.
+	 * 
+	 * @param begin The beginning iterator.
+	 * @param end The end iterator.
+	 */
 	template<typename It>
 	void get(It begin, const It end) {
 		for(; begin != end; ++begin) {
@@ -121,6 +144,11 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Read data from the stream into the provided destination argument.
+	 * 
+	 * @param dest A contiguous range into which the data should be read.
+	 */
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
 		const auto read_size = dest.size() * sizeof(range::value_type);
@@ -128,6 +156,11 @@ public:
 		buffer_.read(dest.data(), read_size);
 	}
 
+	/**
+	 * @brief Read an arithmetic type from the stream.
+	 * 
+	 * @return The arithmetic value.
+	 */
 	template<arithmetic T>
 	T get() {
 		check_read_bounds(sizeof(T));
@@ -136,11 +169,22 @@ public:
 		return t;
 	}
 
+	/**
+	 * @brief Read an arithmetic type from the stream.
+	 * 
+	 * @return The arithmetic value.
+	 */
 	void get(arithmetic auto& dest) {
 		check_read_bounds(sizeof(dest));
 		buffer_.read(&dest, sizeof(dest));
 	}
 
+	/**
+	 * @brief Read an arithmetic type from the stream, allowing for endian
+	 * conversion.
+	 * 
+	 * @param The destination for the read value.
+	 */
 	template<endian::conversion conversion>
 	void get(arithmetic auto& dest) {
 		check_read_bounds(sizeof(dest));
@@ -148,6 +192,12 @@ public:
 		dest = endian::convert<conversion>(dest);
 	}
 
+	/**
+	 * @brief Read an arithmetic type from the stream, allowing for endian
+	 * conversion.
+	 * 
+	 * @return The arithmetic value.
+	 */
 	template<arithmetic T, endian::conversion conversion>
 	T get() {
 		check_read_bounds(sizeof(T));
@@ -158,19 +208,38 @@ public:
 
 	/**  Misc functions **/ 
 
+	/**
+	 * @brief Skip over count bytes
+	 *
+	 * Skips over a number of bytes from the container. This should be used
+	 * if the container holds data that you don't care about but don't want
+	 * to have to read it to another buffer to move beyond it.
+	 * 
+	 * @param length The number of bytes to skip.
+	 */
 	void skip(std::size_t count) {
 		check_read_bounds(count);
 		buffer_.skip(count);
 	}
 
+	/**
+	 * @return The total number of bytes read from the stream.
+	 */
 	std::size_t total_read() const {
 		return total_read_;
 	}
 
+	/**
+	 * @return If provided to the constructor, the upper limit on how much data
+	 * can be read from this stream before an error is triggers.
+	 */
 	std::size_t read_limit() const {
 		return read_limit_;
 	}
 
+	/**
+	 * @return Pointer to stream's underlying buffer.
+	 */
 	buffer_read* buffer() const {
 		return &buffer_;
 	}

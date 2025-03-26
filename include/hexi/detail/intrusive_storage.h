@@ -36,11 +36,24 @@ struct intrusive_storage final {
 	intrusive_node node {};
 	std::array<value_type, block_size> storage;
 
+	/**
+	 * @brief Clear the container.
+	 * 
+	 * Resets the read and write offsets, does not explicitly
+	 * erase the data contained within the buffer but should
+	 * be treated as such.
+	 */
 	void clear() {
 		read_offset = 0;
 		write_offset = 0;
 	}
 
+	/**
+	 * @brief Write provided data to the container.
+	 * 
+	 * @param source Pointer to the data to be written.
+	 * @param length Number of bytes to write from the source.
+	 */
 	std::size_t write(const auto source, std::size_t length) {
 		assert(!region_overlap(source, length, storage.data(), storage.size()));
 		std::size_t write_len = block_size - write_offset;
@@ -54,6 +67,13 @@ struct intrusive_storage final {
 		return write_len;
 	}
 
+	/**
+	 * @brief Copies a number of bytes to the provided buffer but without advancing
+	 * the read cursor.
+	 * 
+	 * @param destination The buffer to copy the data to.
+	 * @param length The number of bytes to copy.
+	 */
 	std::size_t copy(auto destination, const std::size_t length) const {
 		assert(!region_overlap(storage.data(), storage.size(), destination, length));
 		std::size_t read_len = block_size - read_offset;
@@ -66,6 +86,13 @@ struct intrusive_storage final {
 		return read_len;
 	}
 
+	/**
+	* @brief Reads a number of bytes to the provided buffer.
+	* 
+	* @param length The number of bytes to skip.
+	* @param destination The buffer to copy the data to.
+	* @param allow_optimise Whether the buffer can reuse its space where possible.
+	*/
 	std::size_t read(auto destination, const std::size_t length, const bool allow_optimise = false) {
 		std::size_t read_len = copy(destination, length);
 		read_offset += static_cast<OffsetType>(read_len);
@@ -77,6 +104,16 @@ struct intrusive_storage final {
 		return read_len;
 	}
 
+	/**
+	* @brief Skip over requested number of bytes.
+	*
+	* Skips over a number of bytes from the stream. This should be used
+	* if the stream holds data that you don't care about but don't want
+	* to have to read it to another buffer to move beyond it.
+	* 
+	* @param length The number of bytes to skip.
+	* @param allow_optimise Whether the buffer can reuse its space where possible.
+	*/
 	std::size_t skip(const std::size_t length, const bool allow_optimise = false) {
 		std::size_t skip_len = block_size - read_offset;
 
@@ -93,14 +130,31 @@ struct intrusive_storage final {
 		return skip_len;
 	}
 
+	/**
+	 * @brief Returns the size of the container.
+	 * 
+	 * @return The number of bytes of data available to read within the stream.
+	 */
 	std::size_t size() const {
 		return write_offset - read_offset;
 	}
 
+	/**
+	 * @brief The amount of free space.
+	 * 
+	 * @return The number of bytes of free space within the container.
+	 */
 	std::size_t free() const {
 		return block_size - write_offset;
 	}
 
+	/**
+	 * @brief Performs write seeking within the container.
+	 * 
+	 * @param direction Specify whether to seek in a given direction or to absolute seek.
+	 * @param offset The offset relative to the seek direction or the absolute value
+	 * when using absolute seeking.
+	 */
 	void write_seek(const buffer_seek direction, const std::size_t offset) {
 		switch(direction) {
 			case buffer_seek::sk_absolute:
@@ -115,6 +169,11 @@ struct intrusive_storage final {
 		}
 	}
 
+	/**
+	 * @brief Advances the write cursor.
+	 * 
+	 * @param size The number of bytes by which to advance the write cursor.
+	 */
 	std::size_t advance_write(std::size_t size) {
 		const auto remaining = free();
 
@@ -126,18 +185,42 @@ struct intrusive_storage final {
 		return size;
 	}
 
+	/**
+	 * @brief Retrieve a pointer to the readable portion of the buffer.
+	 * 
+	 * @return Pointer to the reable portion of the buffer.
+	 */
 	const value_type* read_data() const {
 		return storage.data() + read_offset;
 	}
 
+	/**
+	 * @brief Retrieve a pointer to the writeable portion of the buffer.
+	 * 
+	 * @return Pointer to the writeable portion of the buffer.
+	 */
 	value_type* write_data() {
 		return storage.data() + write_offset;
 	}
 
+	/**
+	 * @brief Retrieves a reference to the specified index within the container.
+	 * 
+	 * @param index The index within the container.
+	 * 
+	 * @return A reference to the value at the specified index.
+	 */
 	value_type& operator[](const std::size_t index) {
 		return *(storage.data() + index);
 	}
 
+	/**
+	 * @brief Retrieves a reference to the specified index within the container.
+	 * 
+	 * @param index The index within the container.
+	 * 
+	 * @return A reference to the value at the specified index.
+	 */
 	value_type& operator[](const std::size_t index) const {
 		return *(storage.data() + index);
 	}

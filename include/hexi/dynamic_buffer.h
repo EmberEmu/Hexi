@@ -183,11 +183,22 @@ public:
 		return *this;
 	}
 
+	/**
+	* Reads a number of bytes to the provided buffer.
+	* 
+	* @param destination The buffer to copy the data to.
+	*/
 	template<typename T>
 	void read(T* destination) {
 		read(destination, sizeof(T));
 	}
 
+	/**
+	* Reads a number of bytes to the provided buffer.
+	* 
+	* @param destination The buffer to copy the data to.
+	* @param length The number of bytes to read into the buffer.
+	*/
 	void read(void* destination, size_type length) override {
 		assert(length <= size_ && "Chained buffer read too large!");
 		size_type remaining = length;
@@ -210,11 +221,24 @@ public:
 		size_ -= length;
 	}
 
+	/**
+	* Copies a number of bytes to the provided buffer but without advancing
+	* the container's read cursor.
+	* 
+	* @param destination The buffer to copy the data to.
+	*/
 	template<typename T>
 	void copy(T* destination) const {
 		copy(destination, sizeof(T));
 	}
 
+	/**
+	* Copies a number of bytes to the provided buffer but without advancing
+	* the container's read cursor.
+	* 
+	* @param destination The buffer to copy the data to.
+	* @param length The number of bytes to copy.
+	*/
 	void copy(void* destination, const size_type length) const override {
 		assert(length <= size_ && "Chained buffer copy too large!");
 		size_type remaining = length;
@@ -263,6 +287,13 @@ public:
 	}
 #endif
 
+	/**
+	* Skips over a number of bytes from the container. This should be used
+	* if the container holds data that you don't care about but don't want
+	* to have to read it to another buffer to move beyond it.
+	* 
+	* @param length The number of bytes to skip.
+	*/
 	void skip(const size_type length) override {
 		assert(length <= size_ && "Chained buffer skip too large!");
 		size_type remaining = length;
@@ -282,10 +313,21 @@ public:
 		size_ -= length;
 	}
 
+	/**
+	* Write data to the container.
+	* 
+	* @param source Pointer to the data to be written.
+	*/
 	void write(const auto& source) {
 		write(&source, sizeof(source));
 	}
 
+	/**
+	* Write provided data to the container.
+	* 
+	* @param source Pointer to the data to be written.
+	* @param length Number of bytes to write from the source.
+	*/
 	void write(const void* source, const size_type length) override {
 		size_type remaining = length;
 		intrusive_node* tail = root_.prev;
@@ -311,6 +353,11 @@ public:
 		size_ += length;
 	}
 
+	/**
+	* Reserves a number of bytes within the container for future use.
+	* 
+	* @param length The number of bytes that the container should reserve.
+	*/
 	void reserve(const size_type length) override {
 		size_type remaining = length;
 		intrusive_node* tail = root_.prev;
@@ -333,10 +380,22 @@ public:
 		size_ += length;
 	}
 
+	/**
+	* Returns the size of the container.
+	* 
+	* @return The number of bytes of data available to read within the container.
+	*/
 	size_type size() const override {
 		return size_;
 	}
 
+	/**
+	* Retrieves the last buffer in the container's list.
+	* 
+	* @return A reference to the value at the specified index.
+	* @note The container retains ownership over the buffer, so it must not
+	* be deallocated by the caller.
+	*/
 	storage_type* back() const {
 		if(root_.prev == &root_) {
 			return nullptr;
@@ -345,6 +404,12 @@ public:
 		return buffer_from_node(root_.prev);
 	}
 
+	/**
+	* Retrieves the buffer's block sized.
+	* 
+	* @param index The index within the buffer.
+	* @return A reference to the value at the specified index.
+	*/
 	storage_type* front() const {
 		if(root_.next == &root_) {
 			return nullptr;
@@ -353,6 +418,16 @@ public:
 		return buffer_from_node(root_.next);
 	}
 
+	/**
+	* Removes the first buffer from the container.
+	* 
+	* @return A pointer to the popped buffer.
+	* 
+	* @note Removing the buffer from the container also transfers ownership.
+	* Therefore, the caller assumes responsibility for deallocating the buffer
+	* when it is no longer required. Alternatively, it can be pushed back into
+	* the container to transfer ownership back.
+	*/
 	auto pop_front() {
 		auto buffer = buffer_from_node(root_.next);
 		size_ -= buffer->size();
@@ -362,11 +437,24 @@ public:
 		});
 	}
 
+	/**
+	* Attaches additional storage to the container.
+	* 
+	* @param buffer The block to add to the container.
+	* 
+	* @note Once pushed, the container is assumed to have ownership over the buffer.
+	* The buffer storage must have been allocated by the same allocator as the container.
+	*/
 	void push_back(storage_type* buffer) {
 		link_tail_node(&buffer->node);
 		size_ += buffer->write_offset;
 	}
 
+	/**
+	* Advances the write cursor.
+	* 
+	* @param size The number of bytes by which the write cursor to advance the cursor.
+	*/
 	void advance_write(const size_type size) {
 		auto buffer = buffer_from_node(root_.prev);
 		const auto actual = buffer->advance_write(size);
@@ -375,19 +463,34 @@ public:
 		size_ += size;
 	}
 
+	/**
+	 * @brief Determine whether the adaptor supports write seeking.
+	 * 
+	 * This is determined at compile-time and does not need to checked at
+	 * run-time.
+	 * 
+	 * @return True if write seeking is supported, otherwise false.
+	 */
 	bool can_write_seek() const override {
 		return std::is_same_v<seeking, supported>;
 	}
 
-	void write_seek(const buffer_seek mode, size_type offset) override {
+	/**
+	 * Performs write seeking within the container.
+	 * 
+	 * @param direction Specify whether to seek in a given direction or to absolute seek.
+	 * @param offset The offset relative to the seek direction or the absolute value
+	 * when using absolute seeking.
+	 */
+	void write_seek(const buffer_seek direction, size_type offset) override {
 		// nothing to do in this case
-		if(mode == buffer_seek::sk_absolute && offset == size_) {
+		if(direction == buffer_seek::sk_absolute && offset == size_) {
 			return;
 		}
 
 		auto tail = root_.prev;
 
-		switch(mode) {
+		switch(direction) {
 			case buffer_seek::sk_backward:
 				size_ -= offset;
 				break;
@@ -400,18 +503,19 @@ public:
 				break;
 		}
 
-		const bool rewind = (mode == buffer_seek::sk_backward
-							 || (mode == buffer_seek::sk_absolute && offset < size_));
+		const bool rewind
+			= (direction == buffer_seek::sk_backward
+			   || (direction == buffer_seek::sk_absolute && offset < size_));
 
 		while(offset) {
 			auto buffer = buffer_from_node(tail);
 			const auto max_seek = rewind? buffer->size() : buffer->free();
 
 			if(max_seek >= offset) {
-				buffer->write_seek(mode, offset);
+				buffer->write_seek(direction, offset);
 				offset = 0;
 			} else {
-				buffer->write_seek(mode, max_seek);
+				buffer->write_seek(direction, max_seek);
 				offset -= max_seek;
 				tail = rewind? tail->prev : tail->next;
 			}
@@ -420,6 +524,9 @@ public:
 		root_.prev = tail;
 	}
 
+	/**
+	* Clears the container.
+	*/
 	void clear() {
 		intrusive_node* head = root_.next;
 
@@ -434,23 +541,52 @@ public:
 		size_ = 0;
 	}
 
+	/**
+	* Whether the container is empty.
+	* 
+	* @return Returns true if the container is empty (has no data to be read).
+	*/
 	[[nodiscard]]
 	bool empty() const override {
 		return !size_;
 	}
-	
-	constexpr static size_type block_size() {
+
+	/**
+	* Retrieves the container's block size.
+	* 
+	* @return The block size.
+	*/
+	consteval static size_type block_size() {
 		return block_sz;
 	}
 
+	/**
+	* Retrieves a reference to the specified index within the container.
+	* 
+	* @param index The index within the container.
+	* 
+	* @return A reference to the value at the specified index.
+	*/
 	value_type& operator[](const size_type index) override {
 		return byte_at_index(index);
 	}
 
+	/**
+	* Retrieves a reference to the specified index within the container.
+	* 
+	* @param index The index within the container.
+	* 
+	* @return A reference to the value at the specified index.
+	*/
 	const value_type& operator[](const size_type index) const override {
 		return byte_at_index(index);
 	}
 
+	/**
+	* Retrieves the number of allocated blocks currently being used by the container.
+	* 
+	* @return The number of allocated blocks.
+	*/
 	size_type block_count() {
 		auto node = &root_;
 		size_type count = 0;
@@ -465,7 +601,14 @@ public:
 		return count;
 	}
 
-	size_type find_first_of(value_type val) const override {
+	/**
+	* Attempts to locate the provided value within the container.
+	* 
+	* @param value The value to locate.
+	* 
+	* @return The position of value or npos if not found.
+	*/
+	size_type find_first_of(value_type value) const override {
 		size_type index = 0;
 		auto head = root_.next;
 
@@ -474,7 +617,7 @@ public:
 			const auto data = buffer->read_data();
 			
 			for(size_type i = 0, j = buffer->size(); i < j; ++i, ++index) {
-				if(data[i] == val) {
+				if(data[i] == value) {
 					return index;
 				}
 			}
@@ -485,10 +628,20 @@ public:
 		return npos;
 	}
 
+	/**
+	* Retrieves the container's allocator.
+	* 
+	* @return The memory allocator.
+	*/
 	auto& get_allocator() {
 		return allocator_;
 	}
 
+	/**
+	* Retrieves the container's allocator.
+	* 
+	* @return The memory allocator.
+	*/
 	const auto& get_allocator() const {
 		return allocator_;
 	}
