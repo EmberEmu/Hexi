@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <bit>
 #include <concepts>
 #include <type_traits>
@@ -42,6 +44,13 @@ enum class stream_state {
 	invalid_stream,
 	user_defined_err
 };
+
+template<decltype(auto) size>
+static constexpr auto generate_filled(const std::uint8_t value) {
+	std::array<std::uint8_t, size> target{};
+	std::ranges::fill(target, value);
+	return target;
+}
 
 namespace detail {
 
