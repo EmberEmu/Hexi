@@ -41,7 +41,14 @@ public:
 		  buffer_(source),
 		  total_write_(0) {}
 
-	binary_stream_writer(binary_stream_writer&& rhs) = delete;
+	binary_stream_writer(binary_stream_writer&& rhs) noexcept
+		: stream_base(rhs),
+		  buffer_(rhs.buffer_), 
+		  total_write_(rhs.total_write_) {
+		rhs.total_write_ = static_cast<std::size_t>(-1);
+		rhs.set_state(stream_state::invalid_stream);
+	}
+
 	binary_stream_writer& operator=(binary_stream_writer&&) = delete;
 	binary_stream_writer& operator=(const binary_stream_writer&) = delete;
 	binary_stream_writer(const binary_stream_writer&) = delete;

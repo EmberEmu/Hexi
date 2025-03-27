@@ -51,7 +51,15 @@ public:
 		  total_read_(0),
 		  read_limit_(read_limit) {}
 
-	binary_stream_reader(binary_stream_reader&& rhs) = delete;
+	binary_stream_reader(binary_stream_reader&& rhs) noexcept
+		: stream_base(rhs),
+		  buffer_(rhs.buffer_), 
+		  total_read_(rhs.total_read_),
+		  read_limit_(rhs.read_limit_) {
+		rhs.total_read_ = static_cast<std::size_t>(-1);
+		rhs.set_state(stream_state::invalid_stream);
+	}
+
 	binary_stream_reader& operator=(binary_stream_reader&&) = delete;
 	binary_stream_reader& operator=(const binary_stream_reader&) = delete;
 	binary_stream_reader(const binary_stream_reader&) = delete;
