@@ -2813,6 +2813,7 @@ public:
 		
 		if(std::fseek(file_, 0, SEEK_END)) {
 			error_ = true;
+			return;
 		}
 
 		write_ = std::ftell(file_);
