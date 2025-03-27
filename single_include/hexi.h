@@ -1706,7 +1706,7 @@ struct intrusive_storage final {
 	 * 
 	 * @return A reference to the value at the specified index.
 	 */
-	value_type& operator[](const std::size_t index) const {
+	const value_type& operator[](const std::size_t index) const {
 		return *(storage.data() + index);
 	}
 };
