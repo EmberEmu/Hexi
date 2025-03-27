@@ -36,5 +36,5 @@ set(HEADERS
     hexi/allocators/block_allocator.h
 )
 
-add_library(${CMAKE_PROJECT_NAME} INTERFACE ${HEADERS})
-target_include_directories(${CMAKE_PROJECT_NAME} INTERFACE ../)
+add_library(${HEXI_PROJECT_NAME} INTERFACE ${HEADERS})
+target_include_directories(${HEXI_PROJECT_NAME} INTERFACE ../)

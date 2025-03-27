@@ -5,7 +5,8 @@
 # |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 cmake_minimum_required(VERSION 3.29)
-project(hexi)
+set(HEXI_PROJECT_NAME hexi)
+project(${HEXI_PROJECT_NAME})
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED OFF)
