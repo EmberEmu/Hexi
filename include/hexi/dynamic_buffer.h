@@ -407,11 +407,11 @@ public:
 	}
 
 	/**
-	* @brief Retrieves the buffer's block sized.
-	* 
-	* @param index The index within the buffer.
-	* @return A reference to the value at the specified index.
-	*/
+	 * @brief Retrieves the buffer's block sized.
+	 * 
+	 * @param index The index within the buffer.
+	 * @return A reference to the value at the specified index.
+	 */
 	storage_type* front() const {
 		if(root_.next == &root_) {
 			return nullptr;

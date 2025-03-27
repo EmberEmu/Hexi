@@ -34,7 +34,7 @@ private:
 	bool error_ = false;
 
 	/**
-	* @brief Explicitly Close the underlying file handle.
+	* @brief Explicitly close the underlying file handle.
 	* 
 	* This function will be called by the object's destructor
 	* and does not need to be called explicitly.

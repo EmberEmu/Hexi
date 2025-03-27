@@ -107,7 +107,7 @@ public:
 	 * @brief Reads a fixed-length string from the stream.
 	 * 
 	 * @param dest The destination string.
-	 * @param The number of bytes to be read.
+	 * @param count The number of bytes to be read.
 	 */
 	void get(std::string& dest, std::size_t size) {
 		check_read_bounds(size);
@@ -121,7 +121,7 @@ public:
 	 * @brief Read data from the stream into the provided destination argument.
 	 * 
 	 * @param dest The destination buffer.
-	 * @param The number of bytes to be read into the destination.
+	 * @param count The number of bytes to be read into the destination.
 	 */
 	template<typename T>
 	void get(T* dest, std::size_t count) {
