@@ -39,6 +39,7 @@ enum class stream_state {
 	ok,
 	read_limit_err,
 	buff_limit_err,
+	invalid_stream,
 	user_defined_err
 };
 

@@ -57,6 +57,7 @@ enum class stream_state {
 	ok,
 	read_limit_err,
 	buff_limit_err,
+	invalid_stream,
 	user_defined_err
 };
 
@@ -427,7 +428,16 @@ public:
 		: buffer_(source),
 		  read_limit_(read_limit) {};
 
-	binary_stream(binary_stream&& rhs) = delete;
+	binary_stream(binary_stream&& rhs) noexcept
+		: buffer_(rhs.buffer_), 
+		  total_write_(rhs.total_write_),
+		  total_read_(rhs.total_read_),
+		  state_(rhs.state_),
+		  read_limit_(rhs.read_limit_) {
+		rhs.total_read_ = static_cast<size_type>(-1);
+		rhs.state_ = stream_state::invalid_stream;
+	}
+
 	binary_stream& operator=(binary_stream&&) = delete;
 	binary_stream& operator=(binary_stream&) = delete;
 	binary_stream(binary_stream&) = delete;
@@ -647,7 +657,7 @@ public:
 	 * @brief Reads a fixed-length string from the stream.
 	 * 
 	 * @param dest The destination string.
-	 * @param The number of bytes to be read.
+	 * @param count The number of bytes to be read.
 	 */
 	void get(std::string& dest, size_type size) {
 		STREAM_READ_BOUNDS_CHECK(size, void());
@@ -661,7 +671,7 @@ public:
 	 * @brief Read data from the stream into the provided destination argument.
 	 * 
 	 * @param dest The destination buffer.
-	 * @param The number of bytes to be read into the destination.
+	 * @param count The number of bytes to be read into the destination.
 	 */
 	template<typename T>
 	void get(T* dest, size_type count) {
@@ -1487,8 +1497,13 @@ struct intrusive_storage final {
 	/**
 	 * @brief Write provided data to the container.
 	 * 
+	 * If the container size is lower than requested number of bytes,
+	 * the request will be capped at the number of bytes available.
+	 * 
 	 * @param source Pointer to the data to be written.
 	 * @param length Number of bytes to write from the source.
+	 * 
+	 * @return The number of bytes copied, which may be less than requested.
 	 */
 	std::size_t write(const auto source, std::size_t length) {
 		assert(!region_overlap(source, length, storage.data(), storage.size()));
@@ -1504,11 +1519,16 @@ struct intrusive_storage final {
 	}
 
 	/**
-	 * @brief Copies a number of bytes to the provided buffer but without advancing
-	 * the read cursor.
+	 * @brief Copies a number of bytes to the provided buffer but without
+	 * advancing the read cursor.
+	 * 
+	 * If the container size is lower than requested number of bytes,
+	 * the request will be capped at the number of bytes available.
 	 * 
 	 * @param destination The buffer to copy the data to.
 	 * @param length The number of bytes to copy.
+	 * 
+	 * @return The number of bytes copied, which may be less than requested.
 	 */
 	std::size_t copy(auto destination, const std::size_t length) const {
 		assert(!region_overlap(storage.data(), storage.size(), destination, length));
@@ -1525,9 +1545,14 @@ struct intrusive_storage final {
 	/**
 	* @brief Reads a number of bytes to the provided buffer.
 	* 
+	* If the container size is lower than requested number of bytes,
+	* the request will be capped at the number of bytes available.
+	* 
 	* @param length The number of bytes to skip.
 	* @param destination The buffer to copy the data to.
 	* @param allow_optimise Whether the buffer can reuse its space where possible.
+	* 
+	* @return The number of bytes read, which may be less than requested.
 	*/
 	std::size_t read(auto destination, const std::size_t length, const bool allow_optimise = false) {
 		std::size_t read_len = copy(destination, length);
@@ -1547,8 +1572,13 @@ struct intrusive_storage final {
 	* if the stream holds data that you don't care about but don't want
 	* to have to read it to another buffer to move beyond it.
 	* 
+	* If the container size is lower than requested number of bytes,
+	* the request will be capped at the number of bytes available.
+	* 
 	* @param length The number of bytes to skip.
 	* @param allow_optimise Whether the buffer can reuse its space where possible.
+	* 
+	* @return The number of bytes skipped, which may be less than requested.
 	*/
 	std::size_t skip(const std::size_t length, const bool allow_optimise = false) {
 		std::size_t skip_len = block_size - read_offset;
@@ -2079,11 +2109,11 @@ public:
 	}
 
 	/**
-	* @brief Retrieves the buffer's block sized.
-	* 
-	* @param index The index within the buffer.
-	* @return A reference to the value at the specified index.
-	*/
+	 * @brief Retrieves the buffer's block sized.
+	 * 
+	 * @param index The index within the buffer.
+	 * @return A reference to the value at the specified index.
+	 */
 	storage_type* front() const {
 		if(root_.next == &root_) {
 			return nullptr;
@@ -2755,7 +2785,7 @@ private:
 	bool error_ = false;
 
 	/**
-	* @brief Explicitly Close the underlying file handle.
+	* @brief Explicitly close the underlying file handle.
 	* 
 	* This function will be called by the object's destructor
 	* and does not need to be called explicitly.
@@ -3605,7 +3635,15 @@ public:
 		  total_read_(0),
 		  read_limit_(read_limit) {}
 
-	binary_stream_reader(binary_stream_reader&& rhs) = delete;
+	binary_stream_reader(binary_stream_reader&& rhs) noexcept
+		: stream_base(rhs),
+		  buffer_(rhs.buffer_), 
+		  total_read_(rhs.total_read_),
+		  read_limit_(rhs.read_limit_) {
+		rhs.total_read_ = static_cast<std::size_t>(-1);
+		rhs.set_state(stream_state::invalid_stream);
+	}
+
 	binary_stream_reader& operator=(binary_stream_reader&&) = delete;
 	binary_stream_reader& operator=(const binary_stream_reader&) = delete;
 	binary_stream_reader(const binary_stream_reader&) = delete;
@@ -3661,7 +3699,7 @@ public:
 	 * @brief Reads a fixed-length string from the stream.
 	 * 
 	 * @param dest The destination string.
-	 * @param The number of bytes to be read.
+	 * @param count The number of bytes to be read.
 	 */
 	void get(std::string& dest, std::size_t size) {
 		check_read_bounds(size);
@@ -3675,7 +3713,7 @@ public:
 	 * @brief Read data from the stream into the provided destination argument.
 	 * 
 	 * @param dest The destination buffer.
-	 * @param The number of bytes to be read into the destination.
+	 * @param count The number of bytes to be read into the destination.
 	 */
 	template<typename T>
 	void get(T* dest, std::size_t count) {
@@ -3850,7 +3888,14 @@ public:
 		  buffer_(source),
 		  total_write_(0) {}
 
-	binary_stream_writer(binary_stream_writer&& rhs) = delete;
+	binary_stream_writer(binary_stream_writer&& rhs) noexcept
+		: stream_base(rhs),
+		  buffer_(rhs.buffer_), 
+		  total_write_(rhs.total_write_) {
+		rhs.total_write_ = static_cast<std::size_t>(-1);
+		rhs.set_state(stream_state::invalid_stream);
+	}
+
 	binary_stream_writer& operator=(binary_stream_writer&&) = delete;
 	binary_stream_writer& operator=(const binary_stream_writer&) = delete;
 	binary_stream_writer(const binary_stream_writer&) = delete;
