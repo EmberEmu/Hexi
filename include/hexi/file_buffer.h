@@ -10,6 +10,7 @@
 #include <hexi/shared.h>
 #include <hexi/concepts.h>
 #include <filesystem>
+#include <utility>
 #include <cstddef>
 #include <cstdio>
 
@@ -81,11 +82,10 @@ public:
 	}
 
 	file_buffer& operator=(file_buffer&& rhs) noexcept {
-		file_ = rhs.file_;
+		std::exchange(file_, rhs.file_);
 		read_ = rhs.read_;
 		write_ = rhs.write_;
 		error_ = rhs.error_;
-		rhs.file_ = nullptr;
 		return *this;
 	}
 
