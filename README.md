@@ -52,7 +52,7 @@ auto serialise(const UserPacket& packet) {
     return buffer;
 }
 ```
-Now, for reasons of portability, it's not recommended that you do things this way unless you're positive that the data layout is identical on the system that wrote the data. Not to worry, this is easily solved. Plus, we didn't do any error handling. All in good time.
+By default, Hexi will try to serialise basic structures such as our `UserPacket` if they meet requirements for being safe to directly copy the bytes. Now, for reasons of portability, it's not recommended that you do things this way unless you're positive that the data layout is identical on the system that wrote the data. Not to worry, this is easily solved. Plus, we didn't do any error handling. All in good time.
 
 <img src="docs/assets/frog-remember.png" alt="Remember these two classes, if nothing else!">
 
