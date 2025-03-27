@@ -11,7 +11,6 @@
 #include <hexi/exception.h>
 #include <hexi/endian.h>
 #include <algorithm>
-#include <array>
 #include <concepts>
 #include <ranges>
 #include <span>
@@ -79,13 +78,6 @@ private:
 		}
 
 		total_read_ += read_size;
-	}
-
-	template<size_type size>
-	constexpr auto generate_filled(const std::uint8_t value) {
-		std::array<std::uint8_t, size> target{};
-		std::ranges::fill(target, value);
-		return target;
 	}
 
 public:
