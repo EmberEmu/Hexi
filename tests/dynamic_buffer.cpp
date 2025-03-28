@@ -72,7 +72,7 @@ TEST(dynamic_buffer, reserve_fetch_consistency) {
 	std::size_t offset = 0;
 
 	for(auto& buffer : buffers) {
-		std::memcpy(const_cast<std::byte*>(buffer->read_data()), text + offset, buffer->size());
+		std::memcpy(buffer->read_ptr(), text + offset, buffer->size());
 		offset += buffer->size();
 
 		if(offset > text_len || !offset) {

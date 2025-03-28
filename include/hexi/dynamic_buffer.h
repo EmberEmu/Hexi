@@ -618,10 +618,12 @@ public:
 			const auto buffer = buffer_from_node(head);
 			const auto data = buffer->read_data();
 			
-			for(size_type i = 0, j = buffer->size(); i < j; ++i, ++index) {
-				if(data[i] == value) {
+			for(const auto& byte : data) {
+				if(byte == value) {
 					return index;
 				}
+
+				++index;
 			}
 
 			head = head->next;

@@ -217,7 +217,7 @@ struct intrusive_storage final {
 	 * 
 	 * @return Pointer to the readable portion of the buffer.
 	 */
-	const value_type* read_data() const {
+	const value_type* read_ptr() const {
 		return storage.data() + read_offset;
 	}
 
@@ -226,7 +226,7 @@ struct intrusive_storage final {
 	 * 
 	 * @return Pointer to the readable portion of the buffer.
 	 */
-	value_type* read_data() {
+	value_type* read_ptr() {
 		return storage.data() + read_offset;
 	}
 
@@ -235,17 +235,53 @@ struct intrusive_storage final {
 	 * 
 	 * @return Pointer to the writeable portion of the buffer.
 	 */
-	const value_type* write_data() const {
+	const value_type* write_ptr () const {
 		return storage.data() + write_offset;
 	}
 
 	/**
-	* @brief Retrieve a pointer to the writeable portion of the buffer.
-	* 
-	* @return Pointer to the writeable portion of the buffer.
-	*/
-	value_type* write_data() {
+	 * @brief Retrieve a pointer to the writeable portion of the buffer.
+	 * 
+	 * @return Pointer to the writeable portion of the buffer.
+	 */
+	value_type* write_ptr() {
 		return storage.data() + write_offset;
+	}
+
+	/**
+	 * @brief Retrieve a span to the readable portion of the buffer.
+	 * 
+	 * @return Span to the readable portion of the buffer.
+	 */
+	std::span<const value_type> read_data() const {
+		return { storage.data() + read_offset, size() };
+	}
+
+	/**
+	 * @brief Retrieve a span to the readable portion of the buffer.
+	 * 
+	 * @return Span to the readable portion of the buffer.
+	 */
+	std::span<value_type> read_data() {
+		return { storage.data() + read_offset, size() } ;
+	}
+
+	/**
+	 * @brief Retrieve a span to the writeable portion of the buffer.
+	 * 
+	 * @return Span to the writeable portion of the buffer.
+	 */
+	std::span<const value_type> write_data() const {
+		return { storage.data() + write_offset, free() } ;
+	}
+
+	/**
+	 * @brief Retrieve a span to the writeable portion of the buffer.
+	 * 
+	 * @return Span to the writeable portion of the buffer.
+	 */
+	std::span<value_type> write_data() {
+		return { storage.data() + write_offset, free() } ;
 	}
 
 	/**
