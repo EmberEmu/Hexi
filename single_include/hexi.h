@@ -1256,7 +1256,7 @@ public:
 
 		asio::const_buffer operator*() const {
 			const auto buffer = buffer_.buffer_from_node(curr_node_);
-			return asio::const_buffer(buffer->read_data(), buffer->size());
+			return buffer->read_data();
 		}
 
 		bool operator==(const const_iterator& rhs) const {
@@ -1273,7 +1273,7 @@ public:
 		std::span<const char> get_buffer() {
 			auto buffer = buffer_.buffer_from_node(curr_node_);
 			return {
-				reinterpret_cast<const char*>(buffer->read_data()), buffer->size()
+				reinterpret_cast<const char*>(buffer->read_ptr()), buffer->size()
 			};
 		}
 	#endif
