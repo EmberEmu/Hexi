@@ -1461,6 +1461,7 @@ struct default_allocator final {
 
 #include <array>
 #include <concepts>
+#include <span>
 #include <type_traits>
 #include <cassert>
 #include <cstring>
@@ -1476,10 +1477,10 @@ struct intrusive_node {
 template<std::size_t block_size, byte_type storage_type = std::byte>
 struct intrusive_storage final {
 	using value_type = storage_type;
-	using OffsetType = std::remove_const_t<decltype(block_size)>;
+	using offset_type = std::remove_const_t<decltype(block_size)>;
 
-	OffsetType read_offset = 0;
-	OffsetType write_offset = 0;
+	offset_type read_offset = 0;
+	offset_type write_offset = 0;
 	intrusive_node node {};
 	std::array<value_type, block_size> storage;
 
@@ -1515,7 +1516,7 @@ struct intrusive_storage final {
 		}
 
 		std::memcpy(storage.data() + write_offset, source, write_len);
-		write_offset += static_cast<OffsetType>(write_len);
+		write_offset += static_cast<offset_type>(write_len);
 		return write_len;
 	}
 
@@ -1557,7 +1558,7 @@ struct intrusive_storage final {
 	*/
 	std::size_t read(auto destination, const std::size_t length, const bool allow_optimise = false) {
 		std::size_t read_len = copy(destination, length);
-		read_offset += static_cast<OffsetType>(read_len);
+		read_offset += static_cast<offset_type>(read_len);
 
 		if(read_offset == write_offset && allow_optimise) {
 			clear();
@@ -1569,8 +1570,8 @@ struct intrusive_storage final {
 	/**
 	* @brief Skip over requested number of bytes.
 	*
-	* Skips over a number of bytes from the stream. This should be used
-	* if the stream holds data that you don't care about but don't want
+	* Skips over a number of bytes in the container. This should be used
+	* if the container holds data that you don't care about but don't want
 	* to have to read it to another buffer to move beyond it.
 	* 
 	* If the container size is lower than requested number of bytes,
@@ -1588,7 +1589,7 @@ struct intrusive_storage final {
 			skip_len = length;
 		}
 
-		read_offset += static_cast<OffsetType>(skip_len);
+		read_offset += static_cast<offset_type>(skip_len);
 
 		if(read_offset == write_offset && allow_optimise) {
 			clear();
@@ -1600,7 +1601,7 @@ struct intrusive_storage final {
 	/**
 	 * @brief Returns the size of the container.
 	 * 
-	 * @return The number of bytes of data available to read within the stream.
+	 * @return The number of bytes available to read within the container.
 	 */
 	std::size_t size() const {
 		return write_offset - read_offset;
@@ -1628,10 +1629,10 @@ struct intrusive_storage final {
 				write_offset = offset;
 				break;
 			case buffer_seek::sk_backward:
-				write_offset -= static_cast<OffsetType>(offset);
+				write_offset -= static_cast<offset_type>(offset);
 				break;
 			case buffer_seek::sk_forward:
-				write_offset += static_cast<OffsetType>(offset);
+				write_offset += static_cast<offset_type>(offset);
 				break;
 		}
 	}
@@ -1639,7 +1640,13 @@ struct intrusive_storage final {
 	/**
 	 * @brief Advances the write cursor.
 	 * 
+	 * If the requested number of bytes exceeds the free space, the
+	 * request will be capped at the amount of free space.
+	 * 
 	 * @param size The number of bytes by which to advance the write cursor.
+	 * 
+	 * @return The number of bytes the write cursor was advanced by, which
+	 * may be less than requested.
 	 */
 	std::size_t advance_write(std::size_t size) {
 		const auto remaining = free();
@@ -1648,25 +1655,25 @@ struct intrusive_storage final {
 			size = remaining;
 		}
 
-		write_offset += static_cast<OffsetType>(size);
+		write_offset += static_cast<offset_type>(size);
 		return size;
 	}
 
 	/**
 	 * @brief Retrieve a pointer to the readable portion of the buffer.
 	 * 
-	 * @return Pointer to the reable portion of the buffer.
+	 * @return Pointer to the readable portion of the buffer.
 	 */
-	const value_type* read_data() const {
+	const value_type* read_ptr() const {
 		return storage.data() + read_offset;
 	}
 
 	/**
 	 * @brief Retrieve a pointer to the readable portion of the buffer.
 	 * 
-	 * @return Pointer to the reable portion of the buffer.
+	 * @return Pointer to the readable portion of the buffer.
 	 */
-	value_type* read_data() {
+	value_type* read_ptr() {
 		return storage.data() + read_offset;
 	}
 
@@ -1675,17 +1682,53 @@ struct intrusive_storage final {
 	 * 
 	 * @return Pointer to the writeable portion of the buffer.
 	 */
-	const value_type* write_data() const {
+	const value_type* write_ptr () const {
 		return storage.data() + write_offset;
 	}
 
 	/**
-	* @brief Retrieve a pointer to the writeable portion of the buffer.
-	* 
-	* @return Pointer to the writeable portion of the buffer.
-	*/
-	value_type* write_data() {
+	 * @brief Retrieve a pointer to the writeable portion of the buffer.
+	 * 
+	 * @return Pointer to the writeable portion of the buffer.
+	 */
+	value_type* write_ptr() {
 		return storage.data() + write_offset;
+	}
+
+	/**
+	 * @brief Retrieve a span to the readable portion of the buffer.
+	 * 
+	 * @return Span to the readable portion of the buffer.
+	 */
+	std::span<const value_type> read_data() const {
+		return { storage.data() + read_offset, size() };
+	}
+
+	/**
+	 * @brief Retrieve a span to the readable portion of the buffer.
+	 * 
+	 * @return Span to the readable portion of the buffer.
+	 */
+	std::span<value_type> read_data() {
+		return { storage.data() + read_offset, size() } ;
+	}
+
+	/**
+	 * @brief Retrieve a span to the writeable portion of the buffer.
+	 * 
+	 * @return Span to the writeable portion of the buffer.
+	 */
+	std::span<const value_type> write_data() const {
+		return { storage.data() + write_offset, free() } ;
+	}
+
+	/**
+	 * @brief Retrieve a span to the writeable portion of the buffer.
+	 * 
+	 * @return Span to the writeable portion of the buffer.
+	 */
+	std::span<value_type> write_data() {
+		return { storage.data() + write_offset, free() } ;
 	}
 
 	/**
@@ -2321,10 +2364,12 @@ public:
 			const auto buffer = buffer_from_node(head);
 			const auto data = buffer->read_data();
 			
-			for(size_type i = 0, j = buffer->size(); i < j; ++i, ++index) {
-				if(data[i] == value) {
+			for(const auto& byte : data) {
+				if(byte == value) {
 					return index;
 				}
+
+				++index;
 			}
 
 			head = head->next;
