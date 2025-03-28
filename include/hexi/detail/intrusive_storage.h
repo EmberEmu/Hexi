@@ -14,6 +14,7 @@
 #include <hexi/concepts.h>
 #include <array>
 #include <concepts>
+#include <span>
 #include <type_traits>
 #include <cassert>
 #include <cstring>
@@ -122,8 +123,8 @@ struct intrusive_storage final {
 	/**
 	* @brief Skip over requested number of bytes.
 	*
-	* Skips over a number of bytes from the stream. This should be used
-	* if the stream holds data that you don't care about but don't want
+	* Skips over a number of bytes in the container. This should be used
+	* if the container holds data that you don't care about but don't want
 	* to have to read it to another buffer to move beyond it.
 	* 
 	* If the container size is lower than requested number of bytes,
@@ -153,7 +154,7 @@ struct intrusive_storage final {
 	/**
 	 * @brief Returns the size of the container.
 	 * 
-	 * @return The number of bytes of data available to read within the stream.
+	 * @return The number of bytes available to read within the container.
 	 */
 	std::size_t size() const {
 		return write_offset - read_offset;
@@ -192,7 +193,13 @@ struct intrusive_storage final {
 	/**
 	 * @brief Advances the write cursor.
 	 * 
+	 * If the requested number of bytes exceeds the free space, the
+	 * request will be capped at the amount of free space.
+	 * 
 	 * @param size The number of bytes by which to advance the write cursor.
+	 * 
+	 * @return The number of bytes the write cursor was advanced by, which
+	 * may be less than requested.
 	 */
 	std::size_t advance_write(std::size_t size) {
 		const auto remaining = free();
@@ -208,7 +215,7 @@ struct intrusive_storage final {
 	/**
 	 * @brief Retrieve a pointer to the readable portion of the buffer.
 	 * 
-	 * @return Pointer to the reable portion of the buffer.
+	 * @return Pointer to the readable portion of the buffer.
 	 */
 	const value_type* read_data() const {
 		return storage.data() + read_offset;
@@ -217,7 +224,7 @@ struct intrusive_storage final {
 	/**
 	 * @brief Retrieve a pointer to the readable portion of the buffer.
 	 * 
-	 * @return Pointer to the reable portion of the buffer.
+	 * @return Pointer to the readable portion of the buffer.
 	 */
 	value_type* read_data() {
 		return storage.data() + read_offset;
