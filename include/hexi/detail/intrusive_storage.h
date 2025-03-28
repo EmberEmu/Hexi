@@ -29,10 +29,10 @@ struct intrusive_node {
 template<std::size_t block_size, byte_type storage_type = std::byte>
 struct intrusive_storage final {
 	using value_type = storage_type;
-	using OffsetType = std::remove_const_t<decltype(block_size)>;
+	using offset_type = std::remove_const_t<decltype(block_size)>;
 
-	OffsetType read_offset = 0;
-	OffsetType write_offset = 0;
+	offset_type read_offset = 0;
+	offset_type write_offset = 0;
 	intrusive_node node {};
 	std::array<value_type, block_size> storage;
 
@@ -68,7 +68,7 @@ struct intrusive_storage final {
 		}
 
 		std::memcpy(storage.data() + write_offset, source, write_len);
-		write_offset += static_cast<OffsetType>(write_len);
+		write_offset += static_cast<offset_type>(write_len);
 		return write_len;
 	}
 
@@ -110,7 +110,7 @@ struct intrusive_storage final {
 	*/
 	std::size_t read(auto destination, const std::size_t length, const bool allow_optimise = false) {
 		std::size_t read_len = copy(destination, length);
-		read_offset += static_cast<OffsetType>(read_len);
+		read_offset += static_cast<offset_type>(read_len);
 
 		if(read_offset == write_offset && allow_optimise) {
 			clear();
@@ -141,7 +141,7 @@ struct intrusive_storage final {
 			skip_len = length;
 		}
 
-		read_offset += static_cast<OffsetType>(skip_len);
+		read_offset += static_cast<offset_type>(skip_len);
 
 		if(read_offset == write_offset && allow_optimise) {
 			clear();
@@ -181,10 +181,10 @@ struct intrusive_storage final {
 				write_offset = offset;
 				break;
 			case buffer_seek::sk_backward:
-				write_offset -= static_cast<OffsetType>(offset);
+				write_offset -= static_cast<offset_type>(offset);
 				break;
 			case buffer_seek::sk_forward:
-				write_offset += static_cast<OffsetType>(offset);
+				write_offset += static_cast<offset_type>(offset);
 				break;
 		}
 	}
@@ -201,7 +201,7 @@ struct intrusive_storage final {
 			size = remaining;
 		}
 
-		write_offset += static_cast<OffsetType>(size);
+		write_offset += static_cast<offset_type>(size);
 		return size;
 	}
 
