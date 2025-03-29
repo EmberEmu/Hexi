@@ -11,9 +11,14 @@
     <img src="https://img.shields.io/github/actions/workflow/status/emberemu/hexi/cmake-multi-platform.yml?logo=githubactions&label=Unit%20Tests&logoColor=white&color=EC71A0">
 </p>
 
-Hexi is a lightweight, header-only C++23 library for safely handling binary data from arbitrary sources (but primarily network data). It sits somewhere between manually memcpying bytes from network buffers and full-blown serialisation libraries.</p>
-<p>The design goals are ease of use, safety when dealing with untrusted data, a reasonable level of flexibility, and keeping overhead to a minimum.
-<p>What Hexi doesn't offer: versioning, conversion between different formats, handling of text-based formats, unloading the dishwasher.</p>
+Hexi is a lightweight, header-only C++23 library for safely handling binary data from arbitrary sources (but primarily network data). It sits somewhere between manually memcpying bytes from network buffers and full-blown serialisation libraries.
+
+The design goals are ease of use, safety when dealing with untrusted data, a reasonable level of flexibility, and keeping overhead to a minimum.
+
+What Hexi doesn't offer: versioning, conversion between different formats, handling of text-based formats, unloading the dishwasher.
+
+Hexi is dual-licensed under MIT and Apache License, Version 2.0. This means you can use Hexi under the license you prefer.
+
 <img src="docs/assets/frog-getting-started.png" alt="Getting started">
 
 Incorporating Hexi into your project is simple! The easiest way is to simply copy `hexi.h` from `single_include` into your own project. If you'd rather only include what you use, you can add `include` to your include paths or incorporate it into your own CMake project with `target_link_library`. To build the unit tests, run CMake with `ENABLE_TESTING`.
