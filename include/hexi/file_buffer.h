@@ -73,11 +73,11 @@ public:
 		}
 	}
 
-	file_buffer(file_buffer&& rhs) noexcept {
-		file_ = rhs.file_;
-		read_ = rhs.read_;
-		write_ = rhs.write_;
-		error_ = rhs.error_;
+	file_buffer(file_buffer&& rhs) noexcept
+		: file_(rhs.file_),
+		  read_(rhs.read_),
+		  write_(rhs.write_),
+		  error_(rhs.error_) {
 		rhs.file_ = nullptr;
 	}
 
