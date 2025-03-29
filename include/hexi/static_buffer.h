@@ -110,7 +110,7 @@ public:
 	size_type find_first_of(value_type val) const noexcept {
 		const auto data = read_ptr();
 
-		for(std::size_t i = 0u, j = size(); i < j; ++i) {
+		for(size_type i = 0, j = size(); i < j; ++i) {
 			if(data[i] == val) {
 				return i;
 			}
