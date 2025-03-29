@@ -124,7 +124,7 @@ public:
 	 * @param source Pointer to the data to be written.
 	 */
 	void write(const auto& source) requires(has_resize<buf_type>) {
-		write(source, sizeof(source));
+		write(&source, sizeof(source));
 	}
 
 	/**

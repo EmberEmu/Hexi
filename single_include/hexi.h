@@ -1011,7 +1011,7 @@ public:
 	 * @param source Pointer to the data to be written.
 	 */
 	void write(const auto& source) requires(has_resize<buf_type>) {
-		write(source, sizeof(source));
+		write(&source, sizeof(source));
 	}
 
 	/**
@@ -2993,7 +2993,7 @@ public:
 
 		value_type buffer{};
 
-		for(std::size_t i = 0u, j = size(); i < j; ++i) {
+		for(size_type i = 0, j = size(); i < j; ++i) {
 			if(std::fread(&buffer, sizeof(value_type), 1, file_) != 1) {
 				error_ = true;
 				return npos;
@@ -3238,7 +3238,7 @@ public:
 	size_type find_first_of(value_type val) const noexcept {
 		const auto data = read_ptr();
 
-		for(std::size_t i = 0u, j = size(); i < j; ++i) {
+		for(size_type i = 0, j = size(); i < j; ++i) {
 			if(data[i] == val) {
 				return i;
 			}
