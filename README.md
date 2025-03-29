@@ -177,7 +177,7 @@ void read() {
     std::vector<char> buffer;
     const auto bytes_read = socket.read(buffer);
 
-    // ... logic for determing packet type, etc
+    // ... logic for determining packet type, etc
 
     bool result {};
 
@@ -227,7 +227,7 @@ Here's a very quick rundown on some of the included extras.
 - `hexi::static_buffer`
     - Fixed-size networking buffer for when you know the upper bound on the amount of data you'll need to send or receive in one go. Essentially a wrapper around `std::array` but with added state tracking. Handy if you need to deserialise in multiple steps (read packet header, dispatch, read packet body).
 - `hexi::dynamic_buffer`
-    - Resizeable buffer for when you want to deal with occasional large read/writes without having to allocate the space up front. Internally, it adds additional allocations to accomodate extra data rather than requesting a larger allocation and copying data as `std::vector` would. It reuses allocated blocks where possible and has support for Asio (Boost or standalone). Effectively, it's a linked list buffer.
+    - Resizeable buffer for when you want to deal with occasional large reads/writes without having to allocate the space up front. Internally, it adds additional allocations to accommodate extra data rather than requesting a larger allocation and copying data as `std::vector` would. It reuses allocated blocks where possible and has support for Asio (Boost or standalone). Effectively, it's a linked list buffer.
 - `hexi::tls_block_allocator`
     - Allows many instances of `dynamic_buffer` to share a larger pool of pre-allocated memory, with each thread having its own pool. This is useful when you have many network sockets to handle and want to avoid the general purpose allocator. The caveat is that a deallocation must be made by the same thread that made the allocation, thus limiting access to the buffer to a single thread (with some exceptions).
 - `hexi::endian`
