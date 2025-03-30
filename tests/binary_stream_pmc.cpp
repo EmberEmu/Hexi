@@ -295,7 +295,7 @@ TEST(binary_stream_pmc, set_error_state) {
 	ASSERT_TRUE(stream.state() == hexi::stream_state::user_defined_err);
 }
 
-TEST(binary_streamPMR, StringAdaptor_PrefixedVarint_Long) {
+TEST(binary_stream_pmr, string_adaptor_prefixed_varint_long) {
 	std::vector<char> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	hexi::pmc::binary_stream stream(adaptor);
@@ -319,7 +319,7 @@ TEST(binary_streamPMR, StringAdaptor_PrefixedVarint_Long) {
 	ASSERT_TRUE(stream);
 }
 
-TEST(binary_streamPMR, StringAdaptor_PrefixedVarint_Medium) {
+TEST(binary_stream_pmr, string_adaptor_prefixed_varint_medium) {
 	std::vector<char> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	hexi::pmc::binary_stream stream(adaptor);
@@ -343,7 +343,7 @@ TEST(binary_streamPMR, StringAdaptor_PrefixedVarint_Medium) {
 	ASSERT_TRUE(stream);
 }
 
-TEST(binary_streamPMR, StringAdaptor_PrefixedVarint_Short) {
+TEST(binary_stream_pmr, string_adaptor_prefixed_varint_short) {
 	std::vector<char> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	hexi::pmc::binary_stream stream(adaptor);
@@ -367,7 +367,7 @@ TEST(binary_streamPMR, StringAdaptor_PrefixedVarint_Short) {
 	ASSERT_TRUE(stream);
 }
 
-TEST(binary_streamPMR, StringAdaptor_Prefixed) {
+TEST(binary_stream_pmr, string_adaptor_prefixed) {
 	std::vector<char> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	hexi::pmc::binary_stream stream(adaptor);
@@ -379,7 +379,7 @@ TEST(binary_streamPMR, StringAdaptor_Prefixed) {
 	ASSERT_TRUE(stream.empty());
 }
 
-TEST(binary_streamPMR, StringAdaptor_Default) {
+TEST(binary_stream_pmr, string_adaptor_default) {
 	std::vector<char> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	hexi::pmc::binary_stream stream(adaptor);
@@ -391,7 +391,7 @@ TEST(binary_streamPMR, StringAdaptor_Default) {
 	ASSERT_TRUE(stream.empty());
 }
 
-TEST(binary_streamPMR, StringAdaptor_Raw) {
+TEST(binary_stream_pmr, string_adaptor_raw) {
 	std::vector<char> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	hexi::pmc::binary_stream stream(adaptor);
@@ -404,7 +404,7 @@ TEST(binary_streamPMR, StringAdaptor_Raw) {
 	ASSERT_FALSE(stream.empty());
 }
 
-TEST(binary_streamPMR, StringAdaptor_NullTerminated) {
+TEST(binary_stream_pmr, string_adaptor_null_terminated) {
 	std::vector<char> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	hexi::pmc::binary_stream stream(adaptor);
@@ -416,7 +416,7 @@ TEST(binary_streamPMR, StringAdaptor_NullTerminated) {
 	ASSERT_TRUE(stream.empty());
 }
 
-TEST(binary_streamPMR, StringviewAdaptor_Prefixed) {
+TEST(binary_stream_pmr, string_view_adaptor_prefixed) {
 	std::vector<char> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	hexi::pmc::binary_stream stream(adaptor);
@@ -428,7 +428,7 @@ TEST(binary_streamPMR, StringviewAdaptor_Prefixed) {
 	ASSERT_TRUE(stream.empty());
 }
 
-TEST(binary_streamPMR, StringviewAdaptor_Default) {
+TEST(binary_stream_pmr, string_view_adaptor_default) {
 	std::vector<char> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	hexi::pmc::binary_stream stream(adaptor);
@@ -440,7 +440,7 @@ TEST(binary_streamPMR, StringviewAdaptor_Default) {
 	ASSERT_TRUE(stream.empty());
 }
 
-TEST(binary_streamPMR, StringviewAdaptor_Raw) {
+TEST(binary_stream_pmr, string_view_adaptor_raw) {
 	std::vector<char> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	hexi::pmc::binary_stream stream(adaptor);
@@ -454,7 +454,7 @@ TEST(binary_streamPMR, StringviewAdaptor_Raw) {
 	ASSERT_FALSE(stream.empty());
 }
 
-TEST(binary_streamPMR, StringviewAdaptor_NullTerminated) {
+TEST(binary_stream_pmr, string_view_adaptor_null_terminated) {
 	std::vector<char> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	hexi::pmc::binary_stream stream(adaptor);

@@ -518,7 +518,7 @@ TEST(binary_stream, set_error_state) {
 	ASSERT_TRUE(stream.state() == hexi::stream_state::user_defined_err);
 }
 
-TEST(binary_stream, StringAdaptor_PrefixedVarint_Long) {
+TEST(binary_stream, string_adaptor_prefixed_varint_long) {
 	std::vector<char> buffer;
 	hexi::buffer_adaptor adaptor(buffer);
 	hexi::binary_stream stream(adaptor);
@@ -542,7 +542,7 @@ TEST(binary_stream, StringAdaptor_PrefixedVarint_Long) {
 	ASSERT_TRUE(stream);
 }
 
-TEST(binary_stream, StringAdaptor_PrefixedVarint_Medium) {
+TEST(binary_stream, string_adaptor_prefixed_varint_medium) {
 	std::vector<char> buffer;
 	hexi::buffer_adaptor adaptor(buffer);
 	hexi::binary_stream stream(adaptor);
@@ -566,7 +566,7 @@ TEST(binary_stream, StringAdaptor_PrefixedVarint_Medium) {
 	ASSERT_TRUE(stream);
 }
 
-TEST(binary_stream, StringAdaptor_PrefixedVarint_Short) {
+TEST(binary_stream, string_adaptor_prefixed_varint_short) {
 	std::vector<char> buffer;
 	hexi::buffer_adaptor adaptor(buffer);
 	hexi::binary_stream stream(adaptor);
@@ -590,7 +590,7 @@ TEST(binary_stream, StringAdaptor_PrefixedVarint_Short) {
 	ASSERT_TRUE(stream);
 }
 
-TEST(binary_stream, StringAdaptor_Prefixed) {
+TEST(binary_stream, string_adaptor_prefixed) {
 	hexi::static_buffer<char, 128> buffer;
 	hexi::binary_stream stream(buffer);
 	const std::string input { "The quick brown fox jumped over the lazy dog" };
@@ -601,7 +601,7 @@ TEST(binary_stream, StringAdaptor_Prefixed) {
 	ASSERT_TRUE(stream.empty());
 }
 
-TEST(binary_stream, StringAdaptor_Default) {
+TEST(binary_stream, string_adaptor_default) {
 	hexi::static_buffer<char, 128> buffer;
 	hexi::binary_stream stream(buffer);
 	const std::string input { "The quick brown fox jumped over the lazy dog" };
@@ -612,7 +612,7 @@ TEST(binary_stream, StringAdaptor_Default) {
 	ASSERT_TRUE(stream.empty());
 }
 
-TEST(binary_stream, StringAdaptor_Raw) {
+TEST(binary_stream, string_adaptor_raw) {
 	hexi::static_buffer<char, 128> buffer;
 	hexi::binary_stream stream(buffer);
 	const auto input = std::format("String with {} embedded null", '\0');
@@ -624,7 +624,7 @@ TEST(binary_stream, StringAdaptor_Raw) {
 	ASSERT_FALSE(stream.empty());
 }
 
-TEST(binary_stream, StringAdaptor_NullTerminated) {
+TEST(binary_stream, string_adaptor_null_terminated) {
 	hexi::static_buffer<char, 128> buffer;
 	hexi::binary_stream stream(buffer);
 	const std::string input { "We're just normal strings. Innocent strings."};
@@ -635,7 +635,7 @@ TEST(binary_stream, StringAdaptor_NullTerminated) {
 	ASSERT_TRUE(stream.empty());
 }
 
-TEST(binary_stream, StringviewAdaptor_PrefixedVarint_Long) {
+TEST(binary_stream, string_view_adaptor_prefixed_varint_long) {
 	std::vector<char> buffer;
 	hexi::buffer_adaptor adaptor(buffer);
 	hexi::binary_stream stream(adaptor);
@@ -659,7 +659,7 @@ TEST(binary_stream, StringviewAdaptor_PrefixedVarint_Long) {
 	ASSERT_TRUE(stream);
 }
 
-TEST(binary_stream, StringviewAdaptor_PrefixedVarint_Medium) {
+TEST(binary_stream, string_view_adaptor_prefixed_varint_medium) {
 	std::vector<char> buffer;
 	hexi::buffer_adaptor adaptor(buffer);
 	hexi::binary_stream stream(adaptor);
@@ -683,7 +683,7 @@ TEST(binary_stream, StringviewAdaptor_PrefixedVarint_Medium) {
 	ASSERT_TRUE(stream);
 }
 
-TEST(binary_stream, StringviewAdaptor_PrefixedVarint_Short) {
+TEST(binary_stream, string_view_adaptor_prefixed_varint_short) {
 	std::vector<char> buffer;
 	hexi::buffer_adaptor adaptor(buffer);
 	hexi::binary_stream stream(adaptor);
@@ -707,7 +707,7 @@ TEST(binary_stream, StringviewAdaptor_PrefixedVarint_Short) {
 	ASSERT_TRUE(stream);
 }
 
-TEST(binary_stream, StringviewAdaptor_Prefixed) {
+TEST(binary_stream, string_view_adaptor_prefixed) {
 	hexi::static_buffer<char, 128> buffer;
 	hexi::binary_stream stream(buffer);
 	std::string_view input { "The quick brown fox jumped over the lazy dog" };
@@ -718,7 +718,7 @@ TEST(binary_stream, StringviewAdaptor_Prefixed) {
 	ASSERT_TRUE(stream.empty());
 }
 
-TEST(binary_stream, StringviewAdaptor_Default) {
+TEST(binary_stream, string_view_adaptor_default) {
 	hexi::static_buffer<char, 128> buffer;
 	hexi::binary_stream stream(buffer);
 	std::string_view input { "The quick brown fox jumped over the lazy dog" };
@@ -729,7 +729,7 @@ TEST(binary_stream, StringviewAdaptor_Default) {
 	ASSERT_TRUE(stream.empty());
 }
 
-TEST(binary_stream, StringviewAdaptor_Raw) {
+TEST(binary_stream, string_view_adaptor_raw) {
 	hexi::static_buffer<char, 128> buffer;
 	hexi::binary_stream stream(buffer);
 	const auto input = std::format("String with {} embedded null", '\0');
@@ -741,7 +741,7 @@ TEST(binary_stream, StringviewAdaptor_Raw) {
 	ASSERT_FALSE(stream.empty());
 }
 
-TEST(binary_stream, StringviewAdaptor_NullTerminated) {
+TEST(binary_stream, string_view_adaptor_null_terminated) {
 	hexi::static_buffer<char, 128> buffer;
 	hexi::binary_stream stream(buffer);
 	std::string_view input { "We're just normal strings. Innocent strings."};
