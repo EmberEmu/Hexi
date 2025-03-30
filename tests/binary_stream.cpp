@@ -395,7 +395,7 @@ TEST(binary_stream, static_buffer_underrun) {
 
 TEST(binary_stream, static_buffer_underrun_noexcept) {
 	hexi::static_buffer<char, 4> buffer;
-	hexi::binary_stream<decltype(buffer), hexi::no_throw> stream(buffer);
+	hexi::binary_stream stream(buffer, hexi::no_throw);
 	std::uint32_t output = 0;
 	stream << output;
 	stream >> output;
