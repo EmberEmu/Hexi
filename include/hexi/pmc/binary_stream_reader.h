@@ -17,6 +17,7 @@
 #include <string>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 namespace hexi::pmc {
@@ -65,9 +66,8 @@ public:
 	binary_stream_reader(const binary_stream_reader&) = delete;
 
 	binary_stream_reader& operator>>(prefixed<std::string> adaptor) {
-		check_read_bounds(sizeof(std::string::size_type));
-
-		std::string::size_type size {};
+		std::uint32_t size {};
+		check_read_bounds(sizeof(size));
 		buffer_.read(&size, sizeof(size));
 		endian::little_to_native_inplace(size);
 

@@ -60,7 +60,8 @@ public:
 
 	template<typename T>
 	binary_stream_writer& operator<<(prefixed<T> adaptor) {
-		const auto size = endian::native_to_little(adaptor->size());
+		auto size = static_cast<std::uint32_t>(adaptor->size());
+		endian::native_to_little_inplace(size);
 		buffer_.write(&size, sizeof(size));
 		buffer_.write(adaptor->data(), adaptor->size());
 		total_write_ += (adaptor->size()) + sizeof(adaptor->size());
