@@ -30,13 +30,13 @@ using namespace detail;
 #define STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)            \
 	enforce_read_bounds(read_size);                               \
 	                                                              \
-	if constexpr(std::is_same_v<exceptions, no_throw>) {          \
+	if constexpr(std::is_same_v<exceptions, no_throw_t>) {        \
 		if(state_ != stream_state::ok) [[unlikely]] {             \
 			return ret_var;                                       \
 		}                                                         \
 	}
 
-template<byte_oriented buf_type, std::derived_from<except_tag> exceptions = allow_throw>
+template<byte_oriented buf_type, std::derived_from<except_tag> exceptions = allow_throw_t>
 class binary_stream final {
 public:
 	using size_type          = typename buf_type::size_type;
@@ -58,7 +58,7 @@ private:
 		if(read_size > buffer_.size()) [[unlikely]] {
 			state_ = stream_state::buff_limit_err;
 
-			if constexpr(std::is_same_v<exceptions, allow_throw>) {
+			if constexpr(std::is_same_v<exceptions, allow_throw_t>) {
 				throw buffer_underrun(read_size, total_read_, buffer_.size());
 			}
 
@@ -71,7 +71,7 @@ private:
 			if(read_size > max_read_remaining) [[unlikely]] {
 				state_ = stream_state::read_limit_err;
 
-				if constexpr(std::is_same_v<exceptions, allow_throw>) {
+				if constexpr(std::is_same_v<exceptions, allow_throw_t>) {
 					throw stream_read_limit(read_size, total_read_, read_limit_);
 				}
 
@@ -86,6 +86,12 @@ public:
 	explicit binary_stream(buf_type& source, size_type read_limit = 0)
 		: buffer_(source),
 		  read_limit_(read_limit) {};
+
+	explicit binary_stream(buf_type& source, size_type read_limit, exceptions)
+		: binary_stream(source, read_limit) {}
+
+	explicit binary_stream(buf_type& source, exceptions)
+		: binary_stream(source, 0) {}
 
 	binary_stream(binary_stream&& rhs) noexcept
 		: buffer_(rhs.buffer_), 
