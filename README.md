@@ -15,7 +15,7 @@ Hexi is a lightweight, header-only C++23 library for safely handling binary data
 
 Some of the protocols Hexi is used to handle include [DNS](https://en.wikipedia.org/wiki/Domain_Name_System), [STUN](https://en.wikipedia.org/wiki/STUN), [NAT Port Mapping Protocol](https://en.wikipedia.org/wiki/NAT_Port_Mapping_Protocol), [Port Control Protocol](https://en.wikipedia.org/wiki/Port_Control_Protocol), World of Warcraft (emulators) and GameSpy (emulators). Of course, nothing stops you from defining your own! 
 
-The design goals are ease of use, safety when dealing with untrusted data, a reasonable level of flexibility, and keeping overhead to a minimum.
+The design goals are ease of use, safety when dealing with untrusted data and in the face of programmer mistakes, a reasonable level of flexibility, and keeping overhead to a minimum.
 
 What Hexi doesn't offer: versioning, conversion between different formats, handling of text-based formats, unloading the dishwasher.
 
