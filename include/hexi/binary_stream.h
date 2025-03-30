@@ -27,8 +27,8 @@ namespace hexi {
 
 using namespace detail;
 
-#define STREAM_READ_BOUNDS_CHECK(read_size, ret_var)              \
-	check_read_bounds(read_size);                                 \
+#define STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)              \
+	enforce_read_bounds(read_size);                                 \
 	                                                              \
 	if constexpr(std::is_same_v<exceptions, no_throw>) {          \
 		if(state_ != stream_state::ok) [[unlikely]] {             \
@@ -54,7 +54,7 @@ private:
 	stream_state state_ = stream_state::ok;
 	const size_type read_limit_;
 
-	inline void check_read_bounds(const size_type read_size) {
+	inline void enforce_read_bounds(const size_type read_size) {
 		if(read_size > buffer_.size()) [[unlikely]] {
 			state_ = stream_state::buff_limit_err;
 
@@ -248,12 +248,12 @@ public:
 	/*** Read ***/
 
 	binary_stream& operator>>(prefixed<std::string> adaptor) {
-		STREAM_READ_BOUNDS_CHECK(sizeof(std::uint32_t), *this);
+		STREAM_READ_BOUNDS_ENFORCE(sizeof(std::uint32_t), *this);
 		std::uint32_t size {};
 		buffer_.read(&size);
 		endian::little_to_native_inplace(size);
 
-		STREAM_READ_BOUNDS_CHECK(size, *this);
+		STREAM_READ_BOUNDS_ENFORCE(size, *this);
 
 		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
 			buffer_.read(strbuf, size);
@@ -264,7 +264,7 @@ public:
 	}
 
 	binary_stream& operator>>(prefixed<std::string_view> adaptor) {
-		STREAM_READ_BOUNDS_CHECK(sizeof(std::uint32_t), *this);
+		STREAM_READ_BOUNDS_ENFORCE(sizeof(std::uint32_t), *this);
 		std::uint32_t size {};
 		buffer_.read(&size);
 		endian::little_to_native_inplace(size);
@@ -278,10 +278,10 @@ public:
 		// if decoding the varint failed due to detecting a potential read overrun,
 		// we'll trigger the error handling here instead
 		if(!result) {
-			STREAM_READ_BOUNDS_CHECK(1, *this);
+			STREAM_READ_BOUNDS_ENFORCE(1, *this);
 		}
 
-		STREAM_READ_BOUNDS_CHECK(size, *this);
+		STREAM_READ_BOUNDS_ENFORCE(size, *this);
 
 		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
 			buffer_.read(strbuf, size);
@@ -297,7 +297,7 @@ public:
 		// if decoding the varint failed due to detecting a potential read overrun,
 		// we'll trigger the error handling here instead
 		if(!result) {
-			STREAM_READ_BOUNDS_CHECK(1, *this);
+			STREAM_READ_BOUNDS_ENFORCE(1, *this);
 		}
 		
 		adaptor.str = std::string_view { span<char>(size) };
@@ -312,7 +312,7 @@ public:
 			return *this;
 		}
 
-		STREAM_READ_BOUNDS_CHECK(pos + 1, *this); // include null terminator
+		STREAM_READ_BOUNDS_ENFORCE(pos + 1, *this); // include null terminator
 
 		adaptor->resize_and_overwrite(pos, [&](char* strbuf, std::size_t size) {
 			buffer_.read(strbuf, pos);
@@ -343,7 +343,7 @@ public:
 	template<pod T>
 	requires (!has_shr_override<T, binary_stream>)
 	binary_stream& operator>>(T& data) {
-		STREAM_READ_BOUNDS_CHECK(sizeof(data), *this);
+		STREAM_READ_BOUNDS_ENFORCE(sizeof(data), *this);
 		buffer_.read(&data, sizeof(data));
 		return *this;
 	}
@@ -354,7 +354,7 @@ public:
 	 * @return The destination for the read value.
 	 */
 	void get(arithmetic auto& dest) {
-		STREAM_READ_BOUNDS_CHECK(sizeof(dest), void());
+		STREAM_READ_BOUNDS_ENFORCE(sizeof(dest), void());
 		buffer_.read(&dest, sizeof(dest));
 	}
 
@@ -365,7 +365,7 @@ public:
 	 */
 	template<arithmetic T>
 	T get() {
-		STREAM_READ_BOUNDS_CHECK(sizeof(T), void());
+		STREAM_READ_BOUNDS_ENFORCE(sizeof(T), void());
 		T t{};
 		buffer_.read(&t, sizeof(T));
 		return t;
@@ -379,7 +379,7 @@ public:
 	 */
 	template<endian::conversion conversion>
 	void get(arithmetic auto& dest) {
-		STREAM_READ_BOUNDS_CHECK(sizeof(dest), void());
+		STREAM_READ_BOUNDS_ENFORCE(sizeof(dest), void());
 		buffer_.read(&dest, sizeof(dest));
 		dest = endian::convert<conversion>(dest);
 	}
@@ -392,7 +392,7 @@ public:
 	 */
 	template<arithmetic T, endian::conversion conversion>
 	T get() {
-		STREAM_READ_BOUNDS_CHECK(sizeof(T), void());
+		STREAM_READ_BOUNDS_ENFORCE(sizeof(T), void());
 		T t{};
 		buffer_.read(&t, sizeof(T));
 		return endian::convert<conversion>(t);
@@ -415,7 +415,7 @@ public:
 	 * @param count The number of bytes to be read.
 	 */
 	void get(std::string& dest, size_type size) {
-		STREAM_READ_BOUNDS_CHECK(size, void());
+		STREAM_READ_BOUNDS_ENFORCE(size, void());
 		dest.resize_and_overwrite(size, [&](char* strbuf, size_type len) {
 			buffer_.read(strbuf, len);
 			return len;
@@ -432,7 +432,7 @@ public:
 	void get(T* dest, size_type count) {
 		assert(dest);
 		const auto read_size = count * sizeof(T);
-		STREAM_READ_BOUNDS_CHECK(read_size, void());
+		STREAM_READ_BOUNDS_ENFORCE(read_size, void());
 		buffer_.read(dest, read_size);
 	}
 
@@ -457,7 +457,7 @@ public:
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
 		const auto read_size = dest.size() * sizeof(range::value_type);
-		STREAM_READ_BOUNDS_CHECK(read_size, void());
+		STREAM_READ_BOUNDS_ENFORCE(read_size, void());
 		buffer_.read(dest.data(), read_size);
 	}
 
@@ -471,7 +471,7 @@ public:
 	 * @param length The number of bytes to skip.
 	 */
 	void skip(const size_type count) {
-		STREAM_READ_BOUNDS_CHECK(count, void());
+		STREAM_READ_BOUNDS_ENFORCE(count, void());
 		buffer_.skip(count);
 	}
 
@@ -508,7 +508,7 @@ public:
 	 */
 	template<typename out_type = value_type>
 	std::span<out_type> span(size_type count) requires contiguous<buf_type> {
-		STREAM_READ_BOUNDS_CHECK(sizeof(out_type) * count, {});
+		STREAM_READ_BOUNDS_ENFORCE(sizeof(out_type) * count, {});
 		std::span span { reinterpret_cast<out_type*>(buffer_.read_ptr()), count };
 		buffer_.skip(sizeof(out_type) * count);
 		return span;
