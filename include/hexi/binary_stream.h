@@ -102,20 +102,20 @@ public:
 	/*** Write ***/
 
 	binary_stream& operator <<(has_shl_override<binary_stream> auto&& data)
-	requires(writeable<buf_type>) {
+	requires writeable<buf_type> {
 		return data.operator<<(*this);
 	}
 
 	template<pod T>
 	requires (!has_shl_override<T, binary_stream>)
-	binary_stream& operator <<(const T& data) requires(writeable<buf_type>) {
+	binary_stream& operator <<(const T& data) requires writeable<buf_type> {
 		buffer_.write(&data, sizeof(T));
 		total_write_ += sizeof(T);
 		return *this;
 	}
 
 	template<typename T>
-	binary_stream& operator<<(prefixed<T> adaptor) requires(writeable<buf_type>) {
+	binary_stream& operator<<(prefixed<T> adaptor) requires writeable<buf_type> {
 		const auto size = static_cast<std::uint32_t>(adaptor->size());
 		buffer_.write(endian::native_to_little(size));
 		buffer_.write(adaptor->data(), static_cast<size_type>(size));
@@ -124,7 +124,7 @@ public:
 	}
 
 	template<typename T>
-	binary_stream& operator<<(prefixed_varint<T> adaptor) requires(writeable<buf_type>) {
+	binary_stream& operator<<(prefixed_varint<T> adaptor) requires writeable<buf_type> {
 		const auto encode_len = varint_encode(*this, adaptor->size());
 		buffer_.write(adaptor->data(), adaptor->size());
 		total_write_ += static_cast<size_type>(adaptor->size() + encode_len);
@@ -133,7 +133,7 @@ public:
 
 	template<typename T>
 	requires std::is_same_v<std::decay_t<T>, std::string_view>
-	binary_stream& operator<<(null_terminated<T> adaptor) requires(writeable<buf_type>) {
+	binary_stream& operator<<(null_terminated<T> adaptor) requires writeable<buf_type> {
 		assert(adaptor->find_first_of('\0') == adaptor->npos);
 		buffer_.write(adaptor->data(), adaptor->size());
 		buffer_.write('\0');
@@ -143,7 +143,7 @@ public:
 
 	template<typename T>
 	requires std::is_same_v<std::decay_t<T>, std::string>
-	binary_stream& operator<<(null_terminated<T> adaptor) requires(writeable<buf_type>) {
+	binary_stream& operator<<(null_terminated<T> adaptor) requires writeable<buf_type> {
 		assert(adaptor->find_first_of('\0') == adaptor->npos);
 		buffer_.write(adaptor->data(), adaptor->size() + 1); // yes, the standard allows this
 		total_write_ += static_cast<size_type>(adaptor->size() + 1);
@@ -151,20 +151,20 @@ public:
 	}
 
 	template<typename T>
-	binary_stream& operator<<(raw<T> adaptor) requires(writeable<buf_type>) {
+	binary_stream& operator<<(raw<T> adaptor) requires writeable<buf_type> {
 		buffer_.write(adaptor->data(), adaptor->size());
 		total_write_ += static_cast<size_type>(adaptor->size());
 		return *this;
 	}
 
-	binary_stream& operator<<(std::string_view string) requires(writeable<buf_type>) {
+	binary_stream& operator<<(std::string_view string) requires writeable<buf_type> {
 		return (*this << prefixed(string));
 	}
 
-	binary_stream& operator<<(const std::string& string) requires(writeable<buf_type>) {
+	binary_stream& operator<<(const std::string& string) requires writeable<buf_type> {
 		return (*this << prefixed(string));
 	}
-	binary_stream& operator <<(const char* data) requires(writeable<buf_type>) {
+	binary_stream& operator <<(const char* data) requires writeable<buf_type> {
 		assert(data);
 		const auto len = std::strlen(data);
 		buffer_.write(data, len + 1); // include terminator
@@ -178,7 +178,7 @@ public:
 	 * @param data The contiguous range to be written to the stream.
 	 */
 	template<std::ranges::contiguous_range range>
-	void put(const range& data) requires(writeable<buf_type>) {
+	void put(const range& data) requires writeable<buf_type> {
 		const auto write_size = data.size() * sizeof(typename range::value_type);
 		buffer_.write(data.data(), write_size);
 		total_write_ += write_size;
@@ -189,7 +189,7 @@ public:
 	 * 
 	 * @param data The value to be written to the stream.
 	 */
-	void put(const arithmetic auto& data) requires(writeable<buf_type>) {
+	void put(const arithmetic auto& data) requires writeable<buf_type> {
 		buffer_.write(&data, sizeof(data));
 		total_write_ += sizeof(data);
 	}
@@ -200,7 +200,7 @@ public:
 	 * @param data The element to be written to the stream.
 	 */
 	template<endian::conversion conversion>
-	void put(const arithmetic auto& data) requires(writeable<buf_type>) {
+	void put(const arithmetic auto& data) requires writeable<buf_type> {
 		const auto swapped = endian::convert<conversion>(data);
 		buffer_.write(&swapped, sizeof(data));
 		total_write_ += sizeof(data);
@@ -213,7 +213,7 @@ public:
 	 * @param count The number of elements to write.
 	 */
 	template<pod T>
-	void put(const T* data, size_type count) requires(writeable<buf_type>) {
+	void put(const T* data, size_type count) requires writeable<buf_type> {
 		const auto write_size = count * sizeof(T);
 		buffer_.write(data, write_size);
 		total_write_ += write_size;
@@ -226,7 +226,7 @@ public:
 	 * @param end Iterator to the end of the data.
 	 */
 	template<typename It>
-	void put(It begin, const It end) requires(writeable<buf_type>) {
+	void put(It begin, const It end) requires writeable<buf_type> {
 		for(auto it = begin; it != end; ++it) {
 			*this << *it;
 		}
@@ -239,7 +239,7 @@ public:
 	 * @param The byte value that will fill the specified number of bytes.
 	 */
 	template<size_type size>
-	void fill(const std::uint8_t value) requires(writeable<buf_type>) {
+	void fill(const std::uint8_t value) requires writeable<buf_type> {
 		const auto filled = generate_filled<size>(value);
 		buffer_.write(filled.data(), filled.size());
 		total_write_ += size;
@@ -483,7 +483,7 @@ public:
 	 * @return A string view over data up to the provided terminator.
 	 * An empty string_view if a terminator is not found
 	 */
-	std::string_view view(value_type terminator = value_type(0)) requires(contiguous<buf_type>) {
+	std::string_view view(value_type terminator = value_type(0)) requires contiguous<buf_type> {
 		const auto pos = buffer_.find_first_of(terminator);
 
 		if(pos == buf_type::npos) {
@@ -507,7 +507,7 @@ public:
 	 * @note The stream will error if the stream does not contain the requested amount of data.
 	 */
 	template<typename out_type = value_type>
-	std::span<out_type> span(size_type count) requires(contiguous<buf_type>) {
+	std::span<out_type> span(size_type count) requires contiguous<buf_type> {
 		STREAM_READ_BOUNDS_CHECK(sizeof(out_type) * count, {});
 		std::span span { reinterpret_cast<out_type*>(buffer_.read_ptr()), count };
 		buffer_.skip(sizeof(out_type) * count);
@@ -524,7 +524,7 @@ public:
 	 * 
 	 * @return True if write seeking is supported, otherwise false.
 	 */
-	constexpr static bool can_write_seek() requires(writeable<buf_type>) {
+	constexpr static bool can_write_seek() requires writeable<buf_type> {
 		return std::is_same_v<seeking, supported>;
 	}
 
@@ -566,7 +566,7 @@ public:
 	/**
 	 * @return The total number of bytes written to the stream.
 	 */
-	size_type total_write() const requires(writeable<buf_type>) {
+	size_type total_write() const requires writeable<buf_type> {
 		return total_write_;
 	}
 

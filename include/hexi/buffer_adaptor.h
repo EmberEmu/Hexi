@@ -123,7 +123,7 @@ public:
 	 * 
 	 * @param source Pointer to the data to be written.
 	 */
-	void write(const auto& source) requires(has_resize<buf_type>) {
+	void write(const auto& source) requires has_resize<buf_type> {
 		write(&source, sizeof(source));
 	}
 
@@ -133,7 +133,7 @@ public:
 	 * @param source Pointer to the data to be written.
 	 * @param length Number of bytes to write from the source.
 	 */
-	void write(const void* source, size_type length) requires(has_resize<buf_type>) {
+	void write(const void* source, size_type length) requires has_resize<buf_type> {
 		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
 		const auto min_req_size = write_ + length;
 
@@ -220,7 +220,7 @@ public:
 	 * 
 	 * @return True if write seeking is supported, otherwise false.
 	 */
-	constexpr static bool can_write_seek() requires(has_resize<buf_type>) {
+	constexpr static bool can_write_seek() requires has_resize<buf_type> {
 		return std::is_same_v<seeking, supported>;
 	}
 
@@ -231,7 +231,7 @@ public:
 	 * @param offset The offset relative to the seek direction or the absolute value
 	 * when using absolute seeking.
 	 */
-	void write_seek(const buffer_seek direction, const offset_type offset) requires(has_resize<buf_type>) {
+	void write_seek(const buffer_seek direction, const offset_type offset) requires has_resize<buf_type> {
 		switch(direction) {
 			case buffer_seek::sk_backward:
 				write_ -= offset;
@@ -262,7 +262,7 @@ public:
 	 * @return Pointer to the location within the buffer where the next write
 	 * will be made.
 	 */
-	const auto write_ptr() const requires(has_resize<buf_type>) {
+	const auto write_ptr() const requires has_resize<buf_type> {
 		return buffer_.data() + write_;
 	}
 
@@ -270,7 +270,7 @@ public:
 	 * @return Pointer to the location within the buffer where the next write
 	 * will be made.
 	 */
-	auto write_ptr() requires(has_resize<buf_type>) {
+	auto write_ptr() requires has_resize<buf_type> {
 		return buffer_.data() + write_;
 	}
 
