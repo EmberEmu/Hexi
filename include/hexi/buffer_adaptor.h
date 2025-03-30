@@ -247,7 +247,7 @@ public:
 	/**
 	 * @return Pointer to the data available for reading.
 	 */
-	const auto read_ptr() const {
+	auto read_ptr() const {
 		return buffer_.data() + read_;
 	}
 
@@ -262,7 +262,7 @@ public:
 	 * @return Pointer to the location within the buffer where the next write
 	 * will be made.
 	 */
-	const auto write_ptr() const requires has_resize<buf_type> {
+	auto write_ptr() const requires has_resize<buf_type> {
 		return buffer_.data() + write_;
 	}
 
@@ -277,7 +277,7 @@ public:
 	/**
 	 * @return Pointer to the data available for reading.
 	 */
-	const auto data() const {
+	auto data() const {
 		return buffer_.data() + read_;
 	}
 
@@ -291,7 +291,7 @@ public:
 	/**
 	 * @return Pointer to the underlying storage.
 	 */
-	const auto storage() const {
+	auto storage() const {
 		return buffer_.data();
 	}
 

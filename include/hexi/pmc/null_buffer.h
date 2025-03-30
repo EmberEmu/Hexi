@@ -20,18 +20,18 @@ public:
 	using contiguous      = is_contiguous;
 	using seeking         = unsupported;
 
-	void write(const auto& elem) {}
-	void write(const void* source, size_type length) override {};
-	void read(auto* elem) {}
-	void read(void* destination, size_type length) {};
-	void copy(auto* elem) const {}
-	void copy(void* destination, size_type length) const {};
-	void reserve(const size_type length) override {};
+	void write(const auto& /*elem*/) {}
+	void write(const void* /*source*/, size_type /*length*/) override {};
+	void read(auto* /*elem*/) {}
+	void read(void* /*destination*/, size_type /*length*/) {};
+	void copy(auto* /*elem*/) const {}
+	void copy(void* /*destination*/, size_type /*length*/) const {};
+	void reserve(const size_type /*length*/) override {};
 	size_type size() const override{ return 0; };
 	[[nodiscard]] bool empty() const override { return true; };
 	bool can_write_seek() const override { return false; }
 
-	void write_seek(const buffer_seek direction, const std::size_t offset) override {
+	void write_seek(const buffer_seek /*direction*/, const std::size_t /*offset*/) override {
 		throw exception("Don't do this on a null_buffer"); 
 	};
 };

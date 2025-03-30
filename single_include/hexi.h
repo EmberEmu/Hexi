@@ -1300,7 +1300,7 @@ public:
 	/**
 	 * @return Pointer to the data available for reading.
 	 */
-	const auto read_ptr() const {
+	auto read_ptr() const {
 		return buffer_.data() + read_;
 	}
 
@@ -1315,7 +1315,7 @@ public:
 	 * @return Pointer to the location within the buffer where the next write
 	 * will be made.
 	 */
-	const auto write_ptr() const requires has_resize<buf_type> {
+	auto write_ptr() const requires has_resize<buf_type> {
 		return buffer_.data() + write_;
 	}
 
@@ -1330,7 +1330,7 @@ public:
 	/**
 	 * @return Pointer to the data available for reading.
 	 */
-	const auto data() const {
+	auto data() const {
 		return buffer_.data() + read_;
 	}
 
@@ -1344,7 +1344,7 @@ public:
 	/**
 	 * @return Pointer to the underlying storage.
 	 */
-	const auto storage() const {
+	auto storage() const {
 		return buffer_.data();
 	}
 
@@ -2558,7 +2558,7 @@ public:
 	 * 
 	 * @return The memory allocator.
 	 */
-	const auto& get_allocator() const {
+	auto& get_allocator() const {
 		return allocator_;
 	}
 
@@ -3573,7 +3573,7 @@ public:
 	/**
 	 * @return An iterator to the beginning of data available for reading.
 	 */
-	const auto begin() const {
+	auto begin() const {
 		return buffer_.begin() + read_;
 	}
 
@@ -3587,7 +3587,7 @@ public:
 	/**
 	 * @return An iterator to the end of data available for reading.
 	 */
-	const auto end() const {
+	auto end() const {
 		return buffer_.begin() + write_;
 	}
 
@@ -4539,14 +4539,14 @@ public:
 	/**
 	 * @return Pointer to the data available for reading.
 	 */
-	const auto read_ptr() const {
+	auto read_ptr() const {
 		return buffer_.data() + read_;
 	}
 
 	/**
 	 * @return The current read offset.
 	 */
-	const auto read_offset() const {
+	auto read_offset() const {
 		return read_;
 	}
 
@@ -4688,7 +4688,7 @@ public:
 	/**
 	 * @return Pointer to the underlying storage.
 	 */
-	const auto storage() const {
+	auto storage() const {
 		return buffer_.data();
 	}
 
@@ -4711,7 +4711,7 @@ public:
 	 * @return Pointer to the location within the buffer where the next write
 	 * will be made.
 	 */
-	const auto write_ptr() const {
+	auto write_ptr() const {
 		return buffer_.data() + write_;
 	}
 	
@@ -4949,18 +4949,18 @@ public:
 	using contiguous      = is_contiguous;
 	using seeking         = unsupported;
 
-	void write(const auto& elem) {}
-	void write(const void* source, size_type length) override {};
-	void read(auto* elem) {}
-	void read(void* destination, size_type length) {};
-	void copy(auto* elem) const {}
-	void copy(void* destination, size_type length) const {};
-	void reserve(const size_type length) override {};
+	void write(const auto& /*elem*/) {}
+	void write(const void* /*source*/, size_type /*length*/) override {};
+	void read(auto* /*elem*/) {}
+	void read(void* /*destination*/, size_type /*length*/) {};
+	void copy(auto* /*elem*/) const {}
+	void copy(void* /*destination*/, size_type /*length*/) const {};
+	void reserve(const size_type /*length*/) override {};
 	size_type size() const override{ return 0; };
 	[[nodiscard]] bool empty() const override { return true; };
 	bool can_write_seek() const override { return false; }
 
-	void write_seek(const buffer_seek direction, const std::size_t offset) override {
+	void write_seek(const buffer_seek /*direction*/, const std::size_t /*offset*/) override {
 		throw exception("Don't do this on a null_buffer"); 
 	};
 };

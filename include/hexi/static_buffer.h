@@ -279,7 +279,7 @@ public:
 	/**
 	 * @return An iterator to the beginning of data available for reading.
 	 */
-	const auto begin() const {
+	auto begin() const {
 		return buffer_.begin() + read_;
 	}
 
@@ -293,7 +293,7 @@ public:
 	/**
 	 * @return An iterator to the end of data available for reading.
 	 */
-	const auto end() const {
+	auto end() const {
 		return buffer_.begin() + write_;
 	}
 

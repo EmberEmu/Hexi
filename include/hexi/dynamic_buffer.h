@@ -646,7 +646,7 @@ public:
 	 * 
 	 * @return The memory allocator.
 	 */
-	const auto& get_allocator() const {
+	auto& get_allocator() const {
 		return allocator_;
 	}
 

@@ -122,14 +122,14 @@ public:
 	/**
 	 * @return Pointer to the data available for reading.
 	 */
-	const auto read_ptr() const {
+	auto read_ptr() const {
 		return buffer_.data() + read_;
 	}
 
 	/**
 	 * @return The current read offset.
 	 */
-	const auto read_offset() const {
+	auto read_offset() const {
 		return read_;
 	}
 

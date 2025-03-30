@@ -104,7 +104,7 @@ public:
 	/**
 	 * @return Pointer to the underlying storage.
 	 */
-	const auto storage() const {
+	auto storage() const {
 		return buffer_.data();
 	}
 
@@ -127,7 +127,7 @@ public:
 	 * @return Pointer to the location within the buffer where the next write
 	 * will be made.
 	 */
-	const auto write_ptr() const {
+	auto write_ptr() const {
 		return buffer_.data() + write_;
 	}
 	
