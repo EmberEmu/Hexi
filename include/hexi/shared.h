@@ -24,6 +24,18 @@ struct except_tag{};
 struct allow_throw : except_tag{};
 struct no_throw : except_tag{};
 
+#define STRING_ADAPTOR(adaptor_name)           \
+template<typename string_type>                 \
+struct adaptor_name {                          \
+    string_type& str;                          \
+    string_type* operator->() { return &str; } \
+};
+
+STRING_ADAPTOR(raw)
+STRING_ADAPTOR(prefixed)
+STRING_ADAPTOR(prefixed_varint)
+STRING_ADAPTOR(null_terminated)
+
 enum class buffer_seek {
 	sk_absolute, sk_backward, sk_forward
 };
@@ -45,14 +57,50 @@ enum class stream_state {
 	user_defined_err
 };
 
+namespace detail {
+
+template<typename size_type, typename stream_type>
+constexpr auto varint_decode(stream_type& stream) -> std::pair<bool, size_type> {
+	int shift { 0 };
+	size_type value { 0 };
+	std::uint8_t byte { 0 };
+
+	do {
+		// if reading another byte would violate the read limit
+		if(stream.read_max() == 0) {
+			return { false, 0 };
+		}
+
+		stream.get(&byte, 1);
+		value |= (static_cast<size_type>(byte & 0x7f) << shift);
+		shift += 7;
+	} while(byte & 0x80);
+
+	return { true, value };
+}
+
+template<typename size_type, typename stream_type>
+constexpr auto varint_encode(stream_type& stream, size_type value) -> size_type {
+	size_type written = 0;
+
+	while(value > 0x7f) {
+		const std::uint8_t byte = (value & 0x7f) | 0x80;
+		stream.put(&byte, 1);
+		value >>= 7;
+		++written;
+	}
+
+	const std::uint8_t byte = value & 0x7f;
+	stream.put(&byte, 1);
+	return ++written;
+}
+
 template<decltype(auto) size>
 static constexpr auto generate_filled(const std::uint8_t value) {
 	std::array<std::uint8_t, size> target{};
 	std::ranges::fill(target, value);
 	return target;
 }
-
-namespace detail {
 
 // Returns true if there's any overlap between source and destination ranges
 static inline bool region_overlap(const void* src, std::size_t src_len, const void* dst, std::size_t dst_len) {

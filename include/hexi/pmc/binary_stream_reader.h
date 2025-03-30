@@ -17,6 +17,7 @@
 #include <string>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 namespace hexi::pmc {
@@ -64,24 +65,63 @@ public:
 	binary_stream_reader& operator=(const binary_stream_reader&) = delete;
 	binary_stream_reader(const binary_stream_reader&) = delete;
 
-	// terminates when it hits a null byte, empty string if none found
-	binary_stream_reader& operator>>(std::string& dest) {
-		check_read_bounds(1); // just to prevent trying to read from an empty buffer
-		auto pos = buffer_.find_first_of(std::byte(0));
+	binary_stream_reader& operator>>(prefixed<std::string> adaptor) {
+		std::uint32_t size {};
+		check_read_bounds(sizeof(size));
+		buffer_.read(&size, sizeof(size));
+		endian::little_to_native_inplace(size);
 
-		if(pos == buffer_read::npos) {
-			dest.clear();
-			return *this;
-		}
+		check_read_bounds(size);
 
-		dest.resize_and_overwrite(pos, [&](char* strbuf, std::size_t size) {
-			total_read_ += size;
+		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
 			buffer_.read(strbuf, size);
 			return size;
 		});
 
-		buffer_.skip(1); // skip null term
 		return *this;
+	}
+	
+	binary_stream_reader& operator>>(prefixed_varint<std::string> adaptor) {
+		const auto& [result, size] = varint_decode<std::size_t>(*this);
+
+		// if decoding the varint failed due to detecting a potential read overrun,
+		// we'll trigger the error handling here instead
+		if(!result) {
+			check_read_bounds(1);
+			std::unreachable();
+		}
+
+		check_read_bounds(size);
+
+		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
+			buffer_.read(strbuf, size);
+			return size;
+		});
+
+		return *this;
+	}
+
+	binary_stream_reader& operator>>(null_terminated<std::string> adaptor) {
+		auto pos = buffer_.find_first_of(std::byte{0});
+
+		if(pos == buffer_.npos) {
+			adaptor->clear();
+			return *this;
+		}
+
+		check_read_bounds(pos + 1); // include null terminator
+
+		adaptor->resize_and_overwrite(pos, [&](char* strbuf, std::size_t size) {
+			buffer_.read(strbuf, pos);
+			return size;
+		});
+
+		buffer_.skip(1); // skip null terminator
+		return *this;
+	}
+
+	binary_stream_reader& operator >>(std::string& data) {
+		return (*this >> prefixed(data));
 	}
 
 	binary_stream_reader& operator>>(has_shr_override<binary_stream_reader> auto&& data) {
@@ -243,6 +283,24 @@ public:
 	 */
 	std::size_t read_limit() const {
 		return read_limit_;
+	}
+
+	/**
+	 * @brief Determine the maximum number of bytes that can be
+	 * safely read from this stream.
+	 * 
+	 * The value returned may be lower than the amount of data
+	 * available in the buffer if a read limit was set during
+	 * the stream's construction.
+	 * 
+	 * @return The number of bytes available for reading.
+	 */
+	std::size_t read_max() const {
+		if(read_limit_) {
+			return read_limit_ - total_read_;
+		} else {
+			return buffer_.size();
+		}
 	}
 
 	/**

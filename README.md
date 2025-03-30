@@ -215,9 +215,29 @@ How you structure your code is up to you, this is just one way of doing it.
 
 <img src="docs/assets/frog-uh.png" alt="Uh, one more thing...">
 
-When using `binary_stream`, strings are always treated as null-terminated. Writing a `char*`, `std::string_view` or `std::string` will always write a terminating byte to the stream. If you require otherwise, use one of the `put` functions.
+Handling strings need a little thought. `std::string` and `std::string_view` are allowed to contain embedded nulls, even if it's rarely done.
 
-Likewise, reading to `std::string` assumes the buffer contains a null-terminator. If it does not, an empty string will be returned. If you know the length of the string or need to support a custom terminating/sentinel value, use `get()` and `find_first_of()`.
+To adhere to the principle of least surprise, Hexi defaults to reading & writing these types with a length prefix. This ensures that writing
+such a string and reading it back will give you the correct result regardless of the contents.
+
+In the majority of cases, you'll want to read/write strings as null-terminated. To do this, use a string adaptor, as such:
+
+```cpp
+hexi::binary_stream stream(...);
+std::string foo { "No surprises here!" };
+
+// write it
+stream << hexi::null_terminated(foo);
+
+// read it back
+stream >> hexi::null_terminated(foo);
+```
+
+This is not the default because writing strings that may contain embedded null bytes would result in truncated output. This is Hexi's way of making you pinky promise that you're doing the right thing for your string data.
+
+`const char*` strings are *always* written as null-terminated strings, as embedded nulls in such a type would make little sense. Read them back with the `null_terminated` adaptor.
+
+Other adaptors, such as `prefixed_varint`, are available. See `docs/examples/string_handling.cpp` for usage examples.
 
 <img src="docs/assets/frog-what-else-is-in-the-box.png" alt="What else is in the box?">
 

@@ -86,13 +86,13 @@ TEST(binary_stream_pmc, read_write_std_string) {
 	hexi::dynamic_buffer<32> buffer;
 	hexi::pmc::binary_stream stream(buffer);
 	const std::string in { "The quick brown fox jumped over the lazy dog" };
-	stream << in;
+	stream << hexi::null_terminated(in);
 
 	// +1 to account for the terminator that's written
 	ASSERT_EQ(stream.size(), in.size() + 1);
 
 	std::string out;
-	stream >> out;
+	stream >> hexi::null_terminated(out);
 
 	ASSERT_TRUE(stream.empty());
 	ASSERT_EQ(in, out);
@@ -109,7 +109,7 @@ TEST(binary_stream_pmc, read_write_c_string) {
 	ASSERT_EQ(stream.size(), strlen(in) + 1);
 
 	std::string out;
-	stream >> out;
+	stream >> hexi::null_terminated(out);
 
 	ASSERT_TRUE(stream.empty());
 	ASSERT_EQ(0, strcmp(in, out.c_str()));
@@ -293,4 +293,176 @@ TEST(binary_stream_pmc, set_error_state) {
 	ASSERT_FALSE(stream);
 	ASSERT_FALSE(stream.good());
 	ASSERT_TRUE(stream.state() == hexi::stream_state::user_defined_err);
+}
+
+TEST(binary_stream_pmr, string_adaptor_prefixed_varint_long) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+
+	std::string input;
+
+	// encode varint requiring three bytes
+	input.resize_and_overwrite(80'000, [&](char* buffer, const std::size_t size) {
+		for(std::size_t i = 0; i < size; ++i) {
+			buffer[i] = (rand() % 127) + 32; // ASCII a-z
+		}
+
+		return size;
+	});
+	
+	stream << hexi::prefixed_varint(input);
+	std::string output;
+	stream >> hexi::prefixed_varint(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+	ASSERT_TRUE(stream);
+}
+
+TEST(binary_stream_pmr, string_adaptor_prefixed_varint_medium) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+
+	std::string input;
+
+	// encode varint requiring two bytes
+	input.resize_and_overwrite(5'000, [&](char* buffer, const std::size_t size) {
+		for(std::size_t i = 0; i < size; ++i) {
+			buffer[i] = (rand() % 127) + 32; // ASCII a-z
+		}
+
+		return size;
+	});
+	
+	stream << hexi::prefixed_varint(input);
+	std::string output;
+	stream >> hexi::prefixed_varint(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+	ASSERT_TRUE(stream);
+}
+
+TEST(binary_stream_pmr, string_adaptor_prefixed_varint_short) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+
+	std::string input;
+
+	// encode varint requiring one byte
+	input.resize_and_overwrite(127, [&](char* buffer, const std::size_t size) {
+		for(std::size_t i = 0; i < size; ++i) {
+			buffer[i] = (rand() % 127) + 32; // ASCII a-z
+		}
+
+		return size;
+	});
+	
+	stream << hexi::prefixed_varint(input);
+	std::string output;
+	stream >> hexi::prefixed_varint(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+	ASSERT_TRUE(stream);
+}
+
+TEST(binary_stream_pmr, string_adaptor_prefixed) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+	const std::string input { "The quick brown fox jumped over the lazy dog" };
+	stream << hexi::prefixed(input);
+	std::string output;
+	stream >> hexi::prefixed(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+}
+
+TEST(binary_stream_pmr, string_adaptor_default) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+	const std::string input { "The quick brown fox jumped over the lazy dog" };
+	stream << input;
+	std::string output;
+	stream >> output;
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+}
+
+TEST(binary_stream_pmr, string_adaptor_raw) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+	const auto input = std::format("String with {} embedded null", '\0');
+	stream << hexi::raw(input);
+	ASSERT_EQ(input.size(), buffer.size());
+	std::string output;
+	stream >> hexi::null_terminated(output);
+	ASSERT_EQ(output, "String with ");
+	ASSERT_FALSE(stream.empty());
+}
+
+TEST(binary_stream_pmr, string_adaptor_null_terminated) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+	const std::string input { "We're just normal strings. Innocent strings."};
+	stream << hexi::null_terminated(input);
+	std::string output;
+	stream >> hexi::null_terminated(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+}
+
+TEST(binary_stream_pmr, string_view_adaptor_prefixed) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+	std::string_view input { "The quick brown fox jumped over the lazy dog" };
+	stream << hexi::prefixed(input);
+	std::string output;
+	stream >> hexi::prefixed(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+}
+
+TEST(binary_stream_pmr, string_view_adaptor_default) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+	std::string_view input { "The quick brown fox jumped over the lazy dog" };
+	stream << input;
+	std::string output;
+	stream >> output;
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+}
+
+TEST(binary_stream_pmr, string_view_adaptor_raw) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+	const auto str = std::format("String with {} embedded null", '\0');
+	std::string_view input { str };
+	stream << hexi::raw(input);
+	ASSERT_EQ(input.size(), buffer.size());
+	std::string output;
+	stream >> hexi::null_terminated(output);
+	ASSERT_EQ(output, "String with ");
+	ASSERT_FALSE(stream.empty());
+}
+
+TEST(binary_stream_pmr, string_view_adaptor_null_terminated) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+	std::string_view input { "We're just normal strings. Innocent strings." };
+	stream << hexi::null_terminated(input);
+	ASSERT_EQ(stream.size(), input.size() + 1); // account for the null terminator
+	std::string output;
+	stream >> hexi::null_terminated(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
 }
