@@ -93,13 +93,13 @@ TEST(binary_stream, read_write_std_string) {
 	hexi::dynamic_buffer<32> buffer;
 	hexi::binary_stream stream(buffer);
 	const std::string in { "The quick brown fox jumped over the lazy dog" };
-	stream << in;
+	stream << hexi::null_terminated(in);
 
 	// +1 to account for the terminator that's written
 	ASSERT_EQ(stream.size(), in.size() + 1);
 
 	std::string out;
-	stream >> out;
+	stream >> hexi::null_terminated(out);
 
 	ASSERT_TRUE(stream.empty());
 	ASSERT_EQ(in, out);
@@ -116,7 +116,7 @@ TEST(binary_stream, read_write_c_string) {
 	ASSERT_EQ(stream.size(), strlen(in) + 1);
 
 	std::string out;
-	stream >> out;
+	stream >> hexi::null_terminated(out);
 
 	ASSERT_TRUE(stream.empty());
 	ASSERT_EQ(0, strcmp(in, out.c_str()));
@@ -230,7 +230,7 @@ TEST(binary_stream, no_copy_string_read) {
 	hexi::binary_stream stream(adaptor);
 	const std::string input { "The quick brown fox jumped over the lazy dog" };
 	const std::uint32_t trailing { 0x0DDBA11 };
-	stream << input << trailing;
+	stream << hexi::null_terminated(input) << trailing;
 
 	// check this stream uses a contiguous buffer
 	const auto contig = std::is_same_v<decltype(stream)::contiguous_type, hexi::is_contiguous>;
@@ -258,7 +258,7 @@ TEST(binary_stream, string_view_read) {
 	hexi::binary_stream stream(adaptor);
 	const std::string input { "The quick brown fox jumped over the lazy dog" };
 	const std::uint32_t trailing { 0x0DDBA11 };
-	stream << input << trailing;
+	stream << hexi::null_terminated(input) << trailing;
 
 	auto view = stream.view();
 	ASSERT_EQ(input, view);
@@ -274,7 +274,7 @@ TEST(binary_stream, partial_string_view_read) {
 	hexi::buffer_adaptor adaptor(buffer);
 	hexi::binary_stream stream(adaptor);
 	const std::string input { "The quick brown fox jumped over the lazy dog" };
-	stream << input;
+	stream << hexi::null_terminated(input);
 
 	auto span = stream.span(20);
 	std::string_view view(span);
@@ -292,10 +292,10 @@ TEST(binary_stream, string_view_stream) {
 	hexi::binary_stream stream(adaptor);
 	const std::string input { "The quick brown fox jumped over the lazy dog" };
 	const std::uint32_t trailing { 0xDEFECA7E };
-	stream << input << trailing;
+	stream << hexi::null_terminated(input) << trailing;
 
 	std::string_view output;
-	stream >> output;
+	stream >> hexi::null_terminated(output);
 	ASSERT_EQ(input, output);
 
 	// ensure we can still read subsequent data as normal
@@ -443,7 +443,7 @@ TEST(binary_stream, put_integral_literals) {
 	ASSERT_TRUE(stream);
 }
 
-TEST(binary_stream, file_buffer_bead) {
+TEST(binary_stream, file_buffer_read) {
 	std::filesystem::path path("data/filebuffer");
 	ASSERT_TRUE(std::filesystem::exists(path));
 
@@ -459,7 +459,7 @@ TEST(binary_stream, file_buffer_bead) {
 	std::string_view strcmp { "The quick brown fox jumped over the lazy dog." };
 	std::string str_out;
 
-	stream >> w >> x >> y >> z >> str_out;
+	stream >> w >> x >> y >> z >> hexi::null_terminated(str_out);
 	ASSERT_TRUE(buffer) << "File read error occurred";
 
 	hexi::endian::little_to_native_inplace(x);
@@ -498,7 +498,7 @@ TEST(binary_stream, file_buffer_write) {
 	hexi::endian::native_to_little_inplace(y);
 	hexi::endian::native_to_little_inplace(z);
 
-	stream << w << x << y << z << str;
+	stream << w << x << y << z << hexi::null_terminated(str);
 	buffer.flush(); // ensure data is written before following read
 
 	const auto reference = read_file("data/filebuffer");
@@ -516,4 +516,239 @@ TEST(binary_stream, set_error_state) {
 	ASSERT_FALSE(stream);
 	ASSERT_FALSE(stream.good());
 	ASSERT_TRUE(stream.state() == hexi::stream_state::user_defined_err);
+}
+
+TEST(binary_stream, StringAdaptor_PrefixedVarint_Long) {
+	std::vector<char> buffer;
+	hexi::buffer_adaptor adaptor(buffer);
+	hexi::binary_stream stream(adaptor);
+
+	std::string input;
+
+	// encode varint requiring three bytes
+	input.resize_and_overwrite(80'000, [&](char* buffer, const std::size_t size) {
+		for(std::size_t i = 0; i < size; ++i) {
+			buffer[i] = (rand() % 127) + 32; // ASCII a-z
+		}
+
+		return size;
+	});
+	
+	stream << hexi::prefixed_varint(input);
+	std::string output;
+	stream >> hexi::prefixed_varint(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+	ASSERT_TRUE(stream);
+}
+
+TEST(binary_stream, StringAdaptor_PrefixedVarint_Medium) {
+	std::vector<char> buffer;
+	hexi::buffer_adaptor adaptor(buffer);
+	hexi::binary_stream stream(adaptor);
+
+	std::string input;
+
+	// encode varint requiring two bytes
+	input.resize_and_overwrite(5'000, [&](char* buffer, const std::size_t size) {
+		for(std::size_t i = 0; i < size; ++i) {
+			buffer[i] = (rand() % 127) + 32; // ASCII a-z
+		}
+
+		return size;
+	});
+	
+	stream << hexi::prefixed_varint(input);
+	std::string output;
+	stream >> hexi::prefixed_varint(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+	ASSERT_TRUE(stream);
+}
+
+TEST(binary_stream, StringAdaptor_PrefixedVarint_Short) {
+	std::vector<char> buffer;
+	hexi::buffer_adaptor adaptor(buffer);
+	hexi::binary_stream stream(adaptor);
+
+	std::string input;
+
+	// encode varint requiring one byte
+	input.resize_and_overwrite(127, [&](char* buffer, const std::size_t size) {
+		for(std::size_t i = 0; i < size; ++i) {
+			buffer[i] = (rand() % 127) + 32; // ASCII a-z
+		}
+
+		return size;
+	});
+	
+	stream << hexi::prefixed_varint(input);
+	std::string output;
+	stream >> hexi::prefixed_varint(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+	ASSERT_TRUE(stream);
+}
+
+TEST(binary_stream, StringAdaptor_Prefixed) {
+	hexi::static_buffer<char, 128> buffer;
+	hexi::binary_stream stream(buffer);
+	const std::string input { "The quick brown fox jumped over the lazy dog" };
+	stream << hexi::prefixed(input);
+	std::string output;
+	stream >> hexi::prefixed(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+}
+
+TEST(binary_stream, StringAdaptor_Default) {
+	hexi::static_buffer<char, 128> buffer;
+	hexi::binary_stream stream(buffer);
+	const std::string input { "The quick brown fox jumped over the lazy dog" };
+	stream << input;
+	std::string output;
+	stream >> output;
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+}
+
+TEST(binary_stream, StringAdaptor_Raw) {
+	hexi::static_buffer<char, 128> buffer;
+	hexi::binary_stream stream(buffer);
+	const auto input = std::format("String with {} embedded null", '\0');
+	stream << hexi::raw(input);
+	ASSERT_EQ(input.size(), buffer.size());
+	std::string output;
+	stream >> hexi::null_terminated(output);
+	ASSERT_EQ(output, "String with ");
+	ASSERT_FALSE(stream.empty());
+}
+
+TEST(binary_stream, StringAdaptor_NullTerminated) {
+	hexi::static_buffer<char, 128> buffer;
+	hexi::binary_stream stream(buffer);
+	const std::string input { "We're just normal strings. Innocent strings."};
+	stream << hexi::null_terminated(input);
+	std::string output;
+	stream >> hexi::null_terminated(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+}
+
+TEST(binary_stream, StringviewAdaptor_PrefixedVarint_Long) {
+	std::vector<char> buffer;
+	hexi::buffer_adaptor adaptor(buffer);
+	hexi::binary_stream stream(adaptor);
+
+	std::string input;
+
+	// encode varint requiring three bytes
+	input.resize_and_overwrite(80'000, [&](char* buffer, const std::size_t size) {
+		for(std::size_t i = 0; i < size; ++i) {
+			buffer[i] = (rand() % 127) + 32; // ASCII a-z
+		}
+
+		return size;
+	});
+
+	stream << hexi::prefixed_varint(input);
+	std::string_view output;
+	stream >> hexi::prefixed_varint(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+	ASSERT_TRUE(stream);
+}
+
+TEST(binary_stream, StringviewAdaptor_PrefixedVarint_Medium) {
+	std::vector<char> buffer;
+	hexi::buffer_adaptor adaptor(buffer);
+	hexi::binary_stream stream(adaptor);
+
+	std::string input;
+
+	// encode varint requiring two bytes
+	input.resize_and_overwrite(5'000, [&](char* buffer, const std::size_t size) {
+		for(std::size_t i = 0; i < size; ++i) {
+			buffer[i] = (rand() % 127) + 32; // ASCII a-z
+		}
+
+		return size;
+	});
+
+	stream << hexi::prefixed_varint(input);
+	std::string_view output;
+	stream >> hexi::prefixed_varint(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+	ASSERT_TRUE(stream);
+}
+
+TEST(binary_stream, StringviewAdaptor_PrefixedVarint_Short) {
+	std::vector<char> buffer;
+	hexi::buffer_adaptor adaptor(buffer);
+	hexi::binary_stream stream(adaptor);
+
+	std::string input;
+
+	// encode varint requiring one byte
+	input.resize_and_overwrite(127, [&](char* buffer, const std::size_t size) {
+		for(std::size_t i = 0; i < size; ++i) {
+			buffer[i] = (rand() % 127) + 32; // ASCII a-z
+		}
+
+		return size;
+	});
+
+	stream << hexi::prefixed_varint(input);
+	std::string_view output;
+	stream >> hexi::prefixed_varint(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+	ASSERT_TRUE(stream);
+}
+
+TEST(binary_stream, StringviewAdaptor_Prefixed) {
+	hexi::static_buffer<char, 128> buffer;
+	hexi::binary_stream stream(buffer);
+	std::string_view input { "The quick brown fox jumped over the lazy dog" };
+	stream << hexi::prefixed(input);
+	std::string_view output;
+	stream >> hexi::prefixed(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+}
+
+TEST(binary_stream, StringviewAdaptor_Default) {
+	hexi::static_buffer<char, 128> buffer;
+	hexi::binary_stream stream(buffer);
+	std::string_view input { "The quick brown fox jumped over the lazy dog" };
+	stream << input;
+	std::string_view output;
+	stream >> output;
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+}
+
+TEST(binary_stream, StringviewAdaptor_Raw) {
+	hexi::static_buffer<char, 128> buffer;
+	hexi::binary_stream stream(buffer);
+	const auto input = std::format("String with {} embedded null", '\0');
+	stream << hexi::raw(input);
+	ASSERT_EQ(input.size(), buffer.size());
+	std::string_view output;
+	stream >> hexi::null_terminated(output);
+	ASSERT_EQ(output, "String with ");
+	ASSERT_FALSE(stream.empty());
+}
+
+TEST(binary_stream, StringviewAdaptor_NullTerminated) {
+	hexi::static_buffer<char, 128> buffer;
+	hexi::binary_stream stream(buffer);
+	std::string_view input { "We're just normal strings. Innocent strings."};
+	stream << hexi::null_terminated(input);
+	ASSERT_EQ(stream.size(), input.size() + 1); // +1, account for the terminator
+	std::string_view output;
+	stream >> hexi::null_terminated(output);
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
 }

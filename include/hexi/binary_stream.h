@@ -114,25 +114,60 @@ public:
 		return *this;
 	}
 
-	binary_stream& operator <<(const std::string& data) requires(writeable<buf_type>) {
-		buffer_.write(data.data(), data.size() + 1); // +1 also writes terminator
-		total_write_ += (data.size() + 1);
+	template<typename T>
+	binary_stream& operator<<(prefixed<T> adaptor) requires(writeable<buf_type>) {
+		buffer_.write(endian::native_to_little(adaptor->size()));
+		buffer_.write(adaptor->data(), adaptor->size());
+		total_write_ += static_cast<size_type>(adaptor->size()) + sizeof(adaptor->size());
 		return *this;
 	}
 
+	template<typename T>
+	binary_stream& operator<<(prefixed_varint<T> adaptor) requires(writeable<buf_type>) {
+		const auto encode_len = varint_encode(*this, adaptor->size());
+		buffer_.write(adaptor->data(), adaptor->size());
+		total_write_ += static_cast<size_type>(adaptor->size() + encode_len);
+		return *this;
+	}
+
+	template<typename T>
+	requires std::is_same_v<std::decay_t<T>, std::string_view>
+	binary_stream& operator<<(null_terminated<T> adaptor) requires(writeable<buf_type>) {
+		assert(adaptor->find_first_of('\0') == adaptor->npos);
+		buffer_.write(adaptor->data(), adaptor->size());
+		buffer_.write('\0');
+		total_write_ += static_cast<size_type>(adaptor->size() + 1);
+		return *this;
+	}
+
+	template<typename T>
+	requires std::is_same_v<std::decay_t<T>, std::string>
+	binary_stream& operator<<(null_terminated<T> adaptor) requires(writeable<buf_type>) {
+		assert(adaptor->find_first_of('\0') == adaptor->npos);
+		buffer_.write(adaptor->data(), adaptor->size() + 1); // yes, the standard allows this
+		total_write_ += static_cast<size_type>(adaptor->size() + 1);
+		return *this;
+	}
+
+	template<typename T>
+	binary_stream& operator<<(raw<T> adaptor) requires(writeable<buf_type>) {
+		buffer_.write(adaptor->data(), adaptor->size());
+		total_write_ += static_cast<size_type>(adaptor->size());
+		return *this;
+	}
+
+	binary_stream& operator<<(std::string_view string) requires(writeable<buf_type>) {
+		return (*this << prefixed(string));
+	}
+
+	binary_stream& operator<<(const std::string& string) requires(writeable<buf_type>) {
+		return (*this << prefixed(string));
+	}
 	binary_stream& operator <<(const char* data) requires(writeable<buf_type>) {
 		assert(data);
 		const auto len = std::strlen(data);
 		buffer_.write(data, len + 1); // include terminator
 		total_write_ += len + 1;
-		return *this;
-	}
-
-	binary_stream& operator <<(std::string_view& data) requires(writeable<buf_type>) {
-		buffer_.write(data.data(), data.size());
-		const char term = '\0';
-		buffer_.write(&term, sizeof(term));
-		total_write_ += (data.size() + 1);
 		return *this;
 	}
 
@@ -211,31 +246,93 @@ public:
 
 	/*** Read ***/
 
-	// terminates when it hits a null byte, empty string if none found
-	binary_stream& operator>>(std::string& dest) {
-		auto pos = buffer_.find_first_of(value_type(0));
+	binary_stream& operator>>(prefixed<std::string> adaptor) {
+		STREAM_READ_BOUNDS_CHECK(sizeof(std::string::size_type), *this);
+		std::string::size_type size {};
+		buffer_.read(&size);
+		endian::little_to_native_inplace(size);
 
-		if(pos == buf_type::npos) {
-			dest.clear();
-			return *this;
-		}
+		STREAM_READ_BOUNDS_CHECK(size, *this);
 
-		dest.resize_and_overwrite(pos, [&](char* strbuf, size_type size) {
+		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
 			buffer_.read(strbuf, size);
-			total_read_ += size;
 			return size;
 		});
 
-		total_read_ += 1;
-		buffer_.skip(1); // skip null term
 		return *this;
 	}
 
-	// terminates when it hits a null byte, empty string_view if none found
-	// goes without saying that the buffer must outlive the string_view
-	binary_stream& operator>>(std::string_view& dest) requires(contiguous<buf_type>) {
-		dest = view();
+	binary_stream& operator>>(prefixed<std::string_view> adaptor) {
+		STREAM_READ_BOUNDS_CHECK(sizeof(std::string_view::size_type), *this);
+		std::string_view::size_type size {};
+		buffer_.read(&size);
+		endian::little_to_native_inplace(size);
+		adaptor.str = std::string_view { span<char>(size) };
 		return *this;
+	}
+	
+	binary_stream& operator>>(prefixed_varint<std::string> adaptor) {
+		const auto& [result, size] = varint_decode<size_type>(*this);
+
+		// if decoding the varint failed due to detecting a potential read overrun,
+		// we'll trigger the error handling here instead
+		if(!result) {
+			STREAM_READ_BOUNDS_CHECK(1, *this);
+		}
+
+		STREAM_READ_BOUNDS_CHECK(size, *this);
+
+		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
+			buffer_.read(strbuf, size);
+			return size;
+		});
+
+		return *this;
+	}
+
+	binary_stream& operator>>(prefixed_varint<std::string_view> adaptor) {
+		const auto& [result, size] = varint_decode<size_type>(*this);
+
+		// if decoding the varint failed due to detecting a potential read overrun,
+		// we'll trigger the error handling here instead
+		if(!result) {
+			STREAM_READ_BOUNDS_CHECK(1, *this);
+		}
+		
+		adaptor.str = std::string_view { span<char>(size) };
+		return *this;
+	}
+
+	binary_stream& operator>>(null_terminated<std::string> adaptor) {
+		auto pos = buffer_.find_first_of(value_type(0));
+
+		if(pos == buf_type::npos) {
+			adaptor->clear();
+			return *this;
+		}
+
+		STREAM_READ_BOUNDS_CHECK(pos + 1, *this); // include null terminator
+
+		adaptor->resize_and_overwrite(pos, [&](char* strbuf, std::size_t size) {
+			buffer_.read(strbuf, pos);
+			return size;
+		});
+
+		buffer_.skip(1); // skip null terminator
+		return *this;
+	}
+
+	binary_stream& operator>>(null_terminated<std::string_view> adaptor) {
+		adaptor.str = view();
+		return *this;
+	}
+
+	binary_stream& operator >>(std::string_view& data) {
+		return (*this >> prefixed(data));
+	}
+
+	binary_stream& operator >>(std::string& data) {
+		return (*this >> prefixed(data));
 	}
 
 	binary_stream& operator>>(has_shr_override<binary_stream> auto&& data) {
@@ -506,6 +603,24 @@ public:
 	 */
 	size_type read_limit() const {
 		return read_limit_;
+	}
+
+	/**
+	 * @brief Determine the maximum number of bytes that can be
+	 * safely read from this stream.
+	 * 
+	 * The value returned may be lower than the amount of data
+	 * available in the buffer if a read limit was set during
+	 * the stream's construction.
+	 * 
+	 * @return The number of bytes available for reading.
+	 */
+	size_type read_max() const {
+		if(read_limit_) {
+			return read_limit_ - total_read_;
+		} else {
+			return buffer_.size();
+		}
 	}
 
 	/**
