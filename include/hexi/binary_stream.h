@@ -27,8 +27,8 @@ namespace hexi {
 
 using namespace detail;
 
-#define STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)              \
-	enforce_read_bounds(read_size);                                 \
+#define STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)            \
+	enforce_read_bounds(read_size);                               \
 	                                                              \
 	if constexpr(std::is_same_v<exceptions, no_throw>) {          \
 		if(state_ != stream_state::ok) [[unlikely]] {             \
