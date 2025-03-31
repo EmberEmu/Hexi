@@ -28,6 +28,11 @@ class binary_stream_writer : virtual public stream_base {
 	buffer_write& buffer_;
 	std::size_t total_write_;
 
+	inline void write(const void* data, const std::size_t size) {
+		buffer_.write(data, size);
+		total_write_ += size;
+	}
+
 public:
 	explicit binary_stream_writer(buffer_write& source)
 		: stream_base(source),
@@ -53,8 +58,7 @@ public:
 	template<pod T>
 	requires (!has_shl_override<T, binary_stream_writer>)
 	binary_stream_writer& operator<<(const T& data) {
-		buffer_.write(&data, sizeof(data));
-		total_write_ += sizeof(data);
+		write(&data, sizeof(data));
 		return *this;
 	}
 
@@ -62,17 +66,15 @@ public:
 	binary_stream_writer& operator<<(prefixed<T> adaptor) {
 		auto size = static_cast<std::uint32_t>(adaptor->size());
 		endian::native_to_little_inplace(size);
-		buffer_.write(&size, sizeof(size));
-		buffer_.write(adaptor->data(), adaptor->size());
-		total_write_ += (adaptor->size()) + sizeof(adaptor->size());
+		write(&size, sizeof(size));
+		write(adaptor->data(), adaptor->size());
 		return *this;
 	}
 
 	template<typename T>
 	binary_stream_writer& operator<<(prefixed_varint<T> adaptor) {
 		const auto encode_len = varint_encode(*this, adaptor->size());
-		buffer_.write(adaptor->data(), adaptor->size());
-		total_write_ += (adaptor->size() + encode_len);
+		write(adaptor->data(), adaptor->size());
 		return *this;
 	}
 
@@ -80,10 +82,9 @@ public:
 	requires std::is_same_v<std::decay_t<T>, std::string_view>
 	binary_stream_writer& operator<<(null_terminated<T> adaptor) {
 		assert(adaptor->find_first_of('\0') == adaptor->npos);
-		buffer_.write(adaptor->data(), adaptor->size());
+		write(adaptor->data(), adaptor->size());
 		const char terminator = '\0';
-		buffer_.write(&terminator, 1);
-		total_write_ += (adaptor->size() + 1);
+		write(&terminator, 1);
 		return *this;
 	}
 
@@ -91,15 +92,13 @@ public:
 	requires std::is_same_v<std::decay_t<T>, std::string>
 	binary_stream_writer& operator<<(null_terminated<T> adaptor) {
 		assert(adaptor->find_first_of('\0') == adaptor->npos);
-		buffer_.write(adaptor->data(), adaptor->size() + 1); // yes, the standard allows this
-		total_write_ += (adaptor->size() + 1);
+		write(adaptor->data(), adaptor->size() + 1); // yes, the standard allows this
 		return *this;
 	}
 
 	template<typename T>
 	binary_stream_writer& operator<<(raw<T> adaptor) {
-		buffer_.write(adaptor->data(), adaptor->size());
-		total_write_ += adaptor->size();
+		write(adaptor->data(), adaptor->size());
 		return *this;
 	}
 
@@ -114,8 +113,7 @@ public:
 	binary_stream_writer& operator<<(const char* data) {
 		assert(data);
 		const auto len = std::strlen(data);
-		buffer_.write(data, len + 1); // include terminator
-		total_write_ += len + 1;
+		write(data, len + 1); // include terminator
 		return *this;
 	}
 
@@ -127,8 +125,7 @@ public:
 	template<std::ranges::contiguous_range range>
 	void put(range& data) {
 		const auto write_size = data.size() * sizeof(range::value_type);
-		buffer_.write(data.data(), write_size);
-		total_write_ += write_size;
+		write(data.data(), write_size);
 	}
 
 	/**
@@ -137,8 +134,7 @@ public:
 	 * @param data The value to be written to the stream.
 	 */
 	void put(const arithmetic auto& data) {
-		buffer_.write(&data, sizeof(data));
-		total_write_ += sizeof(data);
+		write(&data, sizeof(data));
 	}
 
 	/**
@@ -149,8 +145,7 @@ public:
 	template<endian::conversion conversion>
 	void put(const arithmetic auto& data) {
 		const auto swapped = endian::convert<conversion>(data);
-		buffer_.write(&swapped, sizeof(swapped));
-		total_write_ += sizeof(data);
+		write(&swapped, sizeof(swapped));
 	}
 
 	/**
@@ -163,8 +158,7 @@ public:
 	void put(const T* data, std::size_t count) {
 		assert(data);
 		const auto write_size = count * sizeof(T);
-		buffer_.write(data, write_size);
-		total_write_ += write_size;
+		write(data, write_size);
 	}
 
 	/**
@@ -188,8 +182,7 @@ public:
 	template<std::size_t size>
 	void fill(const std::uint8_t value) {
 		const auto filled = generate_filled<size>(value);
-		buffer_.write(filled.data(), filled.size());
-		total_write_ += size;
+		write(filled.data(), filled.size());
 	}
 
 	/**  Misc functions **/ 
