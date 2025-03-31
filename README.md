@@ -109,8 +109,6 @@ Exceptions from `binary_stream` can be disabled by specifying `no_throw` as an a
 ```cpp
 hexi::binary_stream stream(buffer, hexi::no_throw);
 ```
-While this prevents `binary_stream` itself from throwing, it does not prevent propagation of exceptions from lower levels. For example, a wrapped `std::vector` could still throw `std::bad_alloc` if allocation fails when writing to it.
-
 Regardless of the error handling mechanism you use, the state of a `binary_stream` can be checked as follows:
 ```cpp
 hexi::binary_stream stream(buffer, hexi::no_throw);
