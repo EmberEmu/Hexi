@@ -77,6 +77,7 @@ enum class stream_state {
 	ok,
 	read_limit_err,
 	buff_limit_err,
+	buff_write_err,
 	invalid_stream,
 	user_defined_err
 };
@@ -480,6 +481,29 @@ private:
 		total_read_ += read_size;
 	}
 
+	template<typename... Ts>
+	inline void advance_write(Ts&&... args) {
+		if constexpr(sizeof...(args) == 1) {
+			total_write_ += sizeof(std::get<0>(std::forward_as_tuple(args)...));
+		} else {
+			total_write_ += std::get<1>(std::forward_as_tuple(args...));
+		}
+	}
+
+	template<typename... Ts>
+	inline void write(Ts&&... args) requires std::is_same_v<exceptions, no_throw_t> try {
+		buffer_.write(std::forward<Ts>(args)...);
+		advance_write(std::forward<Ts>(args)...);
+	} catch(const std::exception&) {
+		state_ = stream_state::buff_write_err;
+	}
+
+	template<typename... Ts>
+	inline void write(Ts&&... args) requires std::is_same_v<exceptions, allow_throw_t> {
+		buffer_.write(std::forward<Ts>(args)...);
+		advance_write(std::forward<Ts>(args)...);
+	}
+
 public:
 	explicit binary_stream(buf_type& source, size_type read_limit = 0)
 		: buffer_(source),
@@ -515,25 +539,22 @@ public:
 	template<pod T>
 	requires (!has_shl_override<T, binary_stream>)
 	binary_stream& operator <<(const T& data) requires writeable<buf_type> {
-		buffer_.write(&data, sizeof(T));
-		total_write_ += sizeof(T);
+		write(&data, sizeof(T));
 		return *this;
 	}
 
 	template<typename T>
 	binary_stream& operator<<(prefixed<T> adaptor) requires writeable<buf_type> {
 		const auto size = static_cast<std::uint32_t>(adaptor->size());
-		buffer_.write(endian::native_to_little(size));
-		buffer_.write(adaptor->data(), static_cast<size_type>(size));
-		total_write_ += static_cast<size_type>(adaptor->size()) + sizeof(adaptor->size());
+		write(endian::native_to_little(size));
+		write(adaptor->data(), static_cast<size_type>(size));
 		return *this;
 	}
 
 	template<typename T>
 	binary_stream& operator<<(prefixed_varint<T> adaptor) requires writeable<buf_type> {
 		const auto encode_len = varint_encode(*this, adaptor->size());
-		buffer_.write(adaptor->data(), adaptor->size());
-		total_write_ += static_cast<size_type>(adaptor->size() + encode_len);
+		write(adaptor->data(), adaptor->size());
 		return *this;
 	}
 
@@ -541,9 +562,8 @@ public:
 	requires std::is_same_v<std::decay_t<T>, std::string_view>
 	binary_stream& operator<<(null_terminated<T> adaptor) requires writeable<buf_type> {
 		assert(adaptor->find_first_of('\0') == adaptor->npos);
-		buffer_.write(adaptor->data(), adaptor->size());
-		buffer_.write('\0');
-		total_write_ += static_cast<size_type>(adaptor->size() + 1);
+		write(adaptor->data(), adaptor->size());
+		write('\0');
 		return *this;
 	}
 
@@ -551,15 +571,13 @@ public:
 	requires std::is_same_v<std::decay_t<T>, std::string>
 	binary_stream& operator<<(null_terminated<T> adaptor) requires writeable<buf_type> {
 		assert(adaptor->find_first_of('\0') == adaptor->npos);
-		buffer_.write(adaptor->data(), adaptor->size() + 1); // yes, the standard allows this
-		total_write_ += static_cast<size_type>(adaptor->size() + 1);
+		write(adaptor->data(), adaptor->size() + 1); // yes, the standard allows this
 		return *this;
 	}
 
 	template<typename T>
 	binary_stream& operator<<(raw<T> adaptor) requires writeable<buf_type> {
-		buffer_.write(adaptor->data(), adaptor->size());
-		total_write_ += static_cast<size_type>(adaptor->size());
+		write(adaptor->data(), adaptor->size());
 		return *this;
 	}
 
@@ -570,11 +588,11 @@ public:
 	binary_stream& operator<<(const std::string& string) requires writeable<buf_type> {
 		return (*this << prefixed(string));
 	}
+
 	binary_stream& operator <<(const char* data) requires writeable<buf_type> {
 		assert(data);
 		const auto len = std::strlen(data);
-		buffer_.write(data, len + 1); // include terminator
-		total_write_ += len + 1;
+		write(data, len + 1); // include terminator
 		return *this;
 	}
 
@@ -586,8 +604,7 @@ public:
 	template<std::ranges::contiguous_range range>
 	void put(const range& data) requires writeable<buf_type> {
 		const auto write_size = data.size() * sizeof(typename range::value_type);
-		buffer_.write(data.data(), write_size);
-		total_write_ += write_size;
+		write(data.data(), write_size);
 	}
 
 	/**
@@ -596,8 +613,7 @@ public:
 	 * @param data The value to be written to the stream.
 	 */
 	void put(const arithmetic auto& data) requires writeable<buf_type> {
-		buffer_.write(&data, sizeof(data));
-		total_write_ += sizeof(data);
+		write(&data, sizeof(data));
 	}
 
 	/**
@@ -608,8 +624,7 @@ public:
 	template<endian::conversion conversion>
 	void put(const arithmetic auto& data) requires writeable<buf_type> {
 		const auto swapped = endian::convert<conversion>(data);
-		buffer_.write(&swapped, sizeof(data));
-		total_write_ += sizeof(data);
+		write(&swapped, sizeof(data));
 	}
 
 	/**
@@ -621,8 +636,7 @@ public:
 	template<pod T>
 	void put(const T* data, size_type count) requires writeable<buf_type> {
 		const auto write_size = count * sizeof(T);
-		buffer_.write(data, write_size);
-		total_write_ += write_size;
+		write(data, write_size);
 	}
 
 	/**
@@ -647,8 +661,7 @@ public:
 	template<size_type size>
 	void fill(const std::uint8_t value) requires writeable<buf_type> {
 		const auto filled = generate_filled<size>(value);
-		buffer_.write(filled.data(), filled.size());
-		total_write_ += size;
+		write(filled.data(), filled.size());
 	}
 
 	/*** Read ***/
@@ -944,9 +957,9 @@ public:
 	void write_seek(const stream_seek direction, const offset_type offset)
 		requires(seekable<buf_type> && writeable<buf_type>) {
 		if(direction == stream_seek::sk_stream_absolute) {
-			buffer_.write_seek(buffer_seek::sk_backward, total_write_ - offset);
+			write_seek(buffer_seek::sk_backward, total_write_ - offset);
 		} else {
-			buffer_.write_seek(static_cast<buffer_seek>(direction), offset);
+			write_seek(static_cast<buffer_seek>(direction), offset);
 		}
 	}
 
@@ -1073,6 +1086,8 @@ public:
 
 // #include <hexi/concepts.h>
 
+// #include <hexi/exception.h>
+
 #include <ranges>
 #include <type_traits>
 #include <utility>
@@ -1159,8 +1174,7 @@ public:
 	 * @param length The number of bytes to copy.
 	 */
 	void copy(void* destination, size_type length) const {
-		assert(destination);
-		assert(!region_overlap(buffer_.data(), buffer_.size(), destination, length));
+		assert(destination && !region_overlap(buffer_.data(), buffer_.size(), destination, length));
 		std::memcpy(destination, read_ptr(), length);
 	}
 
@@ -1188,7 +1202,7 @@ public:
 	 * 
 	 * @param source Pointer to the data to be written.
 	 */
-	void write(const auto& source) requires has_resize<buf_type> {
+	void write(const auto& source) {
 		write(&source, sizeof(source));
 	}
 
@@ -1198,18 +1212,19 @@ public:
 	 * @param source Pointer to the data to be written.
 	 * @param length Number of bytes to write from the source.
 	 */
-	void write(const void* source, size_type length) requires has_resize<buf_type> {
+	void write(const void* source, size_type length) {
 		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
 		const auto min_req_size = write_ + length;
 
-		// we don't use std::back_inserter so we can support seeks
 		if(buffer_.size() < min_req_size) {
 			if constexpr(has_resize_overwrite<buf_type>) {
 				buffer_.resize_and_overwrite(min_req_size, [](char*, size_type size) {
 					return size;
 				});
-			} else {
+			} else if constexpr(has_resize<buf_type>) {
 				buffer_.resize(min_req_size);
+			} else {
+				throw buffer_overflow(length, write_, free());
 			}
 		}
 
@@ -1285,7 +1300,7 @@ public:
 	 * 
 	 * @return True if write seeking is supported, otherwise false.
 	 */
-	constexpr static bool can_write_seek() requires has_resize<buf_type> {
+	constexpr static bool can_write_seek() {
 		return std::is_same_v<seeking, supported>;
 	}
 
@@ -1296,7 +1311,7 @@ public:
 	 * @param offset The offset relative to the seek direction or the absolute value
 	 * when using absolute seeking.
 	 */
-	void write_seek(const buffer_seek direction, const offset_type offset) requires has_resize<buf_type> {
+	void write_seek(const buffer_seek direction, const offset_type offset) {
 		switch(direction) {
 			case buffer_seek::sk_backward:
 				write_ -= offset;
@@ -1327,7 +1342,7 @@ public:
 	 * @return Pointer to the location within the buffer where the next write
 	 * will be made.
 	 */
-	auto write_ptr() const requires has_resize<buf_type> {
+	auto write_ptr() const  {
 		return buffer_.data() + write_;
 	}
 
@@ -1335,7 +1350,7 @@ public:
 	 * @return Pointer to the location within the buffer where the next write
 	 * will be made.
 	 */
-	auto write_ptr() requires has_resize<buf_type> {
+	auto write_ptr() {
 		return buffer_.data() + write_;
 	}
 
@@ -1375,6 +1390,14 @@ public:
 	void advance_write(size_type bytes) {
 		assert(buffer_.size() >= (write_ + bytes));
 		write_ += bytes;
+	}
+
+	auto free() const {
+		return buffer_.size() - write_;
+	}
+
+	void clear() {
+		read_ = write_ = 0;
 	}
 };
 
@@ -4605,6 +4628,8 @@ public:
 
 // #include <hexi/concepts.h>
 
+// #include <hexi/exception.h>
+
 #include <ranges>
 #include <cassert>
 #include <cstddef>
@@ -4644,7 +4669,6 @@ public:
 		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
 		const auto min_req_size = write_ + length;
 
-		// we don't use std::back_inserter so we can support seeks
 		if(buffer_.size() < min_req_size) {
 			if constexpr(has_resize_overwrite<buf_type>) {
 				buffer_.resize_and_overwrite(min_req_size, [](char*, std::size_t size) {
@@ -4734,6 +4758,10 @@ public:
 		write_ = 0;
 		buffer_.clear();
 	}
+
+	std::size_t free() const {
+		return buffer_.size() - write_;
+	}
 };
 
 } // pmc, hexi
@@ -4749,12 +4777,12 @@ requires std::ranges::contiguous_range<buf_type>
 class buffer_adaptor final : public buffer_read_adaptor<buf_type>,
                              public buffer_write_adaptor<buf_type>,
                              public buffer {
-	void clear() {
+	void conditional_clear() {
 		if(buffer_read_adaptor<buf_type>::read_ptr() == buffer_write_adaptor<buf_type>::write_ptr()) {
-			buffer_read_adaptor<buf_type>::clear();
-			buffer_write_adaptor<buf_type>::clear();
+			clear();
 		}
 	}
+
 public:
 	explicit buffer_adaptor(buf_type& buffer)
 		: buffer_read_adaptor<buf_type>(buffer),
@@ -4770,7 +4798,7 @@ public:
 		buffer_read_adaptor<buf_type>::read(destination);
 
 		if constexpr(allow_optimise) {
-			clear();
+			conditional_clear();
 		}
 	}
 
@@ -4784,7 +4812,7 @@ public:
 		buffer_read_adaptor<buf_type>::read(destination, length);
 
 		if constexpr(allow_optimise) {
-			clear();
+			conditional_clear();
 		}
 	};
 
@@ -4835,7 +4863,7 @@ public:
 		buffer_read_adaptor<buf_type>::skip(length);
 
 		if constexpr(allow_optimise) {
-			clear();
+			conditional_clear();
 		}
 	};
 
@@ -4920,6 +4948,11 @@ public:
 	 */
 	std::size_t find_first_of(std::byte val) const override { 
 		return buffer_read_adaptor<buf_type>::find_first_of(val);
+	}
+
+	void clear() {
+		buffer_read_adaptor<buf_type>::clear();
+		buffer_write_adaptor<buf_type>::clear();
 	}
 };
 
