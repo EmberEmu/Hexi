@@ -250,10 +250,10 @@ public:
 	 * 
 	 * @param data The element to be written to the stream.
 	 */
-	template<endian::conversion conversion>
-	void put(const arithmetic auto& data) requires writeable<buf_type> {
-		const auto swapped = endian::convert<conversion>(data);
-		write(&swapped, sizeof(data));
+	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	void put(const endian_func& adaptor) requires writeable<buf_type> {
+		const auto swapped = adaptor.convert();
+		write(&swapped, sizeof(swapped));
 	}
 
 	/**
@@ -438,11 +438,11 @@ public:
 	 * 
 	 * @param The destination for the read value.
 	 */
-	template<endian::conversion conversion>
-	void get(arithmetic auto& dest) {
-		STREAM_READ_BOUNDS_ENFORCE(sizeof(dest), void());
-		buffer_.read(&dest, sizeof(dest));
-		dest = endian::convert<conversion>(dest);
+	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	void get(endian_func& adaptor) {
+		STREAM_READ_BOUNDS_ENFORCE(sizeof(adaptor.value), void());
+		buffer_.read(&adaptor.value, sizeof(adaptor));
+		adaptor.value = adaptor.convert();
 	}
 
 	/**

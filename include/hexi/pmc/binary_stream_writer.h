@@ -150,9 +150,9 @@ public:
 	 * 
 	 * @param data The element to be written to the stream.
 	 */
-	template<endian::conversion conversion>
-	void put(const arithmetic auto& data) {
-		const auto swapped = endian::convert<conversion>(data);
+	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	void put(const endian_func& adaptor) {
+		const auto swapped = adaptor.convert();
 		write(&swapped, sizeof(swapped));
 	}
 
