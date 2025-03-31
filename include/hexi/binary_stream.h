@@ -82,6 +82,30 @@ private:
 		total_read_ += read_size;
 	}
 
+	template<typename T>
+	inline void advance_write(T&& arg) {
+		total_write_ += sizeof(std::decay_t<T>);
+	}
+
+	template<typename T, typename U>
+	inline void advance_write(T&&, U&& size) {
+		total_write_ += size;
+	}
+
+	template<typename... Ts>
+	inline void write(Ts&&... args) requires std::is_same_v<exceptions, no_throw_t> try {
+		buffer_.write(std::forward<Ts>(args)...);
+		advance_write(std::forward<Ts>(args)...);
+	} catch(const std::exception&) {
+		state_ = stream_state::buff_write_err;
+	}
+
+	template<typename... Ts>
+	inline void write(Ts&&... args) requires std::is_same_v<exceptions, allow_throw_t> {
+		buffer_.write(std::forward<Ts>(args)...);
+		advance_write(std::forward<Ts>(args)...);
+	}
+
 public:
 	explicit binary_stream(buf_type& source, size_type read_limit = 0)
 		: buffer_(source),
@@ -117,25 +141,22 @@ public:
 	template<pod T>
 	requires (!has_shl_override<T, binary_stream>)
 	binary_stream& operator <<(const T& data) requires writeable<buf_type> {
-		buffer_.write(&data, sizeof(T));
-		total_write_ += sizeof(T);
+		write(&data, sizeof(T));
 		return *this;
 	}
 
 	template<typename T>
 	binary_stream& operator<<(prefixed<T> adaptor) requires writeable<buf_type> {
 		const auto size = static_cast<std::uint32_t>(adaptor->size());
-		buffer_.write(endian::native_to_little(size));
-		buffer_.write(adaptor->data(), static_cast<size_type>(size));
-		total_write_ += static_cast<size_type>(adaptor->size()) + sizeof(adaptor->size());
+		write(endian::native_to_little(size));
+		write(adaptor->data(), static_cast<size_type>(size));
 		return *this;
 	}
 
 	template<typename T>
 	binary_stream& operator<<(prefixed_varint<T> adaptor) requires writeable<buf_type> {
 		const auto encode_len = varint_encode(*this, adaptor->size());
-		buffer_.write(adaptor->data(), adaptor->size());
-		total_write_ += static_cast<size_type>(adaptor->size() + encode_len);
+		write(adaptor->data(), adaptor->size());
 		return *this;
 	}
 
@@ -143,9 +164,8 @@ public:
 	requires std::is_same_v<std::decay_t<T>, std::string_view>
 	binary_stream& operator<<(null_terminated<T> adaptor) requires writeable<buf_type> {
 		assert(adaptor->find_first_of('\0') == adaptor->npos);
-		buffer_.write(adaptor->data(), adaptor->size());
-		buffer_.write('\0');
-		total_write_ += static_cast<size_type>(adaptor->size() + 1);
+		write(adaptor->data(), adaptor->size());
+		write('\0');
 		return *this;
 	}
 
@@ -153,15 +173,13 @@ public:
 	requires std::is_same_v<std::decay_t<T>, std::string>
 	binary_stream& operator<<(null_terminated<T> adaptor) requires writeable<buf_type> {
 		assert(adaptor->find_first_of('\0') == adaptor->npos);
-		buffer_.write(adaptor->data(), adaptor->size() + 1); // yes, the standard allows this
-		total_write_ += static_cast<size_type>(adaptor->size() + 1);
+		write(adaptor->data(), adaptor->size() + 1); // yes, the standard allows this
 		return *this;
 	}
 
 	template<typename T>
 	binary_stream& operator<<(raw<T> adaptor) requires writeable<buf_type> {
-		buffer_.write(adaptor->data(), adaptor->size());
-		total_write_ += static_cast<size_type>(adaptor->size());
+		write(adaptor->data(), adaptor->size());
 		return *this;
 	}
 
@@ -172,11 +190,11 @@ public:
 	binary_stream& operator<<(const std::string& string) requires writeable<buf_type> {
 		return (*this << prefixed(string));
 	}
+
 	binary_stream& operator <<(const char* data) requires writeable<buf_type> {
 		assert(data);
 		const auto len = std::strlen(data);
-		buffer_.write(data, len + 1); // include terminator
-		total_write_ += len + 1;
+		write(data, len + 1); // include terminator
 		return *this;
 	}
 
@@ -188,8 +206,7 @@ public:
 	template<std::ranges::contiguous_range range>
 	void put(const range& data) requires writeable<buf_type> {
 		const auto write_size = data.size() * sizeof(typename range::value_type);
-		buffer_.write(data.data(), write_size);
-		total_write_ += write_size;
+		write(data.data(), write_size);
 	}
 
 	/**
@@ -198,8 +215,7 @@ public:
 	 * @param data The value to be written to the stream.
 	 */
 	void put(const arithmetic auto& data) requires writeable<buf_type> {
-		buffer_.write(&data, sizeof(data));
-		total_write_ += sizeof(data);
+		write(&data, sizeof(data));
 	}
 
 	/**
@@ -210,8 +226,7 @@ public:
 	template<endian::conversion conversion>
 	void put(const arithmetic auto& data) requires writeable<buf_type> {
 		const auto swapped = endian::convert<conversion>(data);
-		buffer_.write(&swapped, sizeof(data));
-		total_write_ += sizeof(data);
+		write(&swapped, sizeof(data));
 	}
 
 	/**
@@ -223,8 +238,7 @@ public:
 	template<pod T>
 	void put(const T* data, size_type count) requires writeable<buf_type> {
 		const auto write_size = count * sizeof(T);
-		buffer_.write(data, write_size);
-		total_write_ += write_size;
+		write(data, write_size);
 	}
 
 	/**
@@ -249,8 +263,7 @@ public:
 	template<size_type size>
 	void fill(const std::uint8_t value) requires writeable<buf_type> {
 		const auto filled = generate_filled<size>(value);
-		buffer_.write(filled.data(), filled.size());
-		total_write_ += size;
+		write(filled.data(), filled.size());
 	}
 
 	/*** Read ***/
@@ -464,7 +477,7 @@ public:
 	 */
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
-		const auto read_size = dest.size() * sizeof(range::value_type);
+		const auto read_size = dest.size() * sizeof(typename range::value_type);
 		STREAM_READ_BOUNDS_ENFORCE(read_size, void());
 		buffer_.read(dest.data(), read_size);
 	}
@@ -546,9 +559,9 @@ public:
 	void write_seek(const stream_seek direction, const offset_type offset)
 		requires(seekable<buf_type> && writeable<buf_type>) {
 		if(direction == stream_seek::sk_stream_absolute) {
-			buffer_.write_seek(buffer_seek::sk_backward, total_write_ - offset);
+			write_seek(buffer_seek::sk_backward, total_write_ - offset);
 		} else {
-			buffer_.write_seek(static_cast<buffer_seek>(direction), offset);
+			write_seek(static_cast<buffer_seek>(direction), offset);
 		}
 	}
 

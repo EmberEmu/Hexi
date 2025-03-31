@@ -155,7 +155,10 @@ public:
 	 */
 	void clear() {
 		read_ = 0;
-		buffer_.clear();
+
+		if constexpr(has_clear<buf_type>) {
+			buffer_.clear();
+		}
 	}
 };
 

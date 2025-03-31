@@ -27,6 +27,9 @@ struct no_throw_t : except_tag {};
 constexpr static no_throw_t no_throw {};
 constexpr static allow_throw_t allow_throw {};
 
+struct init_empty_t {};
+constexpr static init_empty_t init_empty {};
+
 #define STRING_ADAPTOR(adaptor_name)                      \
 template<typename string_type>                            \
 struct adaptor_name {                                     \
@@ -59,6 +62,7 @@ enum class stream_state {
 	ok,
 	read_limit_err,
 	buff_limit_err,
+	buff_write_err,
 	invalid_stream,
 	user_defined_err
 };

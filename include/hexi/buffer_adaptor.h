@@ -8,6 +8,7 @@
 
 #include <hexi/shared.h>
 #include <hexi/concepts.h>
+#include <hexi/exception.h>
 #include <ranges>
 #include <type_traits>
 #include <utility>
@@ -41,6 +42,11 @@ public:
 		: buffer_(buffer),
 		  read_(0),
 		  write_(buffer.size()) {}
+
+	buffer_adaptor(buf_type& buffer, init_empty_t)
+		: buffer_(buffer),
+		  read_(0),
+		  write_(0) {}
 
 	buffer_adaptor(buffer_adaptor&& rhs) = delete;
 	buffer_adaptor& operator=(buffer_adaptor&&) = delete;
@@ -94,8 +100,7 @@ public:
 	 * @param length The number of bytes to copy.
 	 */
 	void copy(void* destination, size_type length) const {
-		assert(destination);
-		assert(!region_overlap(buffer_.data(), buffer_.size(), destination, length));
+		assert(destination && !region_overlap(buffer_.data(), buffer_.size(), destination, length));
 		std::memcpy(destination, read_ptr(), length);
 	}
 
@@ -123,7 +128,7 @@ public:
 	 * 
 	 * @param source Pointer to the data to be written.
 	 */
-	void write(const auto& source) requires has_resize<buf_type> {
+	void write(const auto& source) {
 		write(&source, sizeof(source));
 	}
 
@@ -133,18 +138,19 @@ public:
 	 * @param source Pointer to the data to be written.
 	 * @param length Number of bytes to write from the source.
 	 */
-	void write(const void* source, size_type length) requires has_resize<buf_type> {
+	void write(const void* source, size_type length) {
 		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
 		const auto min_req_size = write_ + length;
 
-		// we don't use std::back_inserter so we can support seeks
 		if(buffer_.size() < min_req_size) {
 			if constexpr(has_resize_overwrite<buf_type>) {
 				buffer_.resize_and_overwrite(min_req_size, [](char*, size_type size) {
 					return size;
 				});
-			} else {
+			} else if constexpr(has_resize<buf_type>) {
 				buffer_.resize(min_req_size);
+			} else {
+				throw buffer_overflow(length, write_, free());
 			}
 		}
 
@@ -220,7 +226,7 @@ public:
 	 * 
 	 * @return True if write seeking is supported, otherwise false.
 	 */
-	constexpr static bool can_write_seek() requires has_resize<buf_type> {
+	constexpr static bool can_write_seek() {
 		return std::is_same_v<seeking, supported>;
 	}
 
@@ -231,7 +237,7 @@ public:
 	 * @param offset The offset relative to the seek direction or the absolute value
 	 * when using absolute seeking.
 	 */
-	void write_seek(const buffer_seek direction, const offset_type offset) requires has_resize<buf_type> {
+	void write_seek(const buffer_seek direction, const offset_type offset) {
 		switch(direction) {
 			case buffer_seek::sk_backward:
 				write_ -= offset;
@@ -262,7 +268,7 @@ public:
 	 * @return Pointer to the location within the buffer where the next write
 	 * will be made.
 	 */
-	auto write_ptr() const requires has_resize<buf_type> {
+	auto write_ptr() const  {
 		return buffer_.data() + write_;
 	}
 
@@ -270,7 +276,7 @@ public:
 	 * @return Pointer to the location within the buffer where the next write
 	 * will be made.
 	 */
-	auto write_ptr() requires has_resize<buf_type> {
+	auto write_ptr() {
 		return buffer_.data() + write_;
 	}
 
@@ -310,6 +316,14 @@ public:
 	void advance_write(size_type bytes) {
 		assert(buffer_.size() >= (write_ + bytes));
 		write_ += bytes;
+	}
+
+	auto free() const {
+		return buffer_.size() - write_;
+	}
+
+	void clear() {
+		read_ = write_ = 0;
 	}
 };
 

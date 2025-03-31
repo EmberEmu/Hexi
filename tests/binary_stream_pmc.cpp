@@ -466,3 +466,46 @@ TEST(binary_stream_pmr, string_view_adaptor_null_terminated) {
 	ASSERT_EQ(input, output);
 	ASSERT_TRUE(stream.empty());
 }
+
+TEST(binary_stream_pmr, total_write_consistency) {
+	std::array<char, 1024> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer, hexi::init_empty);
+	hexi::pmc::binary_stream stream(adaptor);
+
+	ASSERT_EQ(stream.total_write(), 0);
+	stream << std::uint8_t(0);
+	ASSERT_EQ(stream.total_write(), 1);
+	stream << std::uint16_t(0);
+	ASSERT_EQ(stream.total_write(), 3);
+	stream << std::uint32_t(0);
+	ASSERT_EQ(stream.total_write(), 7);
+	stream << std::uint64_t(0);
+	ASSERT_EQ(stream.total_write(), 15);
+
+	std::string_view str { "hello, world!" };
+	stream << hexi::raw(str);
+	ASSERT_EQ(stream.total_write(), 28);
+	stream << hexi::prefixed(str);
+	ASSERT_EQ(stream.total_write(), 45);
+	stream << hexi::prefixed_varint(str);
+	ASSERT_EQ(stream.total_write(), 59);
+	stream << hexi::null_terminated(str);
+	ASSERT_EQ(stream.total_write(), 73);
+
+	stream.put<std::uint8_t>(0);
+	ASSERT_EQ(stream.total_write(), 74);
+	stream.put<std::uint16_t>(0);
+	ASSERT_EQ(stream.total_write(), 76);
+	stream.put<std::uint32_t>(0);
+	ASSERT_EQ(stream.total_write(), 80);
+	stream.put<std::uint64_t>(0);
+	ASSERT_EQ(stream.total_write(), 88);
+
+	std::array<std::uint32_t, 4> data {};
+	stream.put(data);
+	ASSERT_EQ(stream.total_write(), 104);
+	stream.put(data.data(), data.size());
+	ASSERT_EQ(stream.total_write(), 120);
+	stream.put(data.begin(), data.end());
+	ASSERT_EQ(stream.total_write(), 136);
+}
