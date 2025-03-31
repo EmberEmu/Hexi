@@ -509,3 +509,29 @@ TEST(binary_stream_pmr, total_write_consistency) {
 	stream.put(data.begin(), data.end());
 	ASSERT_EQ(stream.total_write(), 136);
 }
+
+TEST(binary_stream, endianness_override_match) {
+	std::array<char, 16> buffer{};
+	hexi::pmc::buffer_adaptor adaptor(buffer, hexi::init_empty);
+	hexi::pmc::binary_stream stream(adaptor);
+	std::uint64_t input = 100, output = 0;
+	stream << hexi::endian::to_little(input);
+	stream >> hexi::endian::from_little(output);
+	ASSERT_EQ(input, output);
+	stream << hexi::endian::to_big(input);
+	stream >> hexi::endian::from_big(output);
+	ASSERT_EQ(input, output);
+}
+
+TEST(binary_stream, endianness_override_mismatch) {
+	std::array<char, 16> buffer{};
+	hexi::pmc::buffer_adaptor adaptor(buffer, hexi::init_empty);
+	hexi::pmc::binary_stream stream(adaptor);
+	std::uint64_t input = 100, output = 0;
+	stream << hexi::endian::to_little(input);
+	stream >> hexi::endian::from_big(output);
+	ASSERT_NE(input, output);
+	stream << hexi::endian::to_big(input);
+	stream >> hexi::endian::from_little(output);
+	ASSERT_NE(input, output);
+}
