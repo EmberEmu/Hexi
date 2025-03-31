@@ -97,7 +97,6 @@ public:
 	explicit binary_stream(buf_type& source, endianness)
 		: binary_stream(source, 0) {}
 
-	template<typename... Ts>
 	explicit binary_stream(buf_type& source, exceptions, endianness)
 		: binary_stream(source, 0) {}
 
@@ -107,7 +106,6 @@ public:
 	explicit binary_stream(buf_type& source, size_type read_limit, endianness)
 		: binary_stream(source, read_limit) {}
 
-	template<typename... Ts>
 	explicit binary_stream(buf_type& source, size_type read_limit, exceptions, endianness)
 		: binary_stream(source, read_limit) {}
 
