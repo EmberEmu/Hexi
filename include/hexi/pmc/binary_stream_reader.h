@@ -84,12 +84,10 @@ public:
 	}
 	
 	binary_stream_reader& operator>>(prefixed_varint<std::string> adaptor) {
-		const auto& [result, size] = varint_decode<std::size_t>(*this);
+		const auto size = varint_decode<std::size_t>(*this);
 
-		// if decoding the varint failed due to detecting a potential read overrun,
-		// we'll trigger the error handling here instead
-		if(!result) {
-			enforce_read_bounds(1);
+		// if an error was triggered during decode, we shouldn't reach here
+		if(state() != stream_state::ok) {
 			std::unreachable();
 		}
 

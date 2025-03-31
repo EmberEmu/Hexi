@@ -292,12 +292,11 @@ public:
 	}
 	
 	binary_stream& operator>>(prefixed_varint<std::string> adaptor) {
-		const auto& [result, size] = varint_decode<size_type>(*this);
+		const auto size = varint_decode<size_type>(*this);
 
-		// if decoding the varint failed due to detecting a potential read overrun,
-		// we'll trigger the error handling here instead
-		if(!result) {
-			STREAM_READ_BOUNDS_ENFORCE(1, *this);
+		// if an error was triggered during decode
+		if(state_ != stream_state::ok) {
+			return *this;
 		}
 
 		STREAM_READ_BOUNDS_ENFORCE(size, *this);
@@ -311,12 +310,11 @@ public:
 	}
 
 	binary_stream& operator>>(prefixed_varint<std::string_view> adaptor) {
-		const auto& [result, size] = varint_decode<size_type>(*this);
+		const auto size = varint_decode<size_type>(*this);
 
-		// if decoding the varint failed due to detecting a potential read overrun,
-		// we'll trigger the error handling here instead
-		if(!result) {
-			STREAM_READ_BOUNDS_ENFORCE(1, *this);
+		// if an error was triggered during decode
+		if(state_ != stream_state::ok) {
+			return *this;
 		}
 		
 		adaptor.str = std::string_view { span<char>(size) };
