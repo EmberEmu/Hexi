@@ -367,7 +367,7 @@ TEST(binary_stream, static_buffer_overflow) {
 	hexi::static_buffer<char, 4> buffer;
 	hexi::binary_stream stream(buffer);
 	ASSERT_THROW(stream << std::uint64_t(1), hexi::buffer_overflow);
-	ASSERT_TRUE(stream);
+	ASSERT_FALSE(stream);
 }
 
 TEST(binary_stream, static_buffer_read) {
