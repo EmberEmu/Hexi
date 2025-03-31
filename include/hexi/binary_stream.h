@@ -477,7 +477,7 @@ public:
 	 */
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
-		const auto read_size = dest.size() * sizeof(range::value_type);
+		const auto read_size = dest.size() * sizeof(typename range::value_type);
 		STREAM_READ_BOUNDS_ENFORCE(read_size, void());
 		buffer_.read(dest.data(), read_size);
 	}

@@ -891,7 +891,7 @@ public:
 	 */
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
-		const auto read_size = dest.size() * sizeof(range::value_type);
+		const auto read_size = dest.size() * sizeof(typename range::value_type);
 		STREAM_READ_BOUNDS_ENFORCE(read_size, void());
 		buffer_.read(dest.data(), read_size);
 	}
@@ -4043,7 +4043,7 @@ public:
 	 */
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
-		const auto read_size = dest.size() * sizeof(range::value_type);
+		const auto read_size = dest.size() * sizeof(typename range::value_type);
 		enforce_read_bounds(read_size);
 		buffer_.read(dest.data(), read_size);
 	}
@@ -4289,7 +4289,7 @@ public:
 	 */
 	template<std::ranges::contiguous_range range>
 	void put(range& data) {
-		const auto write_size = data.size() * sizeof(range::value_type);
+		const auto write_size = data.size() * sizeof(typename range::value_type);
 		write(data.data(), write_size);
 	}
 

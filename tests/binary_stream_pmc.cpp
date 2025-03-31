@@ -468,7 +468,6 @@ TEST(binary_stream_pmr, string_view_adaptor_null_terminated) {
 }
 
 TEST(binary_stream_pmr, total_write_consistency) {
-	//std::vector<char> buffer;
 	std::array<char, 1024> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer, hexi::init_empty);
 	hexi::pmc::binary_stream stream(adaptor);
