@@ -11,6 +11,13 @@ int main() {
 	*/
 
 	{ // read-only std::span
+		std::array<char, 4> buffer;
+		std::span span<const char>(buffer);
+		hexi::buffer_adaptor adaptor(span);
+		hexi::binary_stream stream(adaptor);
+	}
+
+	{ // read-write std::span
 		std::vector<char> buffer;
 		std::span span(buffer);
 		hexi::buffer_adaptor adaptor(span);
@@ -29,14 +36,24 @@ int main() {
 		hexi::binary_stream stream(adaptor);
 	}
 
-	{ // read-only std::string_view
-		std::string_view buffer;
+	{ // read-only std::array
+		std::array<const char, 10> buffer;
 		hexi::buffer_adaptor adaptor(buffer);
 		hexi::binary_stream stream(adaptor);
 	}
 
-	{ // read-only std::array
+	{ // read-write std::array
+		// by default, writing to an std::array will trigger an error
+		// to prevent overwriting existing data
+		// use init_empty to or call .clear() to override
 		std::array<char, 10> buffer;
+		hexi::buffer_adaptor adaptor(buffer, hexi::init_empty);
+		// or: adaptor.clear();
+		hexi::binary_stream stream(adaptor);
+	}
+
+	{ // read-only std::string_view
+		std::string_view buffer;
 		hexi::buffer_adaptor adaptor(buffer);
 		hexi::binary_stream stream(adaptor);
 	}
