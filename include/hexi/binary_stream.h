@@ -93,17 +93,15 @@ private:
 	}
 
 	template<typename... Ts>
-	inline void write(Ts&&... args) requires std::is_same_v<exceptions, no_throw_t> try {
+	inline void write(Ts&&... args) try {
 		buffer_.write(std::forward<Ts>(args)...);
 		advance_write(std::forward<Ts>(args)...);
-	} catch(const std::exception&) {
+	} catch(...) {
 		state_ = stream_state::buff_write_err;
-	}
 
-	template<typename... Ts>
-	inline void write(Ts&&... args) requires std::is_same_v<exceptions, allow_throw_t> {
-		buffer_.write(std::forward<Ts>(args)...);
-		advance_write(std::forward<Ts>(args)...);
+		if constexpr(std::is_same_v<exceptions, allow_throw_t>) {
+			throw;
+		}
 	}
 
 public:
