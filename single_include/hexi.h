@@ -582,7 +582,6 @@ public:
 	explicit binary_stream(buf_type& source, endianness)
 		: binary_stream(source, 0) {}
 
-	template<typename... Ts>
 	explicit binary_stream(buf_type& source, exceptions, endianness)
 		: binary_stream(source, 0) {}
 
@@ -592,7 +591,6 @@ public:
 	explicit binary_stream(buf_type& source, size_type read_limit, endianness)
 		: binary_stream(source, read_limit) {}
 
-	template<typename... Ts>
 	explicit binary_stream(buf_type& source, size_type read_limit, exceptions, endianness)
 		: binary_stream(source, read_limit) {}
 
@@ -620,22 +618,20 @@ public:
 	template<std::derived_from<endian::adaptor_in_tag_t> endian_func>
 	binary_stream& operator<<(endian_func adaptor) requires writeable<buf_type> {
 		const auto converted = adaptor.convert();
-		buffer_.write(&converted, sizeof(converted));
-		total_write_ += sizeof(converted);
+		write(&converted, sizeof(converted));
 		return *this;
 	}
 
 	binary_stream& operator<<(const arithmetic auto& data) requires writeable<buf_type> {
 		const auto converted = endian::storage_in(data, endianness{});
-		buffer_.write(&converted, sizeof(converted));
-		total_write_ += sizeof(converted);
+		write(&converted, sizeof(converted));
 		return *this;
 	}
 
 	template<pod T>
 	requires (!has_shl_override<T, binary_stream> && !arithmetic<T>)
 	binary_stream& operator<<(const T& data) requires writeable<buf_type> {
-    write(&data, sizeof(T));
+		write(&data, sizeof(T));
 		return *this;
 	}
 
@@ -717,10 +713,10 @@ public:
 	 * 
 	 * @param data The element to be written to the stream.
 	 */
-	template<endian::conversion conversion>
-	void put(const arithmetic auto& data) requires writeable<buf_type> {
-		const auto swapped = endian::convert<conversion>(data);
-		write(&swapped, sizeof(data));
+	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	void put(const endian_func& adaptor) requires writeable<buf_type> {
+		const auto swapped = adaptor.convert();
+		write(&swapped, sizeof(swapped));
 	}
 
 	/**
@@ -905,11 +901,11 @@ public:
 	 * 
 	 * @param The destination for the read value.
 	 */
-	template<endian::conversion conversion>
-	void get(arithmetic auto& dest) {
-		STREAM_READ_BOUNDS_ENFORCE(sizeof(dest), void());
-		buffer_.read(&dest, sizeof(dest));
-		dest = endian::convert<conversion>(dest);
+	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	void get(endian_func& adaptor) {
+		STREAM_READ_BOUNDS_ENFORCE(sizeof(adaptor.value), void());
+		buffer_.read(&adaptor.value, sizeof(adaptor));
+		adaptor.value = adaptor.convert();
 	}
 
 	/**
@@ -4176,11 +4172,11 @@ public:
 	 * 
 	 * @param The destination for the read value.
 	 */
-	template<endian::conversion conversion>
-	void get(arithmetic auto& dest) {
-		enforce_read_bounds(sizeof(dest));
-		buffer_.read(&dest, sizeof(dest));
-		dest = endian::convert<conversion>(dest);
+	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	void get(endian_func& adaptor) {
+		enforce_read_bounds(sizeof(adaptor.value));
+		buffer_.read(&adaptor.value, sizeof(adaptor.value));
+		adaptor.value = adaptor.convert();
 	}
 
 	/**
@@ -4414,9 +4410,9 @@ public:
 	 * 
 	 * @param data The element to be written to the stream.
 	 */
-	template<endian::conversion conversion>
-	void put(const arithmetic auto& data) {
-		const auto swapped = endian::convert<conversion>(data);
+	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	void put(const endian_func& adaptor) {
+		const auto swapped = adaptor.convert();
 		write(&swapped, sizeof(swapped));
 	}
 
