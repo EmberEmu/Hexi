@@ -59,7 +59,7 @@ auto serialise(const UserPacket& packet) {
     return buffer;
 }
 ```
-By default, Hexi will try to serialise basic structures such as our `UserPacket` if they meet requirements for being safe to directly copy the bytes. Now, for reasons of portability, it's not recommended that you do things this way unless you're positive that the data layout is identical on the system that wrote the data. Not to worry, this is easily solved. Plus, we didn't do any error handling. All in good time.
+By default, Hexi will try to serialise basic structures such as our `UserPacket` if they meet requirements for being safe to directly copy the bytes. Now, for reasons of portability, it's not recommended that you do things this way unless you're positive that the data layout is identical on the system that wrote the data. Not to worry, this is easily solved. Plus, we didn't do any error or endianness handling. All in good time.
 
 <img src="docs/assets/frog-remember.png" alt="Remember these two classes, if nothing else!">
 
@@ -146,15 +146,15 @@ struct UserPacket {
     std::string username;
     uint64_t timestamp;
     uint8_t has_optional_field;
-    uint32_t optional_field;  // pretend this is big endian in the protocol
+    uint32_t optional_field;  // pretend this is big-endian in the protocol
 
     // deserialise
     auto& operator>>(auto& stream) {
         stream >> user_id >> username >> timestamp >> has_optional_field;
 
         if (has_optional_field) {
-            stream >> optional_field;
-            hexi::endian::big_to_native_inplace(optional_field);
+			// fetch explicitly as big-endian value
+            stream >> hexi::endian::from_big(optional_field);
         }
 
         // we can manually trigger an error if something went wrong
@@ -167,7 +167,8 @@ struct UserPacket {
         stream << user_id << username << timestamp << has_optional_field;
 
         if (has_optional_field) {
-            stream << hexi::endian::native_to_big(optional_field);
+			// write explicitly as big-endian value
+            stream << hexi::endian::to_big(optional_field);
         }
 
         return stream;
@@ -194,7 +195,14 @@ void read() {
 
 auto handle_user_packet(std::span<const char> buffer) {
     hexi::buffer_adaptor adaptor(buffer);
-    hexi::binary_stream stream(adaptor);
+
+	/**
+	 * hexi::endian::little tells the stream to convert to/from
+	 * little-endian unless told otherwise by using the endian
+	 * adaptors. If no argument is provided, it does not perform
+	 * any conversions by default.
+	 */
+    hexi::binary_stream stream(adaptor, hexi::endian::little);
 
     UserPacket packet;
     stream >> packet;
@@ -208,10 +216,21 @@ auto handle_user_packet(std::span<const char> buffer) {
 }
 ```
 
-Because `binary_stream` is a template, it's easiest to allow the compiler to perform type deduction magic.
+This example is fully portable and is even independent of the platform byte order. By specifying the endianness of the stream, it'll automagically convert all endian-sensitive data to the requested byte order.
+The default argument is `hexi::endian::native`, which will perform no conversions, while `hexi::endian::big` and `hexi::endian::little` will perform conversions if required.
 
-If you want the function bodies to be in a source file, it's recommended that you provide your own `using` alias for your `binary_stream` type.
-The alternative is to use the polymorphic equivalents, `pmc::buffer_adaptor` and `pmc::binary_stream`, which allow you to change the underlying buffer type at runtime but at the cost of virtual call overhead and lacking some functionality that doesn't mesh well with polymorphism.
+If your protocol contains mixed endianness, you can use the endian adaptors to specify the desired byte order when streaming
+the data, as shown in the above example. 
+
+Best of all, because this is handled by templates, there is zero runtime cost if no conversion is required
+(i.e. that is the native byte order matches the requested byte order) and constant values can be converted
+at compile-time. For example, specifying `hexi::endian::little` on a little-endian platform will generate zero
+code. 
+
+`docs/examples/endian.cpp` provides examples for byte order handling functionality.
+
+As for the serialisation functions, if you want the function bodies to be in a source file, it's recommended that you provide your own `using` alias for your `binary_stream` type.
+The alternative is to use the polymorphic equivalents, `pmc::buffer_adaptor` and `pmc::binary_stream`, which allow you to change the underlying buffer type at runtime but at the potential cost of virtual call overhead (devirtualisation not withstanding) and lacking some functionality that doesn't mesh well with polymorphism.
 
 How you structure your code is up to you, this is just one way of doing it.
 
