@@ -27,6 +27,9 @@ struct no_throw_t : except_tag {};
 constexpr static no_throw_t no_throw {};
 constexpr static allow_throw_t allow_throw {};
 
+struct init_empty_t {};
+constexpr static init_empty_t init_empty {};
+
 #define STRING_ADAPTOR(adaptor_name)                      \
 template<typename string_type>                            \
 struct adaptor_name {                                     \
@@ -59,6 +62,7 @@ enum class stream_state {
 	ok,
 	read_limit_err,
 	buff_limit_err,
+	buff_write_err,
 	invalid_stream,
 	user_defined_err
 };
@@ -66,23 +70,19 @@ enum class stream_state {
 namespace detail {
 
 template<typename size_type, typename stream_type>
-constexpr auto varint_decode(stream_type& stream) -> std::pair<bool, size_type> {
+constexpr auto varint_decode(stream_type& stream) -> size_type {
 	int shift { 0 };
 	size_type value { 0 };
 	std::uint8_t byte { 0 };
 
 	do {
-		// if reading another byte would violate the read limit
-		if(stream.read_max() == 0) {
-			return { false, 0 };
-		}
-
+		byte = 0; // clear in case an error occurs
 		stream.get(&byte, 1);
 		value |= (static_cast<size_type>(byte & 0x7f) << shift);
 		shift += 7;
 	} while(byte & 0x80);
 
-	return { true, value };
+	return value;
 }
 
 template<typename size_type, typename stream_type>

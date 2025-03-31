@@ -19,16 +19,20 @@ requires std::ranges::contiguous_range<buf_type>
 class buffer_adaptor final : public buffer_read_adaptor<buf_type>,
                              public buffer_write_adaptor<buf_type>,
                              public buffer {
-	void clear() {
+	void conditional_clear() {
 		if(buffer_read_adaptor<buf_type>::read_ptr() == buffer_write_adaptor<buf_type>::write_ptr()) {
-			buffer_read_adaptor<buf_type>::clear();
-			buffer_write_adaptor<buf_type>::clear();
+			clear();
 		}
 	}
+
 public:
 	explicit buffer_adaptor(buf_type& buffer)
 		: buffer_read_adaptor<buf_type>(buffer),
 		  buffer_write_adaptor<buf_type>(buffer) {}
+
+	explicit buffer_adaptor(buf_type& buffer, init_empty_t)
+		: buffer_read_adaptor<buf_type>(buffer),
+		  buffer_write_adaptor<buf_type>(buffer, init_empty) {}
 
 	/**
 	 * @brief Reads a number of bytes to the provided buffer.
@@ -40,7 +44,7 @@ public:
 		buffer_read_adaptor<buf_type>::read(destination);
 
 		if constexpr(allow_optimise) {
-			clear();
+			conditional_clear();
 		}
 	}
 
@@ -54,7 +58,7 @@ public:
 		buffer_read_adaptor<buf_type>::read(destination, length);
 
 		if constexpr(allow_optimise) {
-			clear();
+			conditional_clear();
 		}
 	};
 
@@ -105,7 +109,7 @@ public:
 		buffer_read_adaptor<buf_type>::skip(length);
 
 		if constexpr(allow_optimise) {
-			clear();
+			conditional_clear();
 		}
 	};
 
@@ -190,6 +194,11 @@ public:
 	 */
 	std::size_t find_first_of(std::byte val) const override { 
 		return buffer_read_adaptor<buf_type>::find_first_of(val);
+	}
+
+	void clear() {
+		buffer_read_adaptor<buf_type>::clear();
+		buffer_write_adaptor<buf_type>::clear();
 	}
 };
 

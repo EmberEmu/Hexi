@@ -84,12 +84,10 @@ public:
 	}
 	
 	binary_stream_reader& operator>>(prefixed_varint<std::string> adaptor) {
-		const auto& [result, size] = varint_decode<std::size_t>(*this);
+		const auto size = varint_decode<std::size_t>(*this);
 
-		// if decoding the varint failed due to detecting a potential read overrun,
-		// we'll trigger the error handling here instead
-		if(!result) {
-			enforce_read_bounds(1);
+		// if an error was triggered during decode, we shouldn't reach here
+		if(state() != stream_state::ok) {
 			std::unreachable();
 		}
 
@@ -209,7 +207,7 @@ public:
 	 */
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
-		const auto read_size = dest.size() * sizeof(range::value_type);
+		const auto read_size = dest.size() * sizeof(typename range::value_type);
 		enforce_read_bounds(read_size);
 		buffer_.read(dest.data(), read_size);
 	}
