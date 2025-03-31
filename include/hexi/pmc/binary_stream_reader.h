@@ -130,6 +130,14 @@ public:
 		return data.operator>>(*this);
 	}
 
+	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	binary_stream_reader& operator>>(endian_func adaptor) {
+		enforce_read_bounds(sizeof(adaptor.value));
+		buffer_.read(&adaptor.value, sizeof(adaptor.value));
+		adaptor.value = adaptor.convert();
+		return *this;
+	}
+
 	template<pod T>
 	requires (!has_shr_override<T, binary_stream_reader>)
 	binary_stream_reader& operator>>(T& data) {

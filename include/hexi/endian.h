@@ -131,4 +131,57 @@ constexpr auto convert(arithmetic auto value) -> decltype(value) {
 	};
 }
 
+struct adaptor_in_tag_t {};
+struct adaptor_out_tag_t {};
+
+#define ENDIAN_ADAPTOR(name, func, tag, ref) \
+template<arithmetic T>                       \
+struct name final : tag {                    \
+	T ref value;                             \
+    name(T ref t) : value(t) {}              \
+	auto convert() -> T {                    \
+		return func(value);                  \
+	}                                        \
+};
+
+#define ENDIAN_ADAPTOR_OUT(name, func) ENDIAN_ADAPTOR(name, func, adaptor_out_tag_t, &)
+#define ENDIAN_ADAPTOR_IN(name, func)  ENDIAN_ADAPTOR(name, func, adaptor_in_tag_t,   )
+
+ENDIAN_ADAPTOR_IN(to_big,       native_to_big)
+ENDIAN_ADAPTOR_IN(to_little,    native_to_little)
+ENDIAN_ADAPTOR_OUT(from_big,    big_to_native)
+ENDIAN_ADAPTOR_OUT(from_little, little_to_native)
+
+struct storage_tag {};
+struct as_big_t final : storage_tag {};
+struct as_little_t final : storage_tag {};
+struct as_native_t final : storage_tag {};
+
+constexpr static as_big_t big {};
+constexpr static as_little_t little {};
+constexpr static as_native_t native {};
+
+inline auto storage_in(const arithmetic auto& value, as_native_t) {
+	return value;
+}
+
+inline auto storage_in(const arithmetic auto& value, as_little_t) {
+	return native_to_little(value);
+}
+
+inline auto storage_in(const arithmetic auto& value, as_big_t) {
+	return native_to_big(value);
+}
+
+inline void storage_out(arithmetic auto& value, as_native_t) {}
+
+inline void storage_out(arithmetic auto& value, as_little_t) {
+	return little_to_native_inplace(value);
+}
+
+inline void storage_out(arithmetic auto& value, as_big_t) {
+	return big_to_native_inplace(value);
+}
+
+
 } // endian, hexi

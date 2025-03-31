@@ -407,6 +407,59 @@ constexpr auto convert(arithmetic auto value) -> decltype(value) {
 	};
 }
 
+struct adaptor_in_tag_t {};
+struct adaptor_out_tag_t {};
+
+#define ENDIAN_ADAPTOR(name, func, tag, ref) \
+template<arithmetic T>                       \
+struct name final : tag {                    \
+	T ref value;                             \
+    name(T ref t) : value(t) {}              \
+	auto convert() -> T {                    \
+		return func(value);                  \
+	}                                        \
+};
+
+#define ENDIAN_ADAPTOR_OUT(name, func) ENDIAN_ADAPTOR(name, func, adaptor_out_tag_t, &)
+#define ENDIAN_ADAPTOR_IN(name, func)  ENDIAN_ADAPTOR(name, func, adaptor_in_tag_t,   )
+
+ENDIAN_ADAPTOR_IN(to_big,       native_to_big)
+ENDIAN_ADAPTOR_IN(to_little,    native_to_little)
+ENDIAN_ADAPTOR_OUT(from_big,    big_to_native)
+ENDIAN_ADAPTOR_OUT(from_little, little_to_native)
+
+struct storage_tag {};
+struct as_big_t final : storage_tag {};
+struct as_little_t final : storage_tag {};
+struct as_native_t final : storage_tag {};
+
+constexpr static as_big_t big {};
+constexpr static as_little_t little {};
+constexpr static as_native_t native {};
+
+inline auto storage_in(const arithmetic auto& value, as_native_t) {
+	return value;
+}
+
+inline auto storage_in(const arithmetic auto& value, as_little_t) {
+	return native_to_little(value);
+}
+
+inline auto storage_in(const arithmetic auto& value, as_big_t) {
+	return native_to_big(value);
+}
+
+inline void storage_out(arithmetic auto& value, as_native_t) {}
+
+inline void storage_out(arithmetic auto& value, as_little_t) {
+	return little_to_native_inplace(value);
+}
+
+inline void storage_out(arithmetic auto& value, as_big_t) {
+	return big_to_native_inplace(value);
+}
+
+
 } // endian, hexi
 #include <algorithm>
 #include <concepts>
@@ -434,7 +487,11 @@ using namespace detail;
 		}                                                         \
 	}
 
-template<byte_oriented buf_type, std::derived_from<except_tag> exceptions = allow_throw_t>
+template<
+	byte_oriented buf_type,
+	std::derived_from<except_tag> exceptions = allow_throw_t,
+	std::derived_from<endian::storage_tag> endianness = endian::as_native_t
+>
 class binary_stream final {
 public:
 	using size_type          = typename buf_type::size_type;
@@ -485,11 +542,25 @@ public:
 		: buffer_(source),
 		  read_limit_(read_limit) {};
 
+	explicit binary_stream(buf_type& source, exceptions)
+		: binary_stream(source, 0) {}
+
+	explicit binary_stream(buf_type& source, endianness)
+		: binary_stream(source, 0) {}
+
+	template<typename... Ts>
+	explicit binary_stream(buf_type& source, exceptions, endianness)
+		: binary_stream(source, 0) {}
+
 	explicit binary_stream(buf_type& source, size_type read_limit, exceptions)
 		: binary_stream(source, read_limit) {}
 
-	explicit binary_stream(buf_type& source, exceptions)
-		: binary_stream(source, 0) {}
+	explicit binary_stream(buf_type& source, size_type read_limit, endianness)
+		: binary_stream(source, read_limit) {}
+
+	template<typename... Ts>
+	explicit binary_stream(buf_type& source, size_type read_limit, exceptions, endianness)
+		: binary_stream(source, read_limit) {}
 
 	binary_stream(binary_stream&& rhs) noexcept
 		: buffer_(rhs.buffer_), 
@@ -512,9 +583,24 @@ public:
 		return data.operator<<(*this);
 	}
 
+	template<std::derived_from<endian::adaptor_in_tag_t> endian_func>
+	binary_stream& operator<<(endian_func adaptor) requires writeable<buf_type> {
+		const auto converted = adaptor.convert();
+		buffer_.write(&converted, sizeof(converted));
+		total_write_ += sizeof(converted);
+		return *this;
+	}
+
+	binary_stream& operator<<(const arithmetic auto& data) requires writeable<buf_type> {
+		const auto converted = endian::storage_in(data, endianness{});
+		buffer_.write(&converted, sizeof(converted));
+		total_write_ += sizeof(converted);
+		return *this;
+	}
+
 	template<pod T>
-	requires (!has_shl_override<T, binary_stream>)
-	binary_stream& operator <<(const T& data) requires writeable<buf_type> {
+	requires (!has_shl_override<T, binary_stream> && !arithmetic<T>)
+	binary_stream& operator<<(const T& data) requires writeable<buf_type> {
 		buffer_.write(&data, sizeof(T));
 		total_write_ += sizeof(T);
 		return *this;
@@ -570,6 +656,7 @@ public:
 	binary_stream& operator<<(const std::string& string) requires writeable<buf_type> {
 		return (*this << prefixed(string));
 	}
+
 	binary_stream& operator <<(const char* data) requires writeable<buf_type> {
 		assert(data);
 		const auto len = std::strlen(data);
@@ -746,8 +833,23 @@ public:
 		return data.operator>>(*this);
 	}
 
+	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	binary_stream& operator>>(endian_func adaptor) requires writeable<buf_type> {
+		STREAM_READ_BOUNDS_ENFORCE(sizeof(adaptor.value), *this);
+		buffer_.read(&adaptor.value, sizeof(adaptor.value));
+		adaptor.value = adaptor.convert();
+		return *this;
+	}
+
+	binary_stream& operator>>(arithmetic auto& data) requires writeable<buf_type> {
+		STREAM_READ_BOUNDS_ENFORCE(sizeof(data), *this);
+		buffer_.read(&data, sizeof(data));
+		endian::storage_out(data, endianness{});
+		return *this;
+	}
+
 	template<pod T>
-	requires (!has_shr_override<T, binary_stream>)
+	requires (!has_shr_override<T, binary_stream> && !arithmetic<T>)
 	binary_stream& operator>>(T& data) {
 		STREAM_READ_BOUNDS_ENFORCE(sizeof(data), *this);
 		buffer_.read(&data, sizeof(data));
@@ -3928,6 +4030,14 @@ public:
 		return data.operator>>(*this);
 	}
 
+	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	binary_stream_reader& operator>>(endian_func adaptor) {
+		enforce_read_bounds(sizeof(adaptor.value));
+		buffer_.read(&adaptor.value, sizeof(adaptor.value));
+		adaptor.value = adaptor.convert();
+		return *this;
+	}
+
 	template<pod T>
 	requires (!has_shr_override<T, binary_stream_reader>)
 	binary_stream_reader& operator>>(T& data) {
@@ -4169,6 +4279,14 @@ public:
 
 	binary_stream_writer& operator<<(has_shl_override<binary_stream_writer> auto&& data) {
 		return data.operator<<(*this);
+	}
+
+	template<std::derived_from<endian::adaptor_in_tag_t> endian_func>
+	binary_stream_writer& operator<<(endian_func adaptor) {
+		const auto converted = adaptor.convert();
+		buffer_.write(&converted, sizeof(converted));
+		total_write_ += sizeof(converted);
+		return *this;
 	}
 
 	template<pod T>
