@@ -30,6 +30,10 @@ public:
 		: buffer_read_adaptor<buf_type>(buffer),
 		  buffer_write_adaptor<buf_type>(buffer) {}
 
+	explicit buffer_adaptor(buf_type& buffer, init_empty_t)
+		: buffer_read_adaptor<buf_type>(buffer),
+		  buffer_write_adaptor<buf_type>(buffer, init_empty) {}
+
 	/**
 	 * @brief Reads a number of bytes to the provided buffer.
 	 * 

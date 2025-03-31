@@ -43,6 +43,11 @@ public:
 		  read_(0),
 		  write_(buffer.size()) {}
 
+	buffer_adaptor(buf_type& buffer, init_empty_t)
+		: buffer_(buffer),
+		  read_(0),
+		  write_(0) {}
+
 	buffer_adaptor(buffer_adaptor&& rhs) = delete;
 	buffer_adaptor& operator=(buffer_adaptor&&) = delete;
 	buffer_adaptor& operator=(const buffer_adaptor&) = delete;

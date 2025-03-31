@@ -30,6 +30,10 @@ public:
 		: buffer_(buffer),
 		  write_(buffer.size()) {}
 
+	buffer_write_adaptor(buf_type& buffer, init_empty_t)
+		: buffer_(buffer),
+		  write_(0) {}
+
 	/**
 	 * @brief Write data to the container.
 	 * 
@@ -41,7 +45,7 @@ public:
 
 	/**
 	 * @brief Write provided data to the container.
-	 * 
+	 *
 	 * @param source Pointer to the data to be written.
 	 * @param length Number of bytes to write from the source.
 	 */
@@ -53,9 +57,11 @@ public:
 			if constexpr(has_resize_overwrite<buf_type>) {
 				buffer_.resize_and_overwrite(min_req_size, [](char*, std::size_t size) {
 					return size;
-				});
-			} else {
+											 });
+			} else if constexpr(has_resize<buf_type>) {
 				buffer_.resize(min_req_size);
+			} else {
+				throw buffer_overflow(free(), length, write_);
 			}
 		}
 
@@ -65,16 +71,18 @@ public:
 
 	/**
 	 * @brief Reserves a number of bytes within the container for future use.
-	 * 
+	 *
 	 * @param length The number of bytes that the container should reserve.
 	 */
 	void reserve(const std::size_t length) override {
-		buffer_.reserve(length);
+		if constexpr(has_reserve<buf_type>) {
+			buffer_.reserve(length);
+		}
 	}
 
 	/**
 	 * @brief Determines whether this container can write seek.
-	 * 
+	 *
 	 * @return Whether this container is capable of write seeking.
 	 */
 	bool can_write_seek() const override {
@@ -83,7 +91,7 @@ public:
 
 	/**
 	 * @brief Performs write seeking within the container.
-	 * 
+	 *
 	 * @param direction Specify whether to seek in a given direction or to absolute seek.
 	 * @param offset The offset relative to the seek direction or the absolute value
 	 * when using absolute seeking.
@@ -130,13 +138,16 @@ public:
 	auto write_ptr() const {
 		return buffer_.data() + write_;
 	}
-	
+
 	/**
 	 * @brief Clear the underlying buffer and reset state.
 	 */
 	void clear() {
 		write_ = 0;
-		buffer_.clear();
+
+		if constexpr(has_clear<buf_type>) {
+			buffer_.clear();
+		}
 	}
 
 	std::size_t free() const {
