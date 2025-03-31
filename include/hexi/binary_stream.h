@@ -155,15 +155,13 @@ public:
 	template<std::derived_from<endian::adaptor_in_tag_t> endian_func>
 	binary_stream& operator<<(endian_func adaptor) requires writeable<buf_type> {
 		const auto converted = adaptor.convert();
-		buffer_.write(&converted, sizeof(converted));
-		total_write_ += sizeof(converted);
+		write(&converted, sizeof(converted));
 		return *this;
 	}
 
 	binary_stream& operator<<(const arithmetic auto& data) requires writeable<buf_type> {
 		const auto converted = endian::storage_in(data, endianness{});
-		buffer_.write(&converted, sizeof(converted));
-		total_write_ += sizeof(converted);
+		write(&converted, sizeof(converted));
 		return *this;
 	}
 
