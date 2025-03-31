@@ -752,3 +752,21 @@ TEST(binary_stream, string_view_adaptor_null_terminated) {
 	ASSERT_EQ(input, output);
 	ASSERT_TRUE(stream.empty());
 }
+
+TEST(binary_stream, std_array) {
+	std::array<char, 128> buffer{};
+	hexi::buffer_adaptor adaptor(buffer);
+	hexi::binary_stream stream(adaptor);
+	std::string_view input { "We're just normal strings. Innocent strings."};
+	
+	// array is considered full by default as size == capacity
+	ASSERT_THROW(stream << input, hexi::buffer_overflow);
+	adaptor.clear();
+
+	// try again now we've reset the state
+	std::string_view output;
+	stream << input;
+	stream >> output;
+	ASSERT_EQ(input, output);
+	ASSERT_TRUE(stream.empty());
+}

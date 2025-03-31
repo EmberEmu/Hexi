@@ -9,6 +9,7 @@
 #include <hexi/pmc/buffer_write.h>
 #include <hexi/shared.h>
 #include <hexi/concepts.h>
+#include <hexi/exception.h>
 #include <ranges>
 #include <cassert>
 #include <cstddef>
@@ -48,7 +49,6 @@ public:
 		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
 		const auto min_req_size = write_ + length;
 
-		// we don't use std::back_inserter so we can support seeks
 		if(buffer_.size() < min_req_size) {
 			if constexpr(has_resize_overwrite<buf_type>) {
 				buffer_.resize_and_overwrite(min_req_size, [](char*, std::size_t size) {
@@ -137,6 +137,10 @@ public:
 	void clear() {
 		write_ = 0;
 		buffer_.clear();
+	}
+
+	std::size_t free() const {
+		return buffer_.size() - write_;
 	}
 };
 
