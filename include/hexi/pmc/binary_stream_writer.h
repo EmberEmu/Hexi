@@ -55,6 +55,14 @@ public:
 		return data.operator<<(*this);
 	}
 
+	template<std::derived_from<endian::adaptor_in_tag_t> endian_func>
+	binary_stream_writer& operator<<(endian_func adaptor) {
+		const auto converted = adaptor.convert();
+		buffer_.write(&converted, sizeof(converted));
+		total_write_ += sizeof(converted);
+		return *this;
+	}
+
 	template<pod T>
 	requires (!has_shl_override<T, binary_stream_writer>)
 	binary_stream_writer& operator<<(const T& data) {
@@ -142,9 +150,9 @@ public:
 	 * 
 	 * @param data The element to be written to the stream.
 	 */
-	template<endian::conversion conversion>
-	void put(const arithmetic auto& data) {
-		const auto swapped = endian::convert<conversion>(data);
+	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	void put(const endian_func& adaptor) {
+		const auto swapped = adaptor.convert();
 		write(&swapped, sizeof(swapped));
 	}
 
