@@ -82,13 +82,14 @@ private:
 		total_read_ += read_size;
 	}
 
-	template<typename... Ts>
-	inline void advance_write(Ts&&... args) {
-		if constexpr(sizeof...(args) == 1) {
-			total_write_ += sizeof(std::get<0>(std::forward_as_tuple(args)...));
-		} else {
-			total_write_ += std::get<1>(std::forward_as_tuple(args...));
-		}
+	template<typename T>
+	inline void advance_write(T&& arg) {
+		total_write_ += sizeof(std::decay_t<T>);
+	}
+
+	template<typename T, typename U>
+	inline void advance_write(T&&, U&& size) {
+		total_write_ += size;
 	}
 
 	template<typename... Ts>
