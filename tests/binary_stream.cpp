@@ -762,13 +762,15 @@ TEST(binary_stream, std_array) {
 	// array is considered full by default as size == capacity
 	ASSERT_THROW(stream << input, hexi::buffer_overflow);
 	adaptor.clear();
+	stream.clear_error_state();
 
 	// try again now we've reset the state
 	std::string_view output;
 	stream << input;
 	stream >> output;
-	ASSERT_EQ(input, output);
 	ASSERT_TRUE(stream.empty());
+	//ASSERT_TRUE(stream);
+	ASSERT_EQ(input, output);
 }
 
 TEST(binary_stream, total_write_consistency) {

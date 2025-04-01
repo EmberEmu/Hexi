@@ -296,10 +296,12 @@ public:
 	/*** Read ***/
 
 	binary_stream& operator>>(prefixed<std::string> adaptor) {
-		STREAM_READ_BOUNDS_ENFORCE(sizeof(std::uint32_t), *this);
-		std::uint32_t size {};
-		buffer_.read(&size);
-		endian::little_to_native_inplace(size);
+		std::uint32_t size = 0;
+		*this >> endian::from_little(size);
+
+		if(state_ != stream_state::ok) {
+			return *this;
+		}
 
 		STREAM_READ_BOUNDS_ENFORCE(size, *this);
 
@@ -312,10 +314,13 @@ public:
 	}
 
 	binary_stream& operator>>(prefixed<std::string_view> adaptor) {
-		STREAM_READ_BOUNDS_ENFORCE(sizeof(std::uint32_t), *this);
-		std::uint32_t size {};
-		buffer_.read(&size);
-		endian::little_to_native_inplace(size);
+		std::uint32_t size = 0;
+		*this >> endian::from_little(size);
+
+		if(state_ != stream_state::ok) {
+			return *this;
+		}
+
 		adaptor.str = std::string_view { span<char>(size) };
 		return *this;
 	}
