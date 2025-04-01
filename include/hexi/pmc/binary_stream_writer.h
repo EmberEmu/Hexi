@@ -29,8 +29,10 @@ class binary_stream_writer : virtual public stream_base {
 	std::size_t total_write_;
 
 	inline void write(const void* data, const std::size_t size) {
-		buffer_.write(data, size);
-		total_write_ += size;
+		if(state() == stream_state::ok) [[likely]] {
+			buffer_.write(data, size);
+			total_write_ += size;
+		}
 	}
 
 public:

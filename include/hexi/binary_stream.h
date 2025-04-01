@@ -26,8 +26,12 @@
 namespace hexi {
 
 using namespace detail;
-       
+
 #define STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)            \
+	if(state_ != stream_state::ok) [[unlikely]] {                 \
+		return ret_var;                                           \
+	}                                                             \
+                                                                  \
 	enforce_read_bounds(read_size);                               \
 	                                                              \
 	if constexpr(std::is_same_v<exceptions, no_throw_t>) {        \
@@ -102,8 +106,10 @@ private:
 
 	template<typename... Ts>
 	inline void write(Ts&&... args) try {
-		buffer_.write(std::forward<Ts>(args)...);
-		advance_write(std::forward<Ts>(args)...);
+		if(state_ == stream_state::ok) [[likely]] {
+			buffer_.write(std::forward<Ts>(args)...);
+			advance_write(std::forward<Ts>(args)...);                            
+		}
 	} catch(...) {
 		state_ = stream_state::buff_write_err;
 
@@ -307,8 +313,10 @@ public:
 			return *this;
 		}
 
+		STREAM_READ_BOUNDS_ENFORCE(size, *this);
+
 		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
-			SAFE_READ(strbuf, size, *this);
+			buffer_.read(strbuf, size);
 			return size;
 		});
 
@@ -335,8 +343,10 @@ public:
 			return *this;
 		}
 
+		STREAM_READ_BOUNDS_ENFORCE(size, *this); // include null terminator
+
 		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
-			SAFE_READ(strbuf, size, *this);
+			buffer_.read(strbuf, size);
 			return size;
 		});
 

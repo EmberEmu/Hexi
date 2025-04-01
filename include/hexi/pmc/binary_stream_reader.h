@@ -48,8 +48,10 @@ class binary_stream_reader : virtual public stream_base {
 	}
 
 	inline void read(void* dest, const std::size_t size) {
-		enforce_read_bounds(size);
-		buffer_.read(dest, size);
+		if(state() == stream_state::ok) [[likely]] {
+			enforce_read_bounds(size);
+			buffer_.read(dest, size);
+		}
 	}
 
 public:
