@@ -6,7 +6,7 @@
 
 void error_codes(std::span<const std::byte> buffer) {
 	hexi::buffer_adaptor adaptor(buffer);
-	hexi::binary_stream<decltype(adaptor), hexi::no_throw> stream(adaptor);
+	hexi::binary_stream stream(adaptor, hexi::no_throw); // will not throw exceptions
 
 	// intentionally trigger an error by trying to read out of bounds
 	stream.skip(buffer.size() + 1);
