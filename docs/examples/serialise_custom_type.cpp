@@ -12,24 +12,20 @@ struct UserPacket {
 	uint8_t has_optional_field;
 	uint32_t optional_field;
 
-	auto& operator>>(auto& stream) {
-		stream >> user_id >> username >> timestamp >> has_optional_field;
+	/**
+	 * If serialisation and deserialisation logic differs, we can also
+	 * define operator<< and operator>> for use with stream << type
+	 * and stream >> type
+	 */
+	void serialise(auto& stream) {
+		stream(user_id, username, timestamp, has_optional_field);
 
 		if (has_optional_field) {
-			stream >> optional_field;
+			stream(optional_field);
+			
+			// can also use this syntax:
+			// stream & optional_field;
 		}
-
-		return stream;
-	}
-
-	auto& operator<<(auto& stream) const {
-		stream << user_id << username << timestamp << has_optional_field;
-
-		if (has_optional_field) {
-			stream << optional_field;
-		}
-
-		return stream;
 	}
 
 	bool operator==(const UserPacket& rhs) const {
@@ -55,11 +51,11 @@ int main() {
 	};
 
 	// serialise
-	stream << packet_in;
+	stream.serialise(packet_in);
 
 	// round-trip deserialise
-	UserPacket packet_out;
-	stream >> packet_out;
+	UserPacket packet_out{};
+	stream.deserialise(packet_out);
 
 	if(packet_in == packet_out) {
 		std::print("Everything went great!");
