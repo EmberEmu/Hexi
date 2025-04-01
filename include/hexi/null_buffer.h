@@ -21,11 +21,7 @@ public:
 	using contiguous      = is_contiguous;
 	using seeking         = unsupported;
 
-private:
-	std::size_t written;
-
-public:
-	void write(const auto& elem) {}
+	void write(const auto& /*elem*/) {}
 	void write(const void* /*source*/, size_type /*length*/) override {};
 	void read(auto* /*elem*/) {}
 	void read(void* /*destination*/, size_type /*length*/) {};
