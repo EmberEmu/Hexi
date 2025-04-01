@@ -24,9 +24,7 @@ public:
 
 	template<typename ...Ts>
 	void operator()(Ts&&... args) {
-		([&] {
-			_stream >> args;
-		} (), ...);
+		(_stream >> ... >> args);
 	}
 
 	template<typename ...Ts>
@@ -49,9 +47,7 @@ public:
 
 	template<typename ...Ts>
 	void operator()(Ts&&... args) {
-		([&] {
-			_stream << args;
-		 } (), ...);
+		(_stream << ... << args);
 	}
 
 	template<typename ...Ts>
