@@ -57,6 +57,8 @@ public:
 	using value_type         = typename buf_type::value_type;
 	using contiguous_type    = typename buf_type::contiguous;
 	
+	static constexpr endianness byte_order{};
+
 private:
 	using cond_size_type = std::conditional_t<writeable<buf_type>, size_type, std::monostate>;
 
@@ -170,7 +172,7 @@ public:
 	}
 
 	binary_stream& operator<<(const arithmetic auto& data) requires writeable<buf_type> {
-		const auto converted = endian::storage_in(data, endianness{});
+		const auto converted = endian::storage_in(data, byte_order);
 		write(&converted, sizeof(converted));
 		return *this;
 	}
@@ -410,7 +412,7 @@ public:
 
 	binary_stream& operator>>(arithmetic auto& data) requires writeable<buf_type> {
 		SAFE_READ(&data, sizeof(data), *this);
-		endian::storage_out(data, endianness{});
+		endian::storage_out(data, byte_order);
 		return *this;
 	}
 

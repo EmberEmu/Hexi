@@ -17,6 +17,7 @@
 #include <hexi/file_buffer.h>
 #include <hexi/shared.h>
 #include <hexi/static_buffer.h>
+#include <hexi/null_buffer.h>
 #include <hexi/allocators/block_allocator.h>
 #include <hexi/allocators/default_allocator.h>
 #include <hexi/allocators/tls_block_allocator.h>
@@ -31,5 +32,4 @@
 #include <hexi/pmc/buffer_read_adaptor.h>
 #include <hexi/pmc/buffer_write.h>
 #include <hexi/pmc/buffer_write_adaptor.h>
-#include <hexi/pmc/null_buffer.h>
 #include <hexi/pmc/stream_base.h>

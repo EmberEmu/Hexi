@@ -515,6 +515,8 @@ public:
 	using value_type         = typename buf_type::value_type;
 	using contiguous_type    = typename buf_type::contiguous;
 	
+	static constexpr endianness byte_order{};
+
 private:
 	using cond_size_type = std::conditional_t<writeable<buf_type>, size_type, std::monostate>;
 
@@ -628,7 +630,7 @@ public:
 	}
 
 	binary_stream& operator<<(const arithmetic auto& data) requires writeable<buf_type> {
-		const auto converted = endian::storage_in(data, endianness{});
+		const auto converted = endian::storage_in(data, byte_order);
 		write(&converted, sizeof(converted));
 		return *this;
 	}
@@ -868,7 +870,7 @@ public:
 
 	binary_stream& operator>>(arithmetic auto& data) requires writeable<buf_type> {
 		SAFE_READ(&data, sizeof(data), *this);
-		endian::storage_out(data, endianness{});
+		endian::storage_out(data, byte_order);
 		return *this;
 	}
 
@@ -3846,6 +3848,51 @@ public:
 
 } // hexi
 
+// #include <hexi/null_buffer.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+// #include <hexi/pmc/buffer_write.h>
+
+// #include <hexi/shared.h>
+
+// #include <hexi/exception.h>
+
+#include <cstddef>
+
+namespace hexi {
+
+class null_buffer final : public pmc::buffer_write {
+public:
+	using size_type       = std::size_t;
+	using offset_type     = std::size_t;
+	using value_type      = std::byte;
+	using contiguous      = is_contiguous;
+	using seeking         = unsupported;
+
+	void write(const auto& /*elem*/) {}
+	void write(const void* /*source*/, size_type /*length*/) override {};
+	void read(auto* /*elem*/) {}
+	void read(void* /*destination*/, size_type /*length*/) {};
+	void copy(auto* /*elem*/) const {}
+	void copy(void* /*destination*/, size_type /*length*/) const {};
+	void reserve(const size_type /*length*/) override {};
+	size_type size() const override{ return 0; };
+	[[nodiscard]] bool empty() const override { return true; };
+	bool can_write_seek() const override { return false; }
+
+	void write_seek(const buffer_seek /*direction*/, const std::size_t /*offset*/) override {
+		throw exception("Don't do this on a null_buffer"); 
+	};
+};
+
+} // hexi
+
 // #include <hexi/allocators/block_allocator.h>
 
 // #include <hexi/allocators/default_allocator.h>
@@ -5108,5 +5155,4 @@ public:
 
 // #include <hexi/pmc/buffer_write_adaptor.h>
 
-#include <hexi/pmc/null_buffer.h>
 // #include <hexi/pmc/stream_base.h>
