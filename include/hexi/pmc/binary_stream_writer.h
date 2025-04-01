@@ -63,9 +63,9 @@ public:
 		return data.operator<<(*this);
 	}
 
-	template<std::derived_from<endian::adaptor_in_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream_writer& operator<<(endian_func adaptor) {
-		const auto converted = adaptor.convert();
+		const auto converted = adaptor.to();
 		write(&converted, sizeof(converted));
 		return *this;
 	}
@@ -157,9 +157,9 @@ public:
 	 * 
 	 * @param data The element to be written to the stream.
 	 */
-	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	void put(const endian_func& adaptor) {
-		const auto swapped = adaptor.convert();
+		const auto swapped = adaptor.to();
 		write(&swapped, sizeof(swapped));
 	}
 

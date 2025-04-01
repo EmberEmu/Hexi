@@ -151,8 +151,8 @@ struct UserPacket {
         stream >> user_id >> username >> timestamp >> has_optional_field;
 
         if (has_optional_field) {
-            // fetch explicitly as big-endian value
-            stream >> hexi::endian::from_big(optional_field);
+            // fetch explicitly as big-endian ('be') value
+            stream >> hexi::endian::be(optional_field);
         }
 
         // we can manually trigger an error if something went wrong
@@ -165,8 +165,8 @@ struct UserPacket {
         stream << user_id << username << timestamp << has_optional_field;
 
         if (has_optional_field) {
-            // write explicitly as big-endian value
-            stream << hexi::endian::to_big(optional_field);
+            // write explicitly as big-endian ('be') value
+            stream << hexi::endian::be(optional_field);
         }
 
         return stream;

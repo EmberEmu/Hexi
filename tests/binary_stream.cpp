@@ -851,11 +851,11 @@ TEST(binary_stream, endianness_big_override_match) {
 	hexi::buffer_adaptor adaptor(buffer, hexi::init_empty);
 	hexi::binary_stream stream(adaptor, hexi::endian::big);
 	std::uint64_t input = 100, output = 0;
-	stream << hexi::endian::to_little(input);
-	stream >> hexi::endian::from_little(output);
+	stream << hexi::endian::le(input);
+	stream >> hexi::endian::le(output);
 	ASSERT_EQ(input, output);
-	stream << hexi::endian::to_big(input);
-	stream >> hexi::endian::from_big(output);
+	stream << hexi::endian::be(input);
+	stream >> hexi::endian::be(output);
 	ASSERT_EQ(input, output);
 }
 
@@ -864,11 +864,11 @@ TEST(binary_stream, endianness_little_override_match) {
 	hexi::buffer_adaptor adaptor(buffer, hexi::init_empty);
 	hexi::binary_stream stream(adaptor, hexi::endian::little);
 	std::uint64_t input = 100, output = 0;
-	stream << hexi::endian::to_big(input);
-	stream >> hexi::endian::from_big(output);
+	stream << hexi::endian::be(input);
+	stream >> hexi::endian::be(output);
 	ASSERT_EQ(input, output);
-	stream << hexi::endian::to_little(input);
-	stream >> hexi::endian::from_little(output);
+	stream << hexi::endian::le(input);
+	stream >> hexi::endian::le(output);
 	ASSERT_EQ(input, output);
 }
 
@@ -877,11 +877,11 @@ TEST(binary_stream, endianness_native_override_match) {
 	hexi::buffer_adaptor adaptor(buffer, hexi::init_empty);
 	hexi::binary_stream stream(adaptor, hexi::endian::native);
 	std::uint64_t input = 100, output = 0;
-	stream << hexi::endian::to_little(input);
-	stream >> hexi::endian::from_little(output);
+	stream << hexi::endian::be(input);
+	stream >> hexi::endian::be(output);
 	ASSERT_EQ(input, output);
-	stream << hexi::endian::to_big(input);
-	stream >> hexi::endian::from_big(output);
+	stream << hexi::endian::be(input);
+	stream >> hexi::endian::be(output);
 	ASSERT_EQ(input, output);
 }
 
@@ -890,11 +890,11 @@ TEST(binary_stream, endianness_big_override_mismatch) {
 	hexi::buffer_adaptor adaptor(buffer, hexi::init_empty);
 	hexi::binary_stream stream(adaptor, hexi::endian::big);
 	std::uint64_t input = 100, output = 0;
-	stream << hexi::endian::to_little(input);
-	stream >> hexi::endian::from_big(output);
+	stream << hexi::endian::le(input);
+	stream >> hexi::endian::be(output);
 	ASSERT_NE(input, output);
-	stream << hexi::endian::to_big(input);
-	stream >> hexi::endian::from_little(output);
+	stream << hexi::endian::be(input);
+	stream >> hexi::endian::le(output);
 	ASSERT_NE(input, output);
 }
 
@@ -903,11 +903,11 @@ TEST(binary_stream, endianness_little_override_mismatch) {
 	hexi::buffer_adaptor adaptor(buffer, hexi::init_empty);
 	hexi::binary_stream stream(adaptor, hexi::endian::little);
 	std::uint64_t input = 100, output = 0;
-	stream << hexi::endian::to_little(input);
-	stream >> hexi::endian::from_big(output);
+	stream << hexi::endian::le(input);
+	stream >> hexi::endian::be(output);
 	ASSERT_NE(input, output);
-	stream << hexi::endian::to_big(input);
-	stream >> hexi::endian::from_little(output);
+	stream << hexi::endian::be(input);
+	stream >> hexi::endian::le(output);
 	ASSERT_NE(input, output);
 }
 
@@ -916,11 +916,11 @@ TEST(binary_stream, endianness_native_override_mismatch) {
 	hexi::buffer_adaptor adaptor(buffer, hexi::init_empty);
 	hexi::binary_stream stream(adaptor, hexi::endian::native);
 	std::uint64_t input = 100, output = 0;
-	stream << hexi::endian::to_little(input);
-	stream >> hexi::endian::from_big(output);
+	stream << hexi::endian::le(input);
+	stream >> hexi::endian::be(output);
 	ASSERT_NE(input, output);
-	stream << hexi::endian::to_big(input);
-	stream >> hexi::endian::from_little(output);
+	stream << hexi::endian::be(input);
+	stream >> hexi::endian::le(output);
 	ASSERT_NE(input, output);
 }
 
@@ -934,7 +934,7 @@ struct Foo {
 
 	void serialise(auto& stream) {
 		stream(x, y, z, hexi::null_terminated(str));
-		stream& x;
+		stream & hexi::endian::be(x);
 	}
 
 	bool operator==(const Foo& rhs) const {
