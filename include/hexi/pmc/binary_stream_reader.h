@@ -68,10 +68,12 @@ public:
 	binary_stream_reader(const binary_stream_reader&) = delete;
 
 	binary_stream_reader& operator>>(prefixed<std::string> adaptor) {
-		std::uint32_t size {};
-		enforce_read_bounds(sizeof(size));
-		buffer_.read(&size, sizeof(size));
-		endian::little_to_native_inplace(size);
+		std::uint32_t size = 0;
+		*this >> endian::from_little(size);
+
+		if(state() != stream_state::ok) {
+			return *this;
+		}
 
 		enforce_read_bounds(size);
 
