@@ -404,13 +404,13 @@ public:
 	}
 
 	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
-	binary_stream& operator>>(endian_func adaptor) requires writeable<buf_type> {
+	binary_stream& operator>>(endian_func adaptor) {
 		SAFE_READ(&adaptor.value, sizeof(adaptor.value), *this);
 		adaptor.value = adaptor.convert();
 		return *this;
 	}
 
-	binary_stream& operator>>(arithmetic auto& data) requires writeable<buf_type> {
+	binary_stream& operator>>(arithmetic auto& data) {
 		SAFE_READ(&data, sizeof(data), *this);
 		endian::storage_out(data, byte_order);
 		return *this;
