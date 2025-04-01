@@ -28,6 +28,10 @@ namespace hexi {
 using namespace detail;
 
 #define STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)            \
+	if(state_ != stream_state::ok) [[unlikely]] {                 \
+		return ret_var;                                           \
+	}                                                             \
+                                                                  \
 	enforce_read_bounds(read_size);                               \
 	                                                              \
 	if constexpr(std::is_same_v<exceptions, no_throw_t>) {        \
@@ -35,6 +39,10 @@ using namespace detail;
 			return ret_var;                                       \
 		}                                                         \
 	}
+
+#define SAFE_READ(dest, read_size, ret_var)                       \
+	STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)                \
+	buffer_.read(dest, read_size);
 
 template<
 	byte_oriented buf_type,
@@ -98,8 +106,10 @@ private:
 
 	template<typename... Ts>
 	inline void write(Ts&&... args) try {
-		buffer_.write(std::forward<Ts>(args)...);
-		advance_write(std::forward<Ts>(args)...);
+		if(state_ == stream_state::ok) [[likely]] {
+			buffer_.write(std::forward<Ts>(args)...);
+			advance_write(std::forward<Ts>(args)...);                            
+		}
 	} catch(...) {
 		state_ = stream_state::buff_write_err;
 
@@ -333,7 +343,7 @@ public:
 			return *this;
 		}
 
-		STREAM_READ_BOUNDS_ENFORCE(size, *this);
+		STREAM_READ_BOUNDS_ENFORCE(size, *this); // include null terminator
 
 		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
 			buffer_.read(strbuf, size);
@@ -393,15 +403,13 @@ public:
 
 	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
 	binary_stream& operator>>(endian_func adaptor) requires writeable<buf_type> {
-		STREAM_READ_BOUNDS_ENFORCE(sizeof(adaptor.value), *this);
-		buffer_.read(&adaptor.value, sizeof(adaptor.value));
+		SAFE_READ(&adaptor.value, sizeof(adaptor.value), *this);
 		adaptor.value = adaptor.convert();
 		return *this;
 	}
 
 	binary_stream& operator>>(arithmetic auto& data) requires writeable<buf_type> {
-		STREAM_READ_BOUNDS_ENFORCE(sizeof(data), *this);
-		buffer_.read(&data, sizeof(data));
+		SAFE_READ(&data, sizeof(data), *this);
 		endian::storage_out(data, endianness{});
 		return *this;
 	}
@@ -409,8 +417,7 @@ public:
 	template<pod T>
 	requires (!has_shr_override<T, binary_stream> && !arithmetic<T>)
 	binary_stream& operator>>(T& data) {
-		STREAM_READ_BOUNDS_ENFORCE(sizeof(data), *this);
-		buffer_.read(&data, sizeof(data));
+		SAFE_READ(&data, sizeof(data), *this);
 		return *this;
 	}
 
@@ -420,8 +427,7 @@ public:
 	 * @return The destination for the read value.
 	 */
 	void get(arithmetic auto& dest) {
-		STREAM_READ_BOUNDS_ENFORCE(sizeof(dest), void());
-		buffer_.read(&dest, sizeof(dest));
+		SAFE_READ(&dest, sizeof(dest), void());
 	}
 
 	/**
@@ -431,9 +437,8 @@ public:
 	 */
 	template<arithmetic T>
 	T get() {
-		STREAM_READ_BOUNDS_ENFORCE(sizeof(T), void());
 		T t{};
-		buffer_.read(&t, sizeof(T));
+		SAFE_READ(&t, sizeof(T), void());
 		return t;
 	}
 
@@ -445,8 +450,7 @@ public:
 	 */
 	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
 	void get(endian_func& adaptor) {
-		STREAM_READ_BOUNDS_ENFORCE(sizeof(adaptor.value), void());
-		buffer_.read(&adaptor.value, sizeof(adaptor));
+		SAFE_READ(&adaptor.value, sizeof(adaptor), void());
 		adaptor.value = adaptor.convert();
 	}
 
@@ -458,9 +462,8 @@ public:
 	 */
 	template<arithmetic T, endian::conversion conversion>
 	T get() {
-		STREAM_READ_BOUNDS_ENFORCE(sizeof(T), void());
 		T t{};
-		buffer_.read(&t, sizeof(T));
+		SAFE_READ(&t, sizeof(T), void());
 		return endian::convert<conversion>(t);
 	}
 
@@ -482,6 +485,7 @@ public:
 	 */
 	void get(std::string& dest, size_type size) {
 		STREAM_READ_BOUNDS_ENFORCE(size, void());
+
 		dest.resize_and_overwrite(size, [&](char* strbuf, size_type len) {
 			buffer_.read(strbuf, len);
 			return len;
@@ -498,8 +502,7 @@ public:
 	void get(T* dest, size_type count) {
 		assert(dest);
 		const auto read_size = count * sizeof(T);
-		STREAM_READ_BOUNDS_ENFORCE(read_size, void());
-		buffer_.read(dest, read_size);
+		SAFE_READ(dest, read_size, void());
 	}
 
 	/**
@@ -523,8 +526,7 @@ public:
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
 		const auto read_size = dest.size() * sizeof(typename range::value_type);
-		STREAM_READ_BOUNDS_ENFORCE(read_size, void());
-		buffer_.read(dest.data(), read_size);
+		SAFE_READ(dest.data(), read_size, void());
 	}
 
 	/**
@@ -557,6 +559,8 @@ public:
 		}
 
 		std::string_view view { reinterpret_cast<char*>(buffer_.read_ptr()), pos };
+
+		// no need to enforce bounds, we know there's enough data
 		buffer_.skip(pos + 1);
 		total_read_ += (pos + 1);
 		return view;
@@ -574,10 +578,9 @@ public:
 	 */
 	template<typename out_type = value_type>
 	std::span<out_type> span(size_type count) requires contiguous<buf_type> {
-		STREAM_READ_BOUNDS_ENFORCE(sizeof(out_type) * count, {});
-		std::span span { reinterpret_cast<out_type*>(buffer_.read_ptr()), count };
-		buffer_.skip(sizeof(out_type) * count);
-		return span;
+		std::span view { reinterpret_cast<out_type*>(buffer_.read_ptr()), count };
+		skip(sizeof(out_type) * count);
+		return (state_ == stream_state::ok? view : std::span<out_type>());
 	}
 
 	/**  Misc functions **/

@@ -29,8 +29,10 @@ class binary_stream_writer : virtual public stream_base {
 	std::size_t total_write_;
 
 	inline void write(const void* data, const std::size_t size) {
-		buffer_.write(data, size);
-		total_write_ += size;
+		if(state() == stream_state::ok) [[likely]] {
+			buffer_.write(data, size);
+			total_write_ += size;
+		}
 	}
 
 public:
@@ -58,8 +60,7 @@ public:
 	template<std::derived_from<endian::adaptor_in_tag_t> endian_func>
 	binary_stream_writer& operator<<(endian_func adaptor) {
 		const auto converted = adaptor.convert();
-		buffer_.write(&converted, sizeof(converted));
-		total_write_ += sizeof(converted);
+		write(&converted, sizeof(converted));
 		return *this;
 	}
 
