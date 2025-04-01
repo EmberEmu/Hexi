@@ -151,7 +151,7 @@ struct UserPacket {
         stream >> user_id >> username >> timestamp >> has_optional_field;
 
         if (has_optional_field) {
-			// fetch explicitly as big-endian value
+            // fetch explicitly as big-endian value
             stream >> hexi::endian::from_big(optional_field);
         }
 
@@ -165,7 +165,7 @@ struct UserPacket {
         stream << user_id << username << timestamp << has_optional_field;
 
         if (has_optional_field) {
-			// write explicitly as big-endian value
+            // write explicitly as big-endian value
             stream << hexi::endian::to_big(optional_field);
         }
 
@@ -194,12 +194,12 @@ void read() {
 auto handle_user_packet(std::span<const char> buffer) {
     hexi::buffer_adaptor adaptor(buffer);
 
-	/**
-	 * hexi::endian::little tells the stream to convert to/from
-	 * little-endian unless told otherwise by using the endian
-	 * adaptors. If no argument is provided, it does not perform
-	 * any conversions by default.
-	 */
+    /**
+     * hexi::endian::little tells the stream to convert to/from
+     * little-endian unless told otherwise by using the endian
+     * adaptors. If no argument is provided, it does not perform
+     * any conversions by default.
+     */
     hexi::binary_stream stream(adaptor, hexi::endian::little);
 
     UserPacket packet;
@@ -221,7 +221,7 @@ If your protocol contains mixed endianness, you can use the endian adaptors to s
 the data, as shown in the above example. 
 
 Best of all, because this is handled by templates, there is zero runtime cost if no conversion is required
-(i.e. that is the native byte order matches the requested byte order) and constant values can be converted
+(i.e. the native byte order matches the requested byte order) and constant values can be converted
 at compile-time. For example, specifying `hexi::endian::little` on a little-endian platform will generate zero
 code. 
 
@@ -252,7 +252,7 @@ stream << hexi::null_terminated(foo);
 stream >> hexi::null_terminated(foo);
 ```
 
-This is not the default because writing strings that may contain embedded null bytes would result in truncated output. This is Hexi's way of making you pinky promise that you're doing the right thing for your string data.
+This is not the default because writing strings that may contain embedded null bytes would result in a truncated string on reading back. This is Hexi's way of making you pinky promise that you're doing the right thing for your string data.
 
 `const char*` strings are *always* written as null-terminated strings, as embedded nulls in such a type would make little sense. Read them back with the `null_terminated` adaptor.
 
@@ -271,6 +271,11 @@ Here's a very quick rundown on some of the included extras.
     - Allows many instances of `dynamic_buffer` to share a larger pool of pre-allocated memory, with each thread having its own pool. This is useful when you have many network sockets to handle and want to avoid the general purpose allocator. The caveat is that a deallocation must be made by the same thread that made the allocation, thus limiting access to the buffer to a single thread (with some exceptions).
 - `hexi::endian`
     - Provides functionality for handling endianness of integral types.
+- `hexi::null_buffer`
+    - Hexi's equivalent of /dev/null. This buffer is useful if you want to know what the exact size of a type will be after
+    serialisation, typically for allocating or reserving an exact amount of memory. Running serialisation twice might sound
+    inefficient, but compilers can often calculate the end result of serialising to `null_buffer` at compile-time, or distill
+    it down to a few instructions of arithmetic.
 
 <img src="docs/assets/frog-before.png" alt="Before we wrap up, look at these tidbits...">
 
@@ -278,7 +283,7 @@ We're at the end of the overview, but there's more to discover if you decide to 
 
 - `binary_stream` allows you to perform write seeking within the stream, when the underlying buffer supports it. This is nice if, for example, you need to update a message header with information that you might not know until the rest of the message has been written; checksums, sizes, etc.
 - `binary_stream` provides overloaded `put` and `get` member functions, which allow for fine-grained control, such as reading/writing a specific number of bytes.
-- `binary_stream` allows for writing to `std::string_view` and `std::span` with `view()` and `span()` as long as the underlying container is contiguous. This allows you to create views into the buffer's data, providing a fast, zero-copy way to read strings and arrays from the stream. If you do this, you should avoid writing to the same buffer while holding views to the data.
+- `binary_stream` allows for deserialising to `std::string_view` and `std::span` with `view()` and `span()` as long as the underlying container is contiguous. This allows you to create views into the buffer's data, providing a fast, zero-copy way to read strings and arrays from the stream. If you do this, you should avoid writing to the same buffer while holding views to the data.
 - `buffer_adaptor` provides a template option, `space_optimise`. This is enabled by default and allows it to avoid resizing containers in cases where all data has been read by the stream. Disabling it allows for preserving data even after having been read. This option is only relevant in scenarios where a single buffer is being both written to and read from.
 - `buffer_adaptor` provides `find_first_of`, making it easy to find a specific sentinel value within your buffer.
 

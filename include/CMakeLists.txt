@@ -19,11 +19,11 @@ set(HEADERS
     hexi/concepts.h
     hexi/detail/intrusive_storage.h
     hexi/file_buffer.h
+    hexi/null_buffer.h
     hexi/pmc/buffer_base.h
     hexi/pmc/buffer_read.h
     hexi/pmc/buffer_write.h
     hexi/pmc/buffer.h
-    hexi/pmc/null_buffer.h
     hexi/pmc/binary_stream.h
     hexi/pmc/binary_stream_reader.h
     hexi/pmc/binary_stream_writer.h
