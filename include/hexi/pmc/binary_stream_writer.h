@@ -58,8 +58,7 @@ public:
 	template<std::derived_from<endian::adaptor_in_tag_t> endian_func>
 	binary_stream_writer& operator<<(endian_func adaptor) {
 		const auto converted = adaptor.convert();
-		buffer_.write(&converted, sizeof(converted));
-		total_write_ += sizeof(converted);
+		write(&converted, sizeof(converted));
 		return *this;
 	}
 

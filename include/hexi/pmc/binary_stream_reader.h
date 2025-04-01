@@ -47,6 +47,11 @@ class binary_stream_reader : virtual public stream_base {
 		total_read_ += read_size;
 	}
 
+	inline void read(void* dest, const std::size_t size) {
+		enforce_read_bounds(size);
+		buffer_.read(dest, size);
+	}
+
 public:
 	explicit binary_stream_reader(buffer_read& source, std::size_t read_limit = 0)
 		: stream_base(source),
@@ -118,7 +123,7 @@ public:
 			return size;
 		});
 
-		buffer_.skip(1); // skip null terminator
+		skip(1); // skip null terminator
 		return *this;
 	}
 
@@ -132,8 +137,7 @@ public:
 
 	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
 	binary_stream_reader& operator>>(endian_func adaptor) {
-		enforce_read_bounds(sizeof(adaptor.value));
-		buffer_.read(&adaptor.value, sizeof(adaptor.value));
+		read(&adaptor.value, sizeof(adaptor.value));
 		adaptor.value = adaptor.convert();
 		return *this;
 	}
@@ -141,14 +145,12 @@ public:
 	template<pod T>
 	requires (!has_shr_override<T, binary_stream_reader>)
 	binary_stream_reader& operator>>(T& data) {
-		enforce_read_bounds(sizeof(data));
-		buffer_.read(&data, sizeof(data));
+		read(&data, sizeof(data));
 		return *this;
 	}
 
 	binary_stream_reader& operator>>(pod auto& data) {
-		enforce_read_bounds(sizeof(data));
-		buffer_.read(&data, sizeof(data));
+		read(&data, sizeof(data));
 		return *this;
 	}
 
@@ -169,6 +171,7 @@ public:
 	 */
 	void get(std::string& dest, std::size_t size) {
 		enforce_read_bounds(size);
+
 		dest.resize_and_overwrite(size, [&](char* strbuf, std::size_t len) {
 			buffer_.read(strbuf, len);
 			return len;
@@ -185,8 +188,7 @@ public:
 	void get(T* dest, std::size_t count) {
 		assert(dest);
 		const auto read_size = count * sizeof(T);
-		enforce_read_bounds(read_size);
-		buffer_.read(dest, read_size);
+		read(dest, read_size);
 	}
 
 	/**
@@ -210,8 +212,7 @@ public:
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
 		const auto read_size = dest.size() * sizeof(typename range::value_type);
-		enforce_read_bounds(read_size);
-		buffer_.read(dest.data(), read_size);
+		read(dest.data(), read_size);
 	}
 
 	/**
@@ -221,9 +222,8 @@ public:
 	 */
 	template<arithmetic T>
 	T get() {
-		enforce_read_bounds(sizeof(T));
 		T t{};
-		buffer_.read(&t, sizeof(T));
+		read(&t, sizeof(T));
 		return t;
 	}
 
@@ -233,8 +233,7 @@ public:
 	 * @return The arithmetic value.
 	 */
 	void get(arithmetic auto& dest) {
-		enforce_read_bounds(sizeof(dest));
-		buffer_.read(&dest, sizeof(dest));
+		read(&dest, sizeof(dest));
 	}
 
 	/**
@@ -245,8 +244,7 @@ public:
 	 */
 	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
 	void get(endian_func& adaptor) {
-		enforce_read_bounds(sizeof(adaptor.value));
-		buffer_.read(&adaptor.value, sizeof(adaptor.value));
+		read(&adaptor.value, sizeof(adaptor.value));
 		adaptor.value = adaptor.convert();
 	}
 
@@ -258,9 +256,8 @@ public:
 	 */
 	template<arithmetic T, endian::conversion conversion>
 	T get() {
-		enforce_read_bounds(sizeof(T));
 		T t{};
-		buffer_.read(&t, sizeof(T));
+		read(&t, sizeof(T));
 		return endian::convert<conversion>(t);
 	}
 
