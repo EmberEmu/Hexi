@@ -328,14 +328,14 @@ public:
 	 * @return Pointer to the data available for reading.
 	 */
 	const value_type* data() const {
-		return buffer_.data() + read_;
+		return read_ptr();
 	}
 
 	/**
 	 * @return Pointer to the data available for reading.
 	 */
 	value_type* data() {
-		return buffer_.data() + read_;
+		return read_ptr();
 	}
 
 	/**
