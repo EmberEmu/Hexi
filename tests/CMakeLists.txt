@@ -17,6 +17,7 @@ set(EXECUTABLE_SRC
     intrusive_storage.cpp
     static_buffer.cpp
     tls_block_allocator.cpp
+    null_buffer.cpp
 	helpers.h
 	final_action.h
     )

@@ -11,16 +11,21 @@
 #include <hexi/exception.h>
 #include <cstddef>
 
-namespace hexi::pmc {
+namespace hexi {
 
-class null_buffer final : public buffer_write {
+class null_buffer final : public pmc::buffer_write {
 public:
 	using size_type       = std::size_t;
+	using offset_type     = std::size_t;
 	using value_type      = std::byte;
 	using contiguous      = is_contiguous;
 	using seeking         = unsupported;
 
-	void write(const auto& /*elem*/) {}
+private:
+	std::size_t written;
+
+public:
+	void write(const auto& elem) {}
 	void write(const void* /*source*/, size_type /*length*/) override {};
 	void read(auto* /*elem*/) {}
 	void read(void* /*destination*/, size_type /*length*/) {};
@@ -36,4 +41,4 @@ public:
 	};
 };
 
-} // pmc, hexi
+} // hexi

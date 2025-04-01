@@ -271,6 +271,11 @@ Here's a very quick rundown on some of the included extras.
     - Allows many instances of `dynamic_buffer` to share a larger pool of pre-allocated memory, with each thread having its own pool. This is useful when you have many network sockets to handle and want to avoid the general purpose allocator. The caveat is that a deallocation must be made by the same thread that made the allocation, thus limiting access to the buffer to a single thread (with some exceptions).
 - `hexi::endian`
     - Provides functionality for handling endianness of integral types.
+- `hexi::null_buffer`
+    - Hexi's equivalent of /dev/null. This buffer is useful if you want to know what the exact size of a type will be after
+	serialisation, typically for allocating or reserving an exact amount of memory. Running serialisation twice might sound
+	inefficient, but compilers can often calculate the end result of serialising to `null_buffer` at compile-time, or distill
+	it down to a few instructions of arithmetic.
 
 <img src="docs/assets/frog-before.png" alt="Before we wrap up, look at these tidbits...">
 
