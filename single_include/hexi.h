@@ -414,26 +414,26 @@ constexpr auto convert(arithmetic auto value) -> decltype(value) {
 	};
 }
 
-struct adaptor_in_tag_t {};
-struct adaptor_out_tag_t {};
+struct adaptor_tag_t {};
 
-#define ENDIAN_ADAPTOR(name, func, tag, ref) \
-template<arithmetic T>                       \
-struct name final : tag {                    \
-	T ref value;                             \
-    name(T ref t) : value(t) {}              \
-	auto convert() -> T {                    \
-		return func(value);                  \
-	}                                        \
+#define ENDIAN_ADAPTOR(name, func_to, func_from) \
+template<arithmetic T>                           \
+struct name final : adaptor_tag_t {              \
+	T& value;                                    \
+                                                 \
+    name(T& t) : value(t) {}                     \
+    name(T&& t) : value(t) {}                    \
+                                                 \
+	auto to() -> T {                             \
+		return func_to(value);                   \
+	}                                            \
+	auto from() -> T {                           \
+		return func_from(value);                 \
+	}                                            \
 };
 
-#define ENDIAN_ADAPTOR_OUT(name, func) ENDIAN_ADAPTOR(name, func, adaptor_out_tag_t, &)
-#define ENDIAN_ADAPTOR_IN(name, func)  ENDIAN_ADAPTOR(name, func, adaptor_in_tag_t,   )
-
-ENDIAN_ADAPTOR_IN(to_big,       native_to_big)
-ENDIAN_ADAPTOR_IN(to_little,    native_to_little)
-ENDIAN_ADAPTOR_OUT(from_big,    big_to_native)
-ENDIAN_ADAPTOR_OUT(from_little, little_to_native)
+ENDIAN_ADAPTOR(be, native_to_big,    big_to_native)
+ENDIAN_ADAPTOR(le, native_to_little, little_to_native)
 
 struct storage_tag {};
 struct as_big_t final : storage_tag {};
@@ -468,6 +468,70 @@ inline void storage_out(arithmetic auto& value, as_big_t) {
 
 
 } // endian, hexi
+// #include <hexi/stream_adaptors.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
+
+
+
+#include <utility>
+
+namespace hexi {
+
+template<typename stream_type>
+class stream_read_adaptor final {
+	stream_type& _stream;
+
+public:
+	stream_read_adaptor(stream_type& stream) 
+		: _stream(stream) {}
+
+	void operator&(auto&& arg) {
+		_stream >> arg;
+	}
+
+	template<typename ...Ts>
+	void operator()(Ts&&... args) {
+		([&] {
+			_stream >> args;
+		} (), ...);
+	}
+
+	template<typename ...Ts>
+	void forward(Ts&&... args) {
+		_stream.get(std::forward<Ts>(args)...);
+	}
+};
+
+template<typename stream_type>
+class stream_write_adaptor final {
+	stream_type& _stream;
+
+public:
+	stream_write_adaptor(stream_type& stream) 
+		: _stream(stream) {}
+
+	void operator&(auto&& arg) {
+		_stream << arg;
+	}
+
+	template<typename ...Ts>
+	void operator()(Ts&&... args) {
+		([&] {
+			_stream << args;
+		 } (), ...);
+	}
+
+	template<typename ...Ts>
+	void forward(Ts&&... args) {
+		_stream.put(std::forward<Ts>(args)...);
+	}
+};
+
+} // hexi
 #include <algorithm>
 #include <concepts>
 #include <ranges>
@@ -617,14 +681,19 @@ public:
 
 	/*** Write ***/
 
+	void serialise(auto&& object) {
+		stream_write_adaptor adaptor(*this);
+		object.serialise(adaptor);
+	}
+
 	binary_stream& operator <<(has_shl_override<binary_stream> auto&& data)
 	requires writeable<buf_type> {
 		return data.operator<<(*this);
 	}
 
-	template<std::derived_from<endian::adaptor_in_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream& operator<<(endian_func adaptor) requires writeable<buf_type> {
-		const auto converted = adaptor.convert();
+		const auto converted = adaptor.to();
 		write(&converted, sizeof(converted));
 		return *this;
 	}
@@ -720,9 +789,9 @@ public:
 	 * 
 	 * @param data The element to be written to the stream.
 	 */
-	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	void put(const endian_func& adaptor) requires writeable<buf_type> {
-		const auto swapped = adaptor.convert();
+		const auto swapped = adaptor.to();
 		write(&swapped, sizeof(swapped));
 	}
 
@@ -765,9 +834,14 @@ public:
 
 	/*** Read ***/
 
+	void deserialise(auto& object) {
+		stream_read_adaptor adaptor(*this);
+		object.serialise(adaptor);
+	}
+
 	binary_stream& operator>>(prefixed<std::string> adaptor) {
 		std::uint32_t size = 0;
-		*this >> endian::from_little(size);
+		*this >> endian::le(size);
 
 		if(state_ != stream_state::ok) {
 			return *this;
@@ -785,7 +859,7 @@ public:
 
 	binary_stream& operator>>(prefixed<std::string_view> adaptor) {
 		std::uint32_t size = 0;
-		*this >> endian::from_little(size);
+		*this >> endian::le(size);
 
 		if(state_ != stream_state::ok) {
 			return *this;
@@ -861,10 +935,10 @@ public:
 		return data.operator>>(*this);
 	}
 
-	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream& operator>>(endian_func adaptor) {
 		SAFE_READ(&adaptor.value, sizeof(adaptor.value), *this);
-		adaptor.value = adaptor.convert();
+		adaptor.value = adaptor.from();
 		return *this;
 	}
 
@@ -908,10 +982,10 @@ public:
 	 * 
 	 * @param The destination for the read value.
 	 */
-	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	void get(endian_func& adaptor) {
 		SAFE_READ(&adaptor.value, sizeof(adaptor), void());
-		adaptor.value = adaptor.convert();
+		adaptor.value = adaptor.from();
 	}
 
 	/**
@@ -3893,6 +3967,8 @@ public:
 
 } // hexi
 
+// #include <hexi/stream_adaptors.h>
+
 // #include <hexi/allocators/block_allocator.h>
 
 // #include <hexi/allocators/default_allocator.h>
@@ -3993,6 +4069,8 @@ public:
 
 // #include <hexi/shared.h>
 
+// #include <hexi/stream_adaptors.h>
+
 #include <algorithm>
 #include <ranges>
 #include <string>
@@ -4055,9 +4133,14 @@ public:
 	binary_stream_reader& operator=(const binary_stream_reader&) = delete;
 	binary_stream_reader(const binary_stream_reader&) = delete;
 
+	void deserialise(auto& object) {
+		stream_read_adaptor adaptor(*this);
+		object.serialise(adaptor);
+	}
+
 	binary_stream_reader& operator>>(prefixed<std::string> adaptor) {
 		std::uint32_t size = 0;
-		*this >> endian::from_little(size);
+		*this >> endian::le(size);
 
 		if(state() != stream_state::ok) {
 			return *this;
@@ -4106,7 +4189,7 @@ public:
 			return size;
 		});
 
-		skip(1); // skip null terminator
+		buffer_.skip(1); // skip null terminator
 		return *this;
 	}
 
@@ -4118,10 +4201,10 @@ public:
 		return data.operator>>(*this);
 	}
 
-	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream_reader& operator>>(endian_func adaptor) {
 		read(&adaptor.value, sizeof(adaptor.value));
-		adaptor.value = adaptor.convert();
+		adaptor.value = adaptor.from();
 		return *this;
 	}
 
@@ -4225,10 +4308,10 @@ public:
 	 * 
 	 * @param The destination for the read value.
 	 */
-	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	void get(endian_func& adaptor) {
 		read(&adaptor.value, sizeof(adaptor.value));
-		adaptor.value = adaptor.convert();
+		adaptor.value = adaptor.from();
 	}
 
 	/**
@@ -4322,6 +4405,8 @@ public:
 
 // #include <hexi/shared.h>
 
+// #include <hexi/stream_adaptors.h>
+
 #include <algorithm>
 #include <string>
 #include <string_view>
@@ -4364,13 +4449,18 @@ public:
 	binary_stream_writer& operator=(const binary_stream_writer&) = delete;
 	binary_stream_writer(const binary_stream_writer&) = delete;
 
+	void serialise(auto&& object) {
+		stream_write_adaptor adaptor(*this);
+		object.serialise(adaptor);
+	}
+
 	binary_stream_writer& operator<<(has_shl_override<binary_stream_writer> auto&& data) {
 		return data.operator<<(*this);
 	}
 
-	template<std::derived_from<endian::adaptor_in_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream_writer& operator<<(endian_func adaptor) {
-		const auto converted = adaptor.convert();
+		const auto converted = adaptor.to();
 		write(&converted, sizeof(converted));
 		return *this;
 	}
@@ -4462,9 +4552,9 @@ public:
 	 * 
 	 * @param data The element to be written to the stream.
 	 */
-	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	void put(const endian_func& adaptor) {
-		const auto swapped = adaptor.convert();
+		const auto swapped = adaptor.to();
 		write(&swapped, sizeof(swapped));
 	}
 
@@ -4762,9 +4852,11 @@ public:
 	 * @return The position of value or npos if not found.
 	 */
 	std::size_t find_first_of(std::byte val) const override {
-		for(auto i = read_; i < size(); ++i) {
-			if(static_cast<std::byte>(buffer_[i]) == val) {
-				return i - read_;
+		const auto data = read_ptr();
+
+		for(std::size_t i = 0, j = size(); i < j; ++i) {
+			if(static_cast<std::byte>(data[i]) == val) {
+				return i;
 			}
 		}
 

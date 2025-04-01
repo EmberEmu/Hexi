@@ -12,6 +12,7 @@
 #include <hexi/endian.h>
 #include <hexi/exception.h>
 #include <hexi/shared.h>
+#include <hexi/stream_adaptors.h>
 #include <algorithm>
 #include <ranges>
 #include <string>
@@ -74,9 +75,14 @@ public:
 	binary_stream_reader& operator=(const binary_stream_reader&) = delete;
 	binary_stream_reader(const binary_stream_reader&) = delete;
 
+	void deserialise(auto& object) {
+		stream_read_adaptor adaptor(*this);
+		object.serialise(adaptor);
+	}
+
 	binary_stream_reader& operator>>(prefixed<std::string> adaptor) {
 		std::uint32_t size = 0;
-		*this >> endian::from_little(size);
+		*this >> endian::le(size);
 
 		if(state() != stream_state::ok) {
 			return *this;
@@ -125,7 +131,7 @@ public:
 			return size;
 		});
 
-		skip(1); // skip null terminator
+		buffer_.skip(1); // skip null terminator
 		return *this;
 	}
 
@@ -137,10 +143,10 @@ public:
 		return data.operator>>(*this);
 	}
 
-	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream_reader& operator>>(endian_func adaptor) {
 		read(&adaptor.value, sizeof(adaptor.value));
-		adaptor.value = adaptor.convert();
+		adaptor.value = adaptor.from();
 		return *this;
 	}
 
@@ -244,10 +250,10 @@ public:
 	 * 
 	 * @param The destination for the read value.
 	 */
-	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	void get(endian_func& adaptor) {
 		read(&adaptor.value, sizeof(adaptor.value));
-		adaptor.value = adaptor.convert();
+		adaptor.value = adaptor.from();
 	}
 
 	/**

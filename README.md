@@ -33,7 +33,7 @@ Here's what some libraries might call a very simple motivating example:
 #include <vector>
 #include <cstddef>
 
-struct UserPacket {
+struct LoginPacket {
     uint64_t user_id;
     uint64_t timestamp;
     std::array<uint8_t, 16> ipv6;
@@ -44,12 +44,12 @@ auto deserialise(std::span<const char> network_buffer) {
     hexi::binary_stream stream(adaptor);          // create a binary stream
     
     // deserialise!
-    UserPacket packet;
+    LoginPacket packet;
     stream >> packet;
     return packet;
 }
 
-auto serialise(const UserPacket& packet) {
+auto serialise(const LoginPacket& packet) {
     std::vector<uint8_t> buffer;
     hexi::buffer_adaptor adaptor(buffer); // wrap the buffer
     hexi::binary_stream stream(adaptor);  // create a binary stream
@@ -59,7 +59,7 @@ auto serialise(const UserPacket& packet) {
     return buffer;
 }
 ```
-By default, Hexi will try to serialise basic structures such as our `UserPacket` if they meet requirements for being safe to directly copy the bytes. Now, for reasons of portability, it's not recommended that you do things this way unless you're positive that the data layout is identical on the system that wrote the data. Not to worry, this is easily solved. Plus, we didn't do any error or endianness handling. All in good time.
+By default, Hexi will try to serialise basic structures such as our `LoginPacket` if they meet requirements for being safe to directly copy the bytes. Now, for reasons of portability, it's not recommended that you do things this way unless you're positive that the data layout is identical on the system that wrote the data. Not to worry, this is easily solved. Plus, we didn't do any error or endianness handling. All in good time.
 
 <img src="docs/assets/frog-remember.png" alt="Remember these two classes, if nothing else!">
 
@@ -127,7 +127,7 @@ if (auto state = stream.state(); state != hexi::stream_state::ok) {
 
 <img src="docs/assets/frog-writing-portable-code-is-easy-peasy.png" alt="Writing portable code is easy peasy">
 
-In the first example, reading our `UserPacket` would only work as expected if the program that wrote the data laid everything out in the same way as our own program.
+In the first example, reading our `LoginPacket` would only work as expected if the program that wrote the data laid everything out in the same way as our own program.
 This might not be the case for reasons of architecture differences, compiler flags, etc. 
 
 Here's the same example but doing it portably.
@@ -139,7 +139,8 @@ Here's the same example but doing it portably.
 #include <cstddef>
 #include <cstdint>
 
-struct UserPacket {
+// an example structure that has separate serialise and deserialise functions
+struct LoginPacket {
     uint64_t user_id;
     std::string username;
     uint64_t timestamp;
@@ -151,8 +152,8 @@ struct UserPacket {
         stream >> user_id >> username >> timestamp >> has_optional_field;
 
         if (has_optional_field) {
-            // fetch explicitly as big-endian value
-            stream >> hexi::endian::from_big(optional_field);
+            // fetch explicitly as big-endian ('be') value
+            stream >> hexi::endian::be(optional_field);
         }
 
         // we can manually trigger an error if something went wrong
@@ -165,13 +166,33 @@ struct UserPacket {
         stream << user_id << username << timestamp << has_optional_field;
 
         if (has_optional_field) {
-            // write explicitly as big-endian value
-            stream << hexi::endian::to_big(optional_field);
+            // write explicitly as big-endian ('be') value
+            stream << hexi::endian::be(optional_field);
         }
 
         return stream;
     }
 };
+
+// an example of a packet that can serialise and deserialise with one function
+struct LogoutPacket {
+    std::string username;
+    std::uint32_t user_id;
+    std::uint8_t has_timestamp;
+    std::uint64_t timestamp;    // pretend this is optional & big endian in the protocol
+
+    void serialise(auto& stream) const {
+        stream(username, user_id);
+
+        if (has_timestamp) {
+            stream(hexi::endian::be(timestamp));
+
+            // can also do this to write a single field:
+            // stream & hexi::endian::be(timestamp);
+        }
+    }
+};
+
 
 // pretend we're reading network data
 void read() {
@@ -183,15 +204,18 @@ void read() {
     bool result {};
 
     switch (packet_type) {
-        case packet_type::user_packet:
-            result = handle_user_packet(buffer);
+        case login_packet:
+            result = handle_login_packet(buffer);
+            break;
+        case logout_packet:
+            result = handle_logout_packet(buffer);
             break;
     }
 
     // ... handle result
 }
 
-auto handle_user_packet(std::span<const char> buffer) {
+auto handle_login_packet(std::span<const char> buffer) {
     hexi::buffer_adaptor adaptor(buffer);
 
     /**
@@ -202,8 +226,29 @@ auto handle_user_packet(std::span<const char> buffer) {
      */
     hexi::binary_stream stream(adaptor, hexi::endian::little);
 
-    UserPacket packet;
+    LoginPacket packet;
     stream >> packet;
+
+    if (stream) {
+        // ... do something with the packet
+        return true;
+    } else {
+        return false;
+    }
+}
+
+auto handle_logout_packet(std::span<const char> buffer) {
+    hexi::buffer_adaptor adaptor(buffer);
+    hexi::binary_stream stream(adaptor, hexi::endian::little);
+
+    LogoutPacket packet;
+    stream.deserialise(packet); // stream.serialise(packet) would do the opposite
+
+    /**
+     * alternative method:
+     * hexi::stream_read_adaptor adaptor(stream);
+     * packet.serialise(adaptor);
+     */ 
 
     if (stream) {
         // ... do something with the packet

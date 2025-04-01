@@ -18,8 +18,8 @@ int main() {
 	{ // serialise foo & bar as big/little endian with put
 		const std::uint64_t foo = 100;
 		const std::uint32_t bar = 200;
-		stream.put<hexi::endian::to_big>(foo);
-		stream.put<hexi::endian::to_little>(bar);
+		stream.put<hexi::endian::be>(foo);
+		stream.put<hexi::endian::le>(bar);
 	}
 
 	{ // deserialise foo & bar as big/little endian
@@ -31,16 +31,16 @@ int main() {
 	}
 
 	{ // stream integers as various endian combinations
-		stream << hexi::endian::to_big(9000);
-		stream << hexi::endian::to_little(9001); // over 9000
+		stream << hexi::endian::be(9000);
+		stream << hexi::endian::le(9001); // over 9000
 		stream << hexi::endian::native_to_little(9002);
 		stream << hexi::endian::little_to_native(9003);
 	}
 
 	{ // retrieve stream integers as big or little endian
 		std::uint64_t foo;
-		stream >> hexi::endian::from_big(foo);
-		stream >> hexi::endian::from_little(foo);
+		stream >> hexi::endian::be(foo);
+		stream >> hexi::endian::le(foo);
 	}
 
 	{ // convert endianness inplace

@@ -11,6 +11,7 @@
 #include <hexi/concepts.h>
 #include <hexi/endian.h>
 #include <hexi/shared.h>
+#include <hexi/stream_adaptors.h>
 #include <algorithm>
 #include <string>
 #include <string_view>
@@ -53,13 +54,18 @@ public:
 	binary_stream_writer& operator=(const binary_stream_writer&) = delete;
 	binary_stream_writer(const binary_stream_writer&) = delete;
 
+	void serialise(auto&& object) {
+		stream_write_adaptor adaptor(*this);
+		object.serialise(adaptor);
+	}
+
 	binary_stream_writer& operator<<(has_shl_override<binary_stream_writer> auto&& data) {
 		return data.operator<<(*this);
 	}
 
-	template<std::derived_from<endian::adaptor_in_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream_writer& operator<<(endian_func adaptor) {
-		const auto converted = adaptor.convert();
+		const auto converted = adaptor.to();
 		write(&converted, sizeof(converted));
 		return *this;
 	}
@@ -151,9 +157,9 @@ public:
 	 * 
 	 * @param data The element to be written to the stream.
 	 */
-	template<std::derived_from<endian::adaptor_out_tag_t> endian_func>
+	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	void put(const endian_func& adaptor) {
-		const auto swapped = adaptor.convert();
+		const auto swapped = adaptor.to();
 		write(&swapped, sizeof(swapped));
 	}
 

@@ -515,11 +515,11 @@ TEST(binary_stream, endianness_override_match) {
 	hexi::pmc::buffer_adaptor adaptor(buffer, hexi::init_empty);
 	hexi::pmc::binary_stream stream(adaptor);
 	std::uint64_t input = 100, output = 0;
-	stream << hexi::endian::to_little(input);
-	stream >> hexi::endian::from_little(output);
+	stream << hexi::endian::le(input);
+	stream >> hexi::endian::le(output);
 	ASSERT_EQ(input, output);
-	stream << hexi::endian::to_big(input);
-	stream >> hexi::endian::from_big(output);
+	stream << hexi::endian::be(input);
+	stream >> hexi::endian::be(output);
 	ASSERT_EQ(input, output);
 }
 
@@ -528,10 +528,55 @@ TEST(binary_stream, endianness_override_mismatch) {
 	hexi::pmc::buffer_adaptor adaptor(buffer, hexi::init_empty);
 	hexi::pmc::binary_stream stream(adaptor);
 	std::uint64_t input = 100, output = 0;
-	stream << hexi::endian::to_little(input);
-	stream >> hexi::endian::from_big(output);
+	stream << hexi::endian::le(input);
+	stream >> hexi::endian::be(output);
 	ASSERT_NE(input, output);
-	stream << hexi::endian::to_big(input);
-	stream >> hexi::endian::from_little(output);
+	stream << hexi::endian::be(input);
+	stream >> hexi::endian::le(output);
 	ASSERT_NE(input, output);
+}
+
+namespace {
+
+struct Foo {
+	std::uint16_t x;
+	std::uint32_t y;
+	std::uint64_t z;
+	std::string str;
+
+	void serialise(auto& stream) {
+		stream(x, y, z, hexi::null_terminated(str));
+		stream & hexi::endian::be(x);
+	}
+
+	bool operator==(const Foo& rhs) const {
+		return x == rhs.x && y == rhs.y && z == rhs.z && str == rhs.str;
+	}
+};
+
+}
+
+TEST(binary_stream_pmc, experimental_serialise) {
+	std::vector<unsigned char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+
+	Foo input {
+		.x = 100,
+		.y = 200,
+		.z = 300,
+		.str = { "It's a fake!" }
+	};
+
+
+	stream.serialise(input);
+	ASSERT_EQ(stream.total_write(), 29);
+
+	Foo output{};
+	ASSERT_NE(input, output);
+	stream.deserialise(output);
+	ASSERT_EQ(stream.total_read(), 29);
+	ASSERT_EQ(stream.size(), 0);
+	ASSERT_TRUE(stream);
+	ASSERT_EQ(input, output);
 }

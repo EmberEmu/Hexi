@@ -131,26 +131,26 @@ constexpr auto convert(arithmetic auto value) -> decltype(value) {
 	};
 }
 
-struct adaptor_in_tag_t {};
-struct adaptor_out_tag_t {};
+struct adaptor_tag_t {};
 
-#define ENDIAN_ADAPTOR(name, func, tag, ref) \
-template<arithmetic T>                       \
-struct name final : tag {                    \
-	T ref value;                             \
-    name(T ref t) : value(t) {}              \
-	auto convert() -> T {                    \
-		return func(value);                  \
-	}                                        \
+#define ENDIAN_ADAPTOR(name, func_to, func_from) \
+template<arithmetic T>                           \
+struct name final : adaptor_tag_t {              \
+	T& value;                                    \
+                                                 \
+    name(T& t) : value(t) {}                     \
+    name(T&& t) : value(t) {}                    \
+                                                 \
+	auto to() -> T {                             \
+		return func_to(value);                   \
+	}                                            \
+	auto from() -> T {                           \
+		return func_from(value);                 \
+	}                                            \
 };
 
-#define ENDIAN_ADAPTOR_OUT(name, func) ENDIAN_ADAPTOR(name, func, adaptor_out_tag_t, &)
-#define ENDIAN_ADAPTOR_IN(name, func)  ENDIAN_ADAPTOR(name, func, adaptor_in_tag_t,   )
-
-ENDIAN_ADAPTOR_IN(to_big,       native_to_big)
-ENDIAN_ADAPTOR_IN(to_little,    native_to_little)
-ENDIAN_ADAPTOR_OUT(from_big,    big_to_native)
-ENDIAN_ADAPTOR_OUT(from_little, little_to_native)
+ENDIAN_ADAPTOR(be, native_to_big,    big_to_native)
+ENDIAN_ADAPTOR(le, native_to_little, little_to_native)
 
 struct storage_tag {};
 struct as_big_t final : storage_tag {};
