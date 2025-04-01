@@ -20,6 +20,7 @@ set(HEADERS
     hexi/detail/intrusive_storage.h
     hexi/file_buffer.h
     hexi/null_buffer.h
+    hexi/stream_adaptors.h
     hexi/pmc/buffer_base.h
     hexi/pmc/buffer_read.h
     hexi/pmc/buffer_write.h

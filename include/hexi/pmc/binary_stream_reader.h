@@ -12,6 +12,7 @@
 #include <hexi/endian.h>
 #include <hexi/exception.h>
 #include <hexi/shared.h>
+#include <hexi/stream_adaptors.h>
 #include <algorithm>
 #include <ranges>
 #include <string>
@@ -74,6 +75,11 @@ public:
 	binary_stream_reader& operator=(const binary_stream_reader&) = delete;
 	binary_stream_reader(const binary_stream_reader&) = delete;
 
+	void deserialise(auto& object) {
+		stream_read_adaptor adaptor(*this);
+		object.serialise(adaptor);
+	}
+
 	binary_stream_reader& operator>>(prefixed<std::string> adaptor) {
 		std::uint32_t size = 0;
 		*this >> endian::from_little(size);
@@ -125,7 +131,7 @@ public:
 			return size;
 		});
 
-		skip(1); // skip null terminator
+		buffer_.skip(1); // skip null terminator
 		return *this;
 	}
 

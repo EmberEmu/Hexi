@@ -10,6 +10,7 @@
 #include <hexi/concepts.h>
 #include <hexi/exception.h>
 #include <hexi/endian.h>
+#include <hexi/stream_adaptors.h>
 #include <algorithm>
 #include <concepts>
 #include <ranges>
@@ -159,6 +160,11 @@ public:
 
 	/*** Write ***/
 
+	void serialise(auto&& object) {
+		stream_write_adaptor adaptor(*this);
+		object.serialise(adaptor);
+	}
+
 	binary_stream& operator <<(has_shl_override<binary_stream> auto&& data)
 	requires writeable<buf_type> {
 		return data.operator<<(*this);
@@ -306,6 +312,11 @@ public:
 	}
 
 	/*** Read ***/
+
+	void deserialise(auto& object) {
+		stream_read_adaptor adaptor(*this);
+		object.serialise(adaptor);
+	}
 
 	binary_stream& operator>>(prefixed<std::string> adaptor) {
 		std::uint32_t size = 0;

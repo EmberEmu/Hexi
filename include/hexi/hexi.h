@@ -18,6 +18,7 @@
 #include <hexi/shared.h>
 #include <hexi/static_buffer.h>
 #include <hexi/null_buffer.h>
+#include <hexi/stream_adaptors.h>
 #include <hexi/allocators/block_allocator.h>
 #include <hexi/allocators/default_allocator.h>
 #include <hexi/allocators/tls_block_allocator.h>

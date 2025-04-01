@@ -11,6 +11,7 @@
 #include <hexi/concepts.h>
 #include <hexi/endian.h>
 #include <hexi/shared.h>
+#include <hexi/stream_adaptors.h>
 #include <algorithm>
 #include <string>
 #include <string_view>
@@ -52,6 +53,11 @@ public:
 	binary_stream_writer& operator=(binary_stream_writer&&) = delete;
 	binary_stream_writer& operator=(const binary_stream_writer&) = delete;
 	binary_stream_writer(const binary_stream_writer&) = delete;
+
+	void serialise(auto&& object) {
+		stream_write_adaptor adaptor(*this);
+		object.serialise(adaptor);
+	}
 
 	binary_stream_writer& operator<<(has_shl_override<binary_stream_writer> auto&& data) {
 		return data.operator<<(*this);

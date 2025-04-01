@@ -141,9 +141,11 @@ public:
 	 * @return The position of value or npos if not found.
 	 */
 	std::size_t find_first_of(std::byte val) const override {
-		for(auto i = read_; i < size(); ++i) {
-			if(static_cast<std::byte>(buffer_[i]) == val) {
-				return i - read_;
+		const auto data = read_ptr();
+
+		for(std::size_t i = 0, j = size(); i < j; ++i) {
+			if(static_cast<std::byte>(data[i]) == val) {
+				return i;
 			}
 		}
 

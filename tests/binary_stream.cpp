@@ -923,3 +923,47 @@ TEST(binary_stream, endianness_native_override_mismatch) {
 	stream >> hexi::endian::from_little(output);
 	ASSERT_NE(input, output);
 }
+
+namespace {
+
+struct Foo {
+	std::uint16_t x;
+	std::uint32_t y;
+	std::uint64_t z;
+	std::string_view str;
+
+	void serialise(auto& stream) {
+		stream(x, y, z, hexi::null_terminated(str));
+		stream& x;
+	}
+
+	bool operator==(const Foo& rhs) const {
+		return x == rhs.x && y == rhs.y && z == rhs.z && str == rhs.str;
+	}
+};
+
+}
+
+TEST(binary_stream, experimental_serialise) {
+	std::array<char, 32> buffer{};
+	hexi::buffer_adaptor adaptor(buffer, hexi::init_empty);
+	hexi::binary_stream stream(adaptor);
+
+	Foo input {
+		.x = 100,
+		.y = 200,
+		.z = 300,
+		.str = { "It's a fake!"  }
+	};
+
+	stream.serialise(input);
+	ASSERT_EQ(stream.total_write(), 29);
+
+	Foo output{};
+	ASSERT_NE(input, output);
+	stream.deserialise(output);
+	ASSERT_EQ(stream.total_read(), 29);
+	ASSERT_TRUE(stream.empty());
+	ASSERT_TRUE(stream);
+	ASSERT_EQ(input, output);
+}
