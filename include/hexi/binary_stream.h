@@ -622,9 +622,15 @@ public:
 	void write_seek(const stream_seek direction, const offset_type offset)
 		requires(seekable<buf_type> && writeable<buf_type>) {
 		if(direction == stream_seek::sk_stream_absolute) {
-			write_seek(buffer_seek::sk_backward, total_write_ - offset);
+			if(offset >= total_write_) {
+				buffer_.write_seek(buffer_seek::sk_forward, offset - total_write_);
+			} else {
+				buffer_.write_seek(buffer_seek::sk_backward, total_write_ - offset);
+			}
+
+			total_write_ = offset;
 		} else {
-			write_seek(static_cast<buffer_seek>(direction), offset);
+			buffer_.write_seek(static_cast<buffer_seek>(direction), offset);
 		}
 	}
 

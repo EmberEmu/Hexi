@@ -220,7 +220,13 @@ public:
 	 */
 	void write_seek(const stream_seek direction, const std::size_t offset) {
 		if(direction == stream_seek::sk_stream_absolute) {
-			buffer_.write_seek(buffer_seek::sk_backward, total_write_ - offset);
+			if(offset >= total_write_) {
+				buffer_.write_seek(buffer_seek::sk_forward, offset - total_write_);
+			} else {
+				buffer_.write_seek(buffer_seek::sk_backward, total_write_ - offset);
+			}
+
+			total_write_ = offset;
 		} else {
 			buffer_.write_seek(static_cast<buffer_seek>(direction), offset);
 		}
