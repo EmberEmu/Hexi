@@ -21,7 +21,7 @@ namespace hexi {
 	#define HEXI_CATCH(exception) catch(exception)
 	#define HEXI_THROW(...) throw __VA_ARGS__
 #else
-	#include <cstdint> 
+	#include <cstdlib> 
 	#define HEXI_TRY if(true)  
 	#define HEXI_CATCH(exception) if(false)
 	#define HEXI_THROW(...) std::abort()
