@@ -38,11 +38,13 @@ namespace hexi {
 	#define HEXI_TRY try
 	#define HEXI_CATCH(exception) catch(exception)
 	#define HEXI_THROW(...) throw __VA_ARGS__
+	#define HEXI_EXCEPTION_TAG allow_throw_t
 #else
 	#include <cstdlib> 
 	#define HEXI_TRY if(true)  
 	#define HEXI_CATCH(exception) if(false)
 	#define HEXI_THROW(...) std::abort()
+	#define HEXI_EXCEPTION_TAG no_throw_t
 #endif
 
 struct is_contiguous {};
@@ -576,7 +578,7 @@ using namespace detail;
 
 template<
 	byte_oriented buf_type,
-	std::derived_from<except_tag> exceptions = allow_throw_t,
+	std::derived_from<except_tag> exceptions = HEXI_EXCEPTION_TAG,
 	std::derived_from<endian::storage_tag> endianness = endian::as_native_t
 >
 class binary_stream final {

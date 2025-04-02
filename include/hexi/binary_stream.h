@@ -47,7 +47,7 @@ using namespace detail;
 
 template<
 	byte_oriented buf_type,
-	std::derived_from<except_tag> exceptions = allow_throw_t,
+	std::derived_from<except_tag> exceptions = HEXI_EXCEPTION_TAG,
 	std::derived_from<endian::storage_tag> endianness = endian::as_native_t
 >
 class binary_stream final {
