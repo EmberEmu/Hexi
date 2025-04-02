@@ -150,7 +150,7 @@ public:
 			} else if constexpr(has_resize<buf_type>) {
 				buffer_.resize(min_req_size);
 			} else {
-				throw buffer_overflow(length, write_, free());
+				HEXI_THROW(buffer_overflow(length, write_, free()));
 			}
 		}
 

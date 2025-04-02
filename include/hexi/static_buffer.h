@@ -94,7 +94,7 @@ public:
 		assert(!region_overlap(buffer_.data(), buffer_.size(), destination, length));
 
 		if(length > size()) {
-			throw buffer_underrun(length, read_, size());
+			HEXI_THROW(buffer_underrun(length, read_, size()));
 		}
 
 		std::memcpy(destination, read_ptr(), length);
@@ -242,7 +242,7 @@ public:
 		assert(!region_overlap(source, length, buffer_.data(), buffer_.size()));
 
 		if(free() < length) {
-			throw buffer_overflow(length, write_, free());
+			HEXI_THROW(buffer_overflow(length, write_, free()));
 		}
 
 		std::memcpy(write_ptr(), source, length);

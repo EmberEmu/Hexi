@@ -33,7 +33,7 @@ public:
 	bool can_write_seek() const override { return false; }
 
 	void write_seek(const buffer_seek /*direction*/, const std::size_t /*offset*/) override {
-		throw exception("Don't do this on a null_buffer"); 
+		HEXI_THROW(exception("Don't do this on a null_buffer")); 
 	};
 };
 
