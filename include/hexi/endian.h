@@ -157,9 +157,9 @@ struct as_big_t final : storage_tag {};
 struct as_little_t final : storage_tag {};
 struct as_native_t final : storage_tag {};
 
-constexpr static as_big_t big {};
-constexpr static as_little_t little {};
-constexpr static as_native_t native {};
+[[maybe_unused]] constexpr static as_big_t big {};
+[[maybe_unused]] constexpr static as_little_t little {};
+[[maybe_unused]] constexpr static as_native_t native {};
 
 inline auto storage_in(const arithmetic auto& value, as_native_t) {
 	return value;

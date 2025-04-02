@@ -39,7 +39,7 @@ namespace hexi {
 	#define HEXI_CATCH(exception) catch(exception)
 	#define HEXI_THROW(...) throw __VA_ARGS__
 #else
-	#include <cstdint> 
+	#include <cstdlib> 
 	#define HEXI_TRY if(true)  
 	#define HEXI_CATCH(exception) if(false)
 	#define HEXI_THROW(...) std::abort()
@@ -53,8 +53,8 @@ struct except_tag {};
 struct allow_throw_t : except_tag {};
 struct no_throw_t : except_tag {};
 
-constexpr static no_throw_t no_throw {};
-constexpr static allow_throw_t allow_throw {};
+[[maybe_unused]] constexpr static no_throw_t no_throw {};
+[[maybe_unused]] constexpr static allow_throw_t allow_throw {};
 
 struct init_empty_t {};
 constexpr static init_empty_t init_empty {};
@@ -138,6 +138,7 @@ static constexpr auto generate_filled(const std::uint8_t value) {
 }
 
 // Returns true if there's any overlap between source and destination ranges
+[[maybe_unused]]
 static inline bool region_overlap(const void* src, std::size_t src_len, const void* dst, std::size_t dst_len) {
 	const auto src_beg = std::bit_cast<std::uintptr_t>(src);
 	const auto src_end = src_beg + src_len;
@@ -451,9 +452,9 @@ struct as_big_t final : storage_tag {};
 struct as_little_t final : storage_tag {};
 struct as_native_t final : storage_tag {};
 
-constexpr static as_big_t big {};
-constexpr static as_little_t little {};
-constexpr static as_native_t native {};
+[[maybe_unused]] constexpr static as_big_t big {};
+[[maybe_unused]] constexpr static as_little_t little {};
+[[maybe_unused]] constexpr static as_native_t native {};
 
 inline auto storage_in(const arithmetic auto& value, as_native_t) {
 	return value;

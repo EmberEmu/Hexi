@@ -35,8 +35,8 @@ struct except_tag {};
 struct allow_throw_t : except_tag {};
 struct no_throw_t : except_tag {};
 
-constexpr static no_throw_t no_throw {};
-constexpr static allow_throw_t allow_throw {};
+[[maybe_unused]] constexpr static no_throw_t no_throw {};
+[[maybe_unused]] constexpr static allow_throw_t allow_throw {};
 
 struct init_empty_t {};
 constexpr static init_empty_t init_empty {};
@@ -120,6 +120,7 @@ static constexpr auto generate_filled(const std::uint8_t value) {
 }
 
 // Returns true if there's any overlap between source and destination ranges
+[[maybe_unused]]
 static inline bool region_overlap(const void* src, std::size_t src_len, const void* dst, std::size_t dst_len) {
 	const auto src_beg = std::bit_cast<std::uintptr_t>(src);
 	const auto src_end = src_beg + src_len;
