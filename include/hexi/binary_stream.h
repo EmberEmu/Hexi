@@ -74,7 +74,7 @@ private:
 			state_ = stream_state::buff_limit_err;
 
 			if constexpr(std::is_same_v<exceptions, allow_throw_t>) {
-				throw buffer_underrun(read_size, total_read_, buffer_.size());
+				HEXI_THROW(buffer_underrun(read_size, total_read_, buffer_.size()));
 			}
 
 			return;
@@ -87,7 +87,7 @@ private:
 				state_ = stream_state::read_limit_err;
 
 				if constexpr(std::is_same_v<exceptions, allow_throw_t>) {
-					throw stream_read_limit(read_size, total_read_, read_limit_);
+					HEXI_THROW(stream_read_limit(read_size, total_read_, read_limit_));
 				}
 
 				return;
@@ -108,16 +108,18 @@ private:
 	}
 
 	template<typename... Ts>
-	inline void write(Ts&&... args) try {
-		if(state_ == stream_state::ok) [[likely]] {
-			buffer_.write(std::forward<Ts>(args)...);
-			advance_write(std::forward<Ts>(args)...);                            
-		}
-	} catch(...) {
-		state_ = stream_state::buff_write_err;
+	inline void write(Ts&&... args) {
+		HEXI_TRY {
+			if(state_ == stream_state::ok) [[likely]] {
+				buffer_.write(std::forward<Ts>(args)...);
+				advance_write(std::forward<Ts>(args)...);                            
+			}
+		} HEXI_CATCH(...) {
+			state_ = stream_state::buff_write_err;
 
-		if constexpr(std::is_same_v<exceptions, allow_throw_t>) {
-			throw;
+			if constexpr(std::is_same_v<exceptions, allow_throw_t>) {
+				HEXI_THROW();
+			}
 		}
 	}
 

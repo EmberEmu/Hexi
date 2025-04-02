@@ -61,7 +61,7 @@ public:
 			} else if constexpr(has_resize<buf_type>) {
 				buffer_.resize(min_req_size);
 			} else {
-				throw buffer_overflow(free(), length, write_);
+				HEXI_THROW(buffer_overflow(free(), length, write_));
 			}
 		}
 

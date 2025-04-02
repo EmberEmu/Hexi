@@ -16,6 +16,17 @@
 
 namespace hexi {
 
+#if defined(_EXCEPTIONS) || defined(__cpp_exceptions) || defined(_CPPUNWIND)
+	#define HEXI_TRY try
+	#define HEXI_CATCH(exception) catch(exception)
+	#define HEXI_THROW(...) throw __VA_ARGS__
+#else
+	#include <cstdlib> 
+	#define HEXI_TRY if(true)  
+	#define HEXI_CATCH(exception) if(false)
+	#define HEXI_THROW(...) std::abort()
+#endif
+
 struct is_contiguous {};
 struct is_non_contiguous {};
 struct supported {};

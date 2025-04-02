@@ -33,7 +33,7 @@ class binary_stream_reader : virtual public stream_base {
 	void enforce_read_bounds(std::size_t read_size) {
 		if(read_size > buffer_.size()) [[unlikely]] {
 			set_state(stream_state::buff_limit_err);
-			throw buffer_underrun(read_size, total_read_, buffer_.size());
+			HEXI_THROW(buffer_underrun(read_size, total_read_, buffer_.size()));
 		}
 
 		if(read_limit_) {
@@ -41,7 +41,7 @@ class binary_stream_reader : virtual public stream_base {
 
 			if(read_size > max_read_remaining) [[unlikely]] {
 				set_state(stream_state::read_limit_err);
-				throw stream_read_limit(read_size, total_read_, read_limit_);
+				HEXI_THROW(stream_read_limit(read_size, total_read_, read_limit_));
 			}
 		}
 

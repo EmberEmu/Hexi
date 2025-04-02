@@ -161,7 +161,7 @@ public:
 			return;
 		} else if(length > size()) {
 			error_ = true;
-			throw buffer_underrun(length, read_, size());
+			HEXI_THROW(buffer_underrun(length, read_, size()));
 		}
 
 		if(std::fseek(file_, read_, SEEK_SET)) {

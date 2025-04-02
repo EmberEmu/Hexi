@@ -34,6 +34,17 @@
 
 namespace hexi {
 
+#if defined(_EXCEPTIONS) || defined(__cpp_exceptions) || defined(_CPPUNWIND)
+	#define HEXI_TRY try
+	#define HEXI_CATCH(exception) catch(exception)
+	#define HEXI_THROW(...) throw __VA_ARGS__
+#else
+	#include <cstdint> 
+	#define HEXI_TRY if(true)  
+	#define HEXI_CATCH(exception) if(false)
+	#define HEXI_THROW(...) std::abort()
+#endif
+
 struct is_contiguous {};
 struct is_non_contiguous {};
 struct supported {};
@@ -591,7 +602,7 @@ private:
 			state_ = stream_state::buff_limit_err;
 
 			if constexpr(std::is_same_v<exceptions, allow_throw_t>) {
-				throw buffer_underrun(read_size, total_read_, buffer_.size());
+				HEXI_THROW(buffer_underrun(read_size, total_read_, buffer_.size()));
 			}
 
 			return;
@@ -604,7 +615,7 @@ private:
 				state_ = stream_state::read_limit_err;
 
 				if constexpr(std::is_same_v<exceptions, allow_throw_t>) {
-					throw stream_read_limit(read_size, total_read_, read_limit_);
+					HEXI_THROW(stream_read_limit(read_size, total_read_, read_limit_));
 				}
 
 				return;
@@ -625,16 +636,18 @@ private:
 	}
 
 	template<typename... Ts>
-	inline void write(Ts&&... args) try {
-		if(state_ == stream_state::ok) [[likely]] {
-			buffer_.write(std::forward<Ts>(args)...);
-			advance_write(std::forward<Ts>(args)...);                            
-		}
-	} catch(...) {
-		state_ = stream_state::buff_write_err;
+	inline void write(Ts&&... args) {
+		HEXI_TRY {
+			if(state_ == stream_state::ok) [[likely]] {
+				buffer_.write(std::forward<Ts>(args)...);
+				advance_write(std::forward<Ts>(args)...);                            
+			}
+		} HEXI_CATCH(...) {
+			state_ = stream_state::buff_write_err;
 
-		if constexpr(std::is_same_v<exceptions, allow_throw_t>) {
-			throw;
+			if constexpr(std::is_same_v<exceptions, allow_throw_t>) {
+				HEXI_THROW();
+			}
 		}
 	}
 
@@ -1409,7 +1422,7 @@ public:
 			} else if constexpr(has_resize<buf_type>) {
 				buffer_.resize(min_req_size);
 			} else {
-				throw buffer_overflow(length, write_, free());
+				HEXI_THROW(buffer_overflow(length, write_, free()));
 			}
 		}
 
@@ -3346,7 +3359,7 @@ public:
 			return;
 		} else if(length > size()) {
 			error_ = true;
-			throw buffer_underrun(length, read_, size());
+			HEXI_THROW(buffer_underrun(length, read_, size()));
 		}
 
 		if(std::fseek(file_, read_, SEEK_SET)) {
@@ -3608,7 +3621,7 @@ public:
 		assert(!region_overlap(buffer_.data(), buffer_.size(), destination, length));
 
 		if(length > size()) {
-			throw buffer_underrun(length, read_, size());
+			HEXI_THROW(buffer_underrun(length, read_, size()));
 		}
 
 		std::memcpy(destination, read_ptr(), length);
@@ -3756,7 +3769,7 @@ public:
 		assert(!region_overlap(source, length, buffer_.data(), buffer_.size()));
 
 		if(free() < length) {
-			throw buffer_overflow(length, write_, free());
+			HEXI_THROW(buffer_overflow(length, write_, free()));
 		}
 
 		std::memcpy(write_ptr(), source, length);
@@ -3957,7 +3970,7 @@ public:
 	bool can_write_seek() const override { return false; }
 
 	void write_seek(const buffer_seek /*direction*/, const std::size_t /*offset*/) override {
-		throw exception("Don't do this on a null_buffer"); 
+		HEXI_THROW(exception("Don't do this on a null_buffer")); 
 	};
 };
 
@@ -4087,7 +4100,7 @@ class binary_stream_reader : virtual public stream_base {
 	void enforce_read_bounds(std::size_t read_size) {
 		if(read_size > buffer_.size()) [[unlikely]] {
 			set_state(stream_state::buff_limit_err);
-			throw buffer_underrun(read_size, total_read_, buffer_.size());
+			HEXI_THROW(buffer_underrun(read_size, total_read_, buffer_.size()));
 		}
 
 		if(read_limit_) {
@@ -4095,7 +4108,7 @@ class binary_stream_reader : virtual public stream_base {
 
 			if(read_size > max_read_remaining) [[unlikely]] {
 				set_state(stream_state::read_limit_err);
-				throw stream_read_limit(read_size, total_read_, read_limit_);
+				HEXI_THROW(stream_read_limit(read_size, total_read_, read_limit_));
 			}
 		}
 
@@ -4941,7 +4954,7 @@ public:
 			} else if constexpr(has_resize<buf_type>) {
 				buffer_.resize(min_req_size);
 			} else {
-				throw buffer_overflow(free(), length, write_);
+				HEXI_THROW(buffer_overflow(free(), length, write_));
 			}
 		}
 
