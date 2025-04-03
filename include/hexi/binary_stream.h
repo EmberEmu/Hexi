@@ -452,7 +452,7 @@ public:
 	template<arithmetic T>
 	T get() {
 		T t{};
-		SAFE_READ(&t, sizeof(T), void());
+		SAFE_READ(&t, sizeof(T), t);
 		return t;
 	}
 
@@ -477,7 +477,7 @@ public:
 	template<arithmetic T, endian::conversion conversion>
 	T get() {
 		T t{};
-		SAFE_READ(&t, sizeof(T), void());
+		SAFE_READ(&t, sizeof(T), t);
 		return endian::convert<conversion>(t);
 	}
 
