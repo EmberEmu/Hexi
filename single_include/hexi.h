@@ -888,8 +888,9 @@ public:
 		object.serialise(adaptor);
 	}
 
-	binary_stream& operator>>(has_serialise<stream_read_adaptor<binary_stream>> auto& data)
-	requires writeable<buf_type> {
+	template<typename T>
+	requires has_serialise<T, stream_read_adaptor<binary_stream>>
+	binary_stream& operator>>(T& data) requires writeable<buf_type> {
 		deserialise(data);
 		return *this;
 	}
@@ -4197,7 +4198,9 @@ public:
 		object.serialise(adaptor);
 	}
 
-	binary_stream_reader& operator>>(has_serialise<binary_stream_reader> auto& data) {
+	template<typename T>
+	requires has_serialise<T, stream_read_adaptor<binary_stream_reader>>
+	binary_stream_reader& operator>>(T& data) {
 		deserialise(data);
 		return *this;
 	}

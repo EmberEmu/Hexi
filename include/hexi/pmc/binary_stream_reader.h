@@ -78,7 +78,9 @@ public:
 		object.serialise(adaptor);
 	}
 
-	binary_stream_reader& operator>>(has_serialise<binary_stream_reader> auto& data) {
+	template<typename T>
+	requires has_serialise<T, stream_read_adaptor<binary_stream_reader>>
+	binary_stream_reader& operator>>(T& data) {
 		deserialise(data);
 		return *this;
 	}
