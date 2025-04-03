@@ -181,8 +181,9 @@ public:
 	 * @return Returns true if the container is empty (has no data to be read).
 	 */
 	[[nodiscard]]
-	bool empty() const override { 
-		return buffer_read_adaptor<buf_type>::empty();
+	bool empty() const override {
+		return buffer_read_adaptor<buf_type>::read_offset()
+			== buffer_write_adaptor<buf_type>::write_offset();
 	}
 
 	/**

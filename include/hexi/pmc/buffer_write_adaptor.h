@@ -140,6 +140,13 @@ public:
 	}
 
 	/**
+	* @return The current write offset.
+	*/
+	auto write_offset() const {
+		return write_;
+	}
+
+	/**
 	 * @brief Clear the underlying buffer and reset state.
 	 */
 	void clear() {
@@ -148,6 +155,16 @@ public:
 		if constexpr(has_clear<buf_type>) {
 			buffer_.clear();
 		}
+	}
+
+	/**
+	* @brief Advances the write cursor.
+	* 
+	* @param size The number of bytes by which to advance the write cursor.
+	*/
+	void advance_write(std::size_t bytes) {
+		assert(buffer_.size() >= (write_ + bytes));
+		write_ += bytes;
 	}
 
 	std::size_t free() const {

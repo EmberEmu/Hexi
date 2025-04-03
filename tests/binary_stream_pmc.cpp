@@ -470,6 +470,26 @@ TEST(binary_stream_pmr, string_view_adaptor_null_terminated) {
 	ASSERT_TRUE(stream.empty());
 }
 
+TEST(binary_stream_pmr, std_array) {
+	std::array<char, 128> buffer{};
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+	std::string_view input { "We're just normal strings. Innocent strings."};
+
+	// array is considered full by default as size == capacity
+	//ASSERT_THROW(stream << input, hexi::buffer_overflow);
+	adaptor.clear();
+	ASSERT_TRUE(stream.empty());
+
+	// try again now we've reset the state
+	std::string output;
+	stream << input;
+	stream >> output;
+	ASSERT_TRUE(stream.empty());
+	ASSERT_TRUE(stream);
+	ASSERT_EQ(input, output);
+}
+
 TEST(binary_stream_pmr, total_write_consistency) {
 	std::array<char, 1024> buffer;
 	hexi::pmc::buffer_adaptor adaptor(buffer, hexi::init_empty);

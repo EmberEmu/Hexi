@@ -26,6 +26,7 @@ TEST(buffer_adaptor_pmc, empty) {
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	ASSERT_TRUE(adaptor.empty());
 	buffer.emplace_back(1);
+	adaptor.advance_write(1);
 	ASSERT_FALSE(adaptor.empty());
 }
 

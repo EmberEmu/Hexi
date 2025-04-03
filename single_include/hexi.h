@@ -5122,6 +5122,13 @@ public:
 	}
 
 	/**
+	* @return The current write offset.
+	*/
+	auto write_offset() const {
+		return write_;
+	}
+
+	/**
 	 * @brief Clear the underlying buffer and reset state.
 	 */
 	void clear() {
@@ -5130,6 +5137,16 @@ public:
 		if constexpr(has_clear<buf_type>) {
 			buffer_.clear();
 		}
+	}
+
+	/**
+	* @brief Advances the write cursor.
+	* 
+	* @param size The number of bytes by which to advance the write cursor.
+	*/
+	void advance_write(std::size_t bytes) {
+		assert(buffer_.size() >= (write_ + bytes));
+		write_ += bytes;
 	}
 
 	std::size_t free() const {
@@ -5312,8 +5329,9 @@ public:
 	 * @return Returns true if the container is empty (has no data to be read).
 	 */
 	[[nodiscard]]
-	bool empty() const override { 
-		return buffer_read_adaptor<buf_type>::empty();
+	bool empty() const override {
+		return buffer_read_adaptor<buf_type>::read_offset()
+			== buffer_write_adaptor<buf_type>::write_offset();
 	}
 
 	/**
