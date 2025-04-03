@@ -11,7 +11,6 @@
 #include <hexi/exception.h>
 #include <hexi/endian.h>
 #include <hexi/stream_adaptors.h>
-#include <algorithm>
 #include <concepts>
 #include <ranges>
 #include <span>

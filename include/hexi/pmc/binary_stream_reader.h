@@ -13,13 +13,11 @@
 #include <hexi/exception.h>
 #include <hexi/shared.h>
 #include <hexi/stream_adaptors.h>
-#include <algorithm>
 #include <ranges>
 #include <string>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 
 namespace hexi::pmc {
 

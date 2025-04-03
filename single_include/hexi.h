@@ -542,7 +542,6 @@ public:
 };
 
 } // hexi
-#include <algorithm>
 #include <concepts>
 #include <ranges>
 #include <span>
@@ -4089,13 +4088,11 @@ public:
 
 // #include <hexi/stream_adaptors.h>
 
-#include <algorithm>
 #include <ranges>
 #include <string>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 
 namespace hexi::pmc {
 
