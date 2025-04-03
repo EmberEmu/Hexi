@@ -201,7 +201,7 @@ public:
 
 	template<typename T>
 	binary_stream& operator<<(prefixed_varint<T> adaptor) requires writeable<buf_type> {
-		const auto encode_len = varint_encode(*this, adaptor->size());
+		varint_encode(*this, adaptor->size());
 		write(adaptor->data(), adaptor->size());
 		return *this;
 	}
@@ -357,7 +357,7 @@ public:
 			return *this;
 		}
 
-		STREAM_READ_BOUNDS_ENFORCE(size, *this); // include null terminator
+		STREAM_READ_BOUNDS_ENFORCE(size, *this);
 
 		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
 			buffer_.read(strbuf, size);

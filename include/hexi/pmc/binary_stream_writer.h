@@ -88,7 +88,7 @@ public:
 
 	template<typename T>
 	binary_stream_writer& operator<<(prefixed_varint<T> adaptor) {
-		const auto encode_len = varint_encode(*this, adaptor->size());
+		varint_encode(*this, adaptor->size());
 		write(adaptor->data(), adaptor->size());
 		return *this;
 	}
