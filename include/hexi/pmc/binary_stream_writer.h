@@ -195,7 +195,7 @@ public:
 	 * @param The byte value that will fill the specified number of bytes.
 	 */
 	template<std::size_t size>
-	void fill(const std::uint8_t value) {
+	constexpr void fill(const std::uint8_t value) {
 		const auto filled = generate_filled<size>(value);
 		write(filled.data(), filled.size());
 	}

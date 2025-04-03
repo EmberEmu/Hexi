@@ -307,7 +307,7 @@ public:
 	 * @param The byte value that will fill the specified number of bytes.
 	 */
 	template<size_type size>
-	void fill(const std::uint8_t value) requires writeable<buf_type> {
+	constexpr void fill(const std::uint8_t value) requires writeable<buf_type> {
 		const auto filled = generate_filled<size>(value);
 		write(filled.data(), filled.size());
 	}
