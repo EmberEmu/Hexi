@@ -772,7 +772,7 @@ TEST(binary_stream, std_array) {
 	stream << input;
 	stream >> output;
 	ASSERT_TRUE(stream.empty());
-	//ASSERT_TRUE(stream);
+	ASSERT_TRUE(stream);
 	ASSERT_EQ(input, output);
 }
 
