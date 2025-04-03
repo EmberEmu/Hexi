@@ -161,12 +161,19 @@ public:
 
 	/*** Write ***/
 
-	void serialise(auto&& object) {
+	void serialise(auto&& object) requires writeable<buf_type> {
 		stream_write_adaptor adaptor(*this);
 		object.serialise(adaptor);
 	}
 
-	binary_stream& operator <<(has_shl_override<binary_stream> auto&& data)
+	template<typename T>
+	requires has_serialise<T, stream_write_adaptor<binary_stream>>
+	binary_stream& operator<<(T& data) requires writeable<buf_type> {
+		serialise(data);
+		return *this;
+	}
+
+	binary_stream& operator<<(const has_shl_override<binary_stream> auto& data)
 	requires writeable<buf_type> {
 		return data.operator<<(*this);
 	}
@@ -237,10 +244,28 @@ public:
 		return (*this << prefixed(string));
 	}
 
-	binary_stream& operator <<(const char* data) requires writeable<buf_type> {
+	binary_stream& operator<<(const char* data) requires writeable<buf_type> {
 		assert(data);
 		const auto len = std::strlen(data);
 		write(data, len + 1); // include terminator
+		return *this;
+	}
+
+	template<std::ranges::contiguous_range range>
+	requires pod<typename range::value_type>
+	binary_stream& operator <<(const range& data) requires writeable<buf_type> {
+		const auto write_size = data.size() * sizeof(typename range::value_type);
+		write(data.data(), write_size);
+		return *this;
+	}
+
+	template<is_iterable T>
+	requires (!pod<typename T::value_type> || !std::ranges::contiguous_range<T>)
+	binary_stream& operator<<(T& data) requires writeable<buf_type> {
+		for(auto& element : data) {
+           *this << element;
+        }
+
 		return *this;
 	}
 
@@ -317,6 +342,12 @@ public:
 	void deserialise(auto& object) {
 		stream_read_adaptor adaptor(*this);
 		object.serialise(adaptor);
+	}
+
+	binary_stream& operator>>(has_serialise<stream_read_adaptor<binary_stream>> auto& data)
+	requires writeable<buf_type> {
+		deserialise(data);
+		return *this;
 	}
 
 	binary_stream& operator>>(prefixed<std::string> adaptor) {

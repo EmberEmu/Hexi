@@ -9,6 +9,7 @@
 #include <hexi/shared.h>
 #include <bit>
 #include <concepts>
+#include <ranges>
 #include <type_traits>
 
 namespace hexi {
@@ -75,6 +76,18 @@ template<typename T, typename U>
 concept has_shr_override =
 	requires(T t, U& u) {
 		{ t.operator>>(u) } -> std::same_as<U&>;
+};
+
+template<typename T, typename U>
+concept has_serialise =
+	requires(T t, U& u) {
+		{ t.serialise(u) } -> std::same_as<void>;
+};
+
+template<typename T>
+concept is_iterable =
+	requires(T t) {
+		t.begin(); t.end();
 };
 
 } // hexi

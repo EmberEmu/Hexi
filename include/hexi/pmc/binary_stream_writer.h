@@ -63,6 +63,13 @@ public:
 		return data.operator<<(*this);
 	}
 
+	template<typename T>
+	requires has_serialise<T, stream_write_adaptor<binary_stream_writer>>
+	binary_stream_writer& operator<<(T& data) {
+		serialise(data);
+		return *this;
+	}
+
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream_writer& operator<<(endian_func adaptor) {
 		const auto converted = adaptor.to();
@@ -132,6 +139,24 @@ public:
 		return *this;
 	}
 
+	template<std::ranges::contiguous_range range>
+	requires pod<typename range::value_type>
+	binary_stream_writer& operator <<(const range& data) {
+		const auto write_size = data.size() * sizeof(typename range::value_type);
+		write(data.data(), write_size);
+		return *this;
+	}
+
+	template<is_iterable T>
+	requires (!pod<typename T::value_type> || !std::ranges::contiguous_range<T>)
+	binary_stream_writer& operator<<(T& data) {
+		for(auto& element : data) {
+			*this << element;
+		}
+
+		return *this;
+	}
+
 	/**
 	 * @brief Writes a contiguous range to the stream.
 	 * 
@@ -195,7 +220,7 @@ public:
 	 * @param The byte value that will fill the specified number of bytes.
 	 */
 	template<std::size_t size>
-	constexpr void fill(const std::uint8_t value) {
+	void fill(const std::uint8_t value) {
 		const auto filled = generate_filled<size>(value);
 		write(filled.data(), filled.size());
 	}

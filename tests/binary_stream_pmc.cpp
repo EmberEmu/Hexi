@@ -11,8 +11,11 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <list>
 #include <numeric>
 #include <random>
+#include <set>
+#include <vector>
 #include <cstdint>
 #include <cstdlib>
 
@@ -579,4 +582,67 @@ TEST(binary_stream_pmc, experimental_serialise) {
 	ASSERT_EQ(stream.size(), 0);
 	ASSERT_TRUE(stream);
 	ASSERT_EQ(input, output);
+}
+
+namespace {
+
+struct Complex {
+	std::string str = "Hello, world!";
+	std::vector<int> vec { 1, 2, 3, 4, 5 };
+	std::list<int> list { 6, 7, 8, 9, 10 };
+	std::set<int> set { 11, 12, 13, 14, 15 };
+
+	void serialise(auto& stream) {
+		stream(str, vec, list, set);
+	}
+};
+
+}
+
+TEST(binary_stream_pmc, iterable_containers) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+
+	std::vector primitives { 1, 2, 3, 4, 5 };
+	stream << primitives;
+	ASSERT_EQ(primitives.size() * sizeof(int), stream.total_write());
+	ASSERT_EQ(primitives.size() * sizeof(int), adaptor.size());
+	ASSERT_EQ(primitives.size() * sizeof(int), buffer.size());
+
+	std::vector<std::string> strings { "hello, ", "world!" };
+	stream << strings;
+
+	ASSERT_EQ(stream.get<int>(), 1);
+	ASSERT_EQ(stream.get<int>(), 2);
+	ASSERT_EQ(stream.get<int>(), 3);
+	ASSERT_EQ(stream.get<int>(), 4);
+	ASSERT_EQ(stream.get<int>(), 5);
+
+	std::string hello, world;
+	stream >> hello >> world;
+	ASSERT_EQ(hello, "hello, ");
+	ASSERT_EQ(world, "world!");
+
+	Complex obj_in;
+	stream << obj_in;
+
+	std::string out;
+	stream >> out;
+	ASSERT_EQ(obj_in.str, out);
+	ASSERT_EQ(stream.get<int>(), 1);
+	ASSERT_EQ(stream.get<int>(), 2);
+	ASSERT_EQ(stream.get<int>(), 3);
+	ASSERT_EQ(stream.get<int>(), 4);
+	ASSERT_EQ(stream.get<int>(), 5);
+	ASSERT_EQ(stream.get<int>(), 6);
+	ASSERT_EQ(stream.get<int>(), 7);
+	ASSERT_EQ(stream.get<int>(), 8);
+	ASSERT_EQ(stream.get<int>(), 9);
+	ASSERT_EQ(stream.get<int>(), 10);
+	ASSERT_EQ(stream.get<int>(), 11);
+	ASSERT_EQ(stream.get<int>(), 12);
+	ASSERT_EQ(stream.get<int>(), 13);
+	ASSERT_EQ(stream.get<int>(), 14);
+	ASSERT_EQ(stream.get<int>(), 15);
 }

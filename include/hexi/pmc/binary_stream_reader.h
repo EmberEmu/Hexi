@@ -78,6 +78,11 @@ public:
 		object.serialise(adaptor);
 	}
 
+	binary_stream_reader& operator>>(has_serialise<binary_stream_reader> auto& data) {
+		deserialise(data);
+		return *this;
+	}
+
 	binary_stream_reader& operator>>(prefixed<std::string> adaptor) {
 		std::uint32_t size = 0;
 		*this >> endian::le(size);

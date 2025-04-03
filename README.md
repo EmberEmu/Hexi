@@ -174,7 +174,7 @@ struct LoginPacket {
     }
 };
 
-// an example of a packet that can serialise and deserialise with one function
+// an example of a packet that can serialise and deserialise with the same function
 struct LogoutPacket {
     std::string username;
     std::uint32_t user_id;
@@ -242,10 +242,14 @@ auto handle_logout_packet(std::span<const char> buffer) {
     hexi::binary_stream stream(adaptor, hexi::endian::little);
 
     LogoutPacket packet;
-    stream.deserialise(packet); // stream.serialise(packet) would do the opposite
+    stream << packet;
 
     /**
-     * alternative method:
+     * alternative methods:
+	 * stream.serialise(packet);
+	 *
+	 * or:
+	 *
      * hexi::stream_read_adaptor adaptor(stream);
      * packet.serialise(adaptor);
      */ 

@@ -166,6 +166,7 @@ static inline bool region_overlap(const void* src, std::size_t src_len, const vo
 
 #include <bit>
 #include <concepts>
+#include <ranges>
 #include <type_traits>
 
 namespace hexi {
@@ -232,6 +233,18 @@ template<typename T, typename U>
 concept has_shr_override =
 	requires(T t, U& u) {
 		{ t.operator>>(u) } -> std::same_as<U&>;
+};
+
+template<typename T, typename U>
+concept has_serialise =
+	requires(T t, U& u) {
+		{ t.serialise(u) } -> std::same_as<void>;
+};
+
+template<typename T>
+concept is_iterable =
+	requires(T t) {
+		t.begin(); t.end();
 };
 
 } // hexi
@@ -692,12 +705,19 @@ public:
 
 	/*** Write ***/
 
-	void serialise(auto&& object) {
+	void serialise(auto&& object) requires writeable<buf_type> {
 		stream_write_adaptor adaptor(*this);
 		object.serialise(adaptor);
 	}
 
-	binary_stream& operator <<(has_shl_override<binary_stream> auto&& data)
+	template<typename T>
+	requires has_serialise<T, stream_write_adaptor<binary_stream>>
+	binary_stream& operator<<(T& data) requires writeable<buf_type> {
+		serialise(data);
+		return *this;
+	}
+
+	binary_stream& operator<<(const has_shl_override<binary_stream> auto& data)
 	requires writeable<buf_type> {
 		return data.operator<<(*this);
 	}
@@ -732,7 +752,7 @@ public:
 
 	template<typename T>
 	binary_stream& operator<<(prefixed_varint<T> adaptor) requires writeable<buf_type> {
-		const auto encode_len = varint_encode(*this, adaptor->size());
+		varint_encode(*this, adaptor->size());
 		write(adaptor->data(), adaptor->size());
 		return *this;
 	}
@@ -768,10 +788,28 @@ public:
 		return (*this << prefixed(string));
 	}
 
-	binary_stream& operator <<(const char* data) requires writeable<buf_type> {
+	binary_stream& operator<<(const char* data) requires writeable<buf_type> {
 		assert(data);
 		const auto len = std::strlen(data);
 		write(data, len + 1); // include terminator
+		return *this;
+	}
+
+	template<std::ranges::contiguous_range range>
+	requires pod<typename range::value_type>
+	binary_stream& operator <<(const range& data) requires writeable<buf_type> {
+		const auto write_size = data.size() * sizeof(typename range::value_type);
+		write(data.data(), write_size);
+		return *this;
+	}
+
+	template<is_iterable T>
+	requires (!pod<typename T::value_type> || !std::ranges::contiguous_range<T>)
+	binary_stream& operator<<(T& data) requires writeable<buf_type> {
+		for(auto& element : data) {
+           *this << element;
+        }
+
 		return *this;
 	}
 
@@ -838,7 +876,7 @@ public:
 	 * @param The byte value that will fill the specified number of bytes.
 	 */
 	template<size_type size>
-	void fill(const std::uint8_t value) requires writeable<buf_type> {
+	constexpr void fill(const std::uint8_t value) requires writeable<buf_type> {
 		const auto filled = generate_filled<size>(value);
 		write(filled.data(), filled.size());
 	}
@@ -848,6 +886,12 @@ public:
 	void deserialise(auto& object) {
 		stream_read_adaptor adaptor(*this);
 		object.serialise(adaptor);
+	}
+
+	binary_stream& operator>>(has_serialise<stream_read_adaptor<binary_stream>> auto& data)
+	requires writeable<buf_type> {
+		deserialise(data);
+		return *this;
 	}
 
 	binary_stream& operator>>(prefixed<std::string> adaptor) {
@@ -888,7 +932,7 @@ public:
 			return *this;
 		}
 
-		STREAM_READ_BOUNDS_ENFORCE(size, *this); // include null terminator
+		STREAM_READ_BOUNDS_ENFORCE(size, *this);
 
 		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
 			buffer_.read(strbuf, size);
@@ -983,7 +1027,7 @@ public:
 	template<arithmetic T>
 	T get() {
 		T t{};
-		SAFE_READ(&t, sizeof(T), void());
+		SAFE_READ(&t, sizeof(T), t);
 		return t;
 	}
 
@@ -1008,7 +1052,7 @@ public:
 	template<arithmetic T, endian::conversion conversion>
 	T get() {
 		T t{};
-		SAFE_READ(&t, sizeof(T), void());
+		SAFE_READ(&t, sizeof(T), t);
 		return endian::convert<conversion>(t);
 	}
 
@@ -4153,6 +4197,11 @@ public:
 		object.serialise(adaptor);
 	}
 
+	binary_stream_reader& operator>>(has_serialise<binary_stream_reader> auto& data) {
+		deserialise(data);
+		return *this;
+	}
+
 	binary_stream_reader& operator>>(prefixed<std::string> adaptor) {
 		std::uint32_t size = 0;
 		*this >> endian::le(size);
@@ -4473,6 +4522,13 @@ public:
 		return data.operator<<(*this);
 	}
 
+	template<typename T>
+	requires has_serialise<T, stream_write_adaptor<binary_stream_writer>>
+	binary_stream_writer& operator<<(T& data) {
+		serialise(data);
+		return *this;
+	}
+
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream_writer& operator<<(endian_func adaptor) {
 		const auto converted = adaptor.to();
@@ -4498,7 +4554,7 @@ public:
 
 	template<typename T>
 	binary_stream_writer& operator<<(prefixed_varint<T> adaptor) {
-		const auto encode_len = varint_encode(*this, adaptor->size());
+		varint_encode(*this, adaptor->size());
 		write(adaptor->data(), adaptor->size());
 		return *this;
 	}
@@ -4539,6 +4595,24 @@ public:
 		assert(data);
 		const auto len = std::strlen(data);
 		write(data, len + 1); // include terminator
+		return *this;
+	}
+
+	template<std::ranges::contiguous_range range>
+	requires pod<typename range::value_type>
+	binary_stream_writer& operator <<(const range& data) {
+		const auto write_size = data.size() * sizeof(typename range::value_type);
+		write(data.data(), write_size);
+		return *this;
+	}
+
+	template<is_iterable T>
+	requires (!pod<typename T::value_type> || !std::ranges::contiguous_range<T>)
+	binary_stream_writer& operator<<(T& data) {
+		for(auto& element : data) {
+			*this << element;
+		}
+
 		return *this;
 	}
 
