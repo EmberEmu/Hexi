@@ -1077,3 +1077,12 @@ TEST(binary_stream, prefixed_containers) {
 	EXPECT_EQ(objects.size(), output_objs.size());
 	ASSERT_EQ(objects, output_objs);
 }
+
+TEST(binary_stream, std_array_size) {
+	std::array<char, 16> buffer;
+	hexi::buffer_adaptor adaptor(buffer, hexi::init_empty);
+	hexi::binary_stream stream(adaptor);
+	ASSERT_TRUE(adaptor.empty());
+	ASSERT_EQ(adaptor.size(), 0);
+	ASSERT_EQ(stream.size(), 0);
+}

@@ -317,7 +317,6 @@ concept memcpy_read =
 		&& !has_shr_override<typename T::value_type, U>
 		&& !has_deserialise<typename T::value_type, U>;
 
-
 template<typename T, typename U>
 concept memcpy_write =
 	pod<typename T::value_type> && std::ranges::contiguous_range<T>
@@ -661,7 +660,7 @@ private:
 
 	template<typename T>
 	inline void advance_write(T&& arg) {
-		total_write_ += sizeof(std::decay_t<T>);
+		total_write_ += sizeof(T);
 	}
 
 	template<typename T, typename U>
@@ -1603,7 +1602,7 @@ public:
 	 * @return The number of bytes of data available to read within the container.
 	 */
 	size_type size() const {
-		return buffer_.size() - read_;
+		return write_ - read_;
 	}
 
 	/**
@@ -1887,6 +1886,10 @@ friend class const_iterator;
 namespace hexi::pmc {
 
 class buffer_base {
+protected:
+	std::size_t read_ = 0;
+	std::size_t write_ = 0;
+
 public:
 	virtual std::size_t size() const = 0;
 	virtual bool empty() const = 0;
@@ -5000,12 +5003,10 @@ template<byte_oriented buf_type>
 requires std::ranges::contiguous_range<buf_type>
 class buffer_read_adaptor : public buffer_read {
 	buf_type& buffer_;
-	std::size_t read_;
 
 public:
 	buffer_read_adaptor(buf_type& buffer)
-		: buffer_(buffer),
-		  read_(0) {}
+		: buffer_(buffer) {}
 
 	/**
 	 * @brief Reads a number of bytes to the provided buffer.
@@ -5071,7 +5072,7 @@ public:
 	 * @return The number of bytes of data available to read within the stream.
 	 */
 	std::size_t size() const override {
-		return buffer_.size() - read_;
+		return write_ - read_;
 	}
 
 	/**
@@ -5081,7 +5082,7 @@ public:
 	 */
 	[[nodiscard]]
 	bool empty() const override {
-		return !(buffer_.size() - read_);
+		return read_ == write_;
 	}
 
 	/**
@@ -5172,16 +5173,15 @@ template<byte_oriented buf_type>
 requires std::ranges::contiguous_range<buf_type>
 class buffer_write_adaptor : public buffer_write {
 	buf_type& buffer_;
-	std::size_t write_;
 
 public:
 	buffer_write_adaptor(buf_type& buffer)
-		: buffer_(buffer),
-		  write_(buffer.size()) {}
+		: buffer_(buffer) {
+		write_ = buffer.size();
+	}
 
 	buffer_write_adaptor(buf_type& buffer, init_empty_t)
-		: buffer_(buffer),
-		  write_(0) {}
+		: buffer_(buffer) {}
 
 	/**
 	 * @brief Write data to the container.

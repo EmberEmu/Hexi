@@ -98,7 +98,7 @@ private:
 
 	template<typename T>
 	inline void advance_write(T&& arg) {
-		total_write_ += sizeof(std::decay_t<T>);
+		total_write_ += sizeof(T);
 	}
 
 	template<typename T, typename U>

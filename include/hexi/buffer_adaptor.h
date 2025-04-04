@@ -183,7 +183,7 @@ public:
 	 * @return The number of bytes of data available to read within the container.
 	 */
 	size_type size() const {
-		return buffer_.size() - read_;
+		return write_ - read_;
 	}
 
 	/**
