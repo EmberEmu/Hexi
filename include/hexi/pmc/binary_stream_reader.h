@@ -55,16 +55,18 @@ class binary_stream_reader : virtual public stream_base {
 
 	template<typename container_type, typename count_type>
 	void read_container(container_type& container, const count_type count) {
+		using c_value_type = typename container_type::value_type;
+
 		container.clear();
 
-		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
+		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
 			container.resize(count);
 
-			const auto bytes = count * sizeof(typename container_type::value_type);
+			const auto bytes = count * sizeof(c_value_type);
 			read(container.data(), bytes);
 		} else {
 			for(count_type i = 0; i < count; ++i) {
-				typename container_type::value_type value;
+				c_value_type value;
 				*this >> value;
 				container.emplace_back(std::move(value));
 			}
@@ -159,11 +161,11 @@ public:
 	}
 
 	binary_stream_reader& operator >>(std::string& data) {
-		return (*this >> prefixed(data));
+		return *this >> prefixed(data);
 	}
 
 	binary_stream_reader& operator>>(has_shr_override<binary_stream_reader> auto&& data) {
-		return data.operator>>(*this);
+		return *this >> data;
 	}
 
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
