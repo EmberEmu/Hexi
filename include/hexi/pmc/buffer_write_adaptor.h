@@ -23,16 +23,15 @@ template<byte_oriented buf_type>
 requires std::ranges::contiguous_range<buf_type>
 class buffer_write_adaptor : public buffer_write {
 	buf_type& buffer_;
-	std::size_t write_;
 
 public:
 	buffer_write_adaptor(buf_type& buffer)
-		: buffer_(buffer),
-		  write_(buffer.size()) {}
+		: buffer_(buffer) {
+		write_ = buffer.size();
+	}
 
 	buffer_write_adaptor(buf_type& buffer, init_empty_t)
-		: buffer_(buffer),
-		  write_(0) {}
+		: buffer_(buffer) {}
 
 	/**
 	 * @brief Write data to the container.

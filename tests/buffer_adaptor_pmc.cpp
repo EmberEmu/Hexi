@@ -41,6 +41,7 @@ TEST(buffer_adaptor_pmc, resize_match) {
 	hexi::pmc::buffer_adaptor adaptor(buffer);
 	ASSERT_EQ(adaptor.size(), buffer.size());
 	buffer.emplace_back(6);
+	adaptor.advance_write(1);
 	ASSERT_EQ(adaptor.size(), buffer.size());
 }
 

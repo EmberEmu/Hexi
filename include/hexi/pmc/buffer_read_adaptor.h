@@ -24,12 +24,10 @@ template<byte_oriented buf_type>
 requires std::ranges::contiguous_range<buf_type>
 class buffer_read_adaptor : public buffer_read {
 	buf_type& buffer_;
-	std::size_t read_;
 
 public:
 	buffer_read_adaptor(buf_type& buffer)
-		: buffer_(buffer),
-		  read_(0) {}
+		: buffer_(buffer) {}
 
 	/**
 	 * @brief Reads a number of bytes to the provided buffer.
@@ -95,7 +93,7 @@ public:
 	 * @return The number of bytes of data available to read within the stream.
 	 */
 	std::size_t size() const override {
-		return buffer_.size() - read_;
+		return write_ - read_;
 	}
 
 	/**
@@ -105,7 +103,7 @@ public:
 	 */
 	[[nodiscard]]
 	bool empty() const override {
-		return !(buffer_.size() - read_);
+		return read_ == write_;
 	}
 
 	/**

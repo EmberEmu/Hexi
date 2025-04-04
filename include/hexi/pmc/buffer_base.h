@@ -11,6 +11,10 @@
 namespace hexi::pmc {
 
 class buffer_base {
+protected:
+	std::size_t read_ = 0;
+	std::size_t write_ = 0;
+
 public:
 	virtual std::size_t size() const = 0;
 	virtual bool empty() const = 0;
