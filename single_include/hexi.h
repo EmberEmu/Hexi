@@ -669,7 +669,7 @@ private:
 	template<typename container_type>
 	void write_container(container_type& container) {
 		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
-			const auto bytes = container.size() * sizeof(container_type::value_type);
+			const auto bytes = container.size() * sizeof(typename container_type::value_type);
 			write(container.data(), static_cast<size_type>(bytes));
 		} else {
 			for(auto& element : container) {
@@ -4252,7 +4252,7 @@ class binary_stream_reader : virtual public stream_base {
 		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
 			container.resize(count);
 
-			const auto bytes = count * sizeof(container_type::value_type);
+			const auto bytes = count * sizeof(typename container_type::value_type);
 			read(container.data(), bytes);
 		} else {
 			for(count_type i = 0; i < count; ++i) {
@@ -4610,7 +4610,7 @@ class binary_stream_writer : virtual public stream_base {
 	template<typename container_type>
 	void write_container(container_type& container) {
 		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
-			const auto bytes = container.size() * sizeof(container_type::value_type);
+			const auto bytes = container.size() * sizeof(typename container_type::value_type);
 			write(container.data(), bytes);
 		} else {
 			for(auto& element : container) {

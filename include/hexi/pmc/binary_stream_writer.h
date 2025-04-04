@@ -39,7 +39,7 @@ class binary_stream_writer : virtual public stream_base {
 	template<typename container_type>
 	void write_container(container_type& container) {
 		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
-			const auto bytes = container.size() * sizeof(container_type::value_type);
+			const auto bytes = container.size() * sizeof(typename container_type::value_type);
 			write(container.data(), bytes);
 		} else {
 			for(auto& element : container) {
