@@ -685,7 +685,7 @@ private:
 		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
 			container.resize(count);
 
-			const auto bytes = static_cast<size_type>(count * sizeof(container_type::value_type));
+			const auto bytes = static_cast<size_type>(count * sizeof(typename container_type::value_type));
 			SAFE_READ(container.data(), bytes, void());
 		} else {
 			for(count_type i = 0; i < count; ++i) {
