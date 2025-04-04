@@ -49,6 +49,7 @@ class binary_stream_writer : virtual public stream_base {
 			}
 		}
 	}
+
 public:
 	explicit binary_stream_writer(buffer_write& source)
 		: stream_base(source),

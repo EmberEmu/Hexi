@@ -233,7 +233,8 @@ public:
 	}
 
 	template<typename T>
-	requires std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>
+	requires std::is_same_v<std::decay_t<T>, std::string>
+		|| std::is_same_v<std::decay_t<T>, std::string_view>
 	binary_stream& operator<<(prefixed<T> adaptor) requires writeable<buf_type> {
 		const auto size = static_cast<std::uint32_t>(adaptor->size());
 		write(endian::native_to_little(size));
@@ -242,7 +243,8 @@ public:
 	}
 
 	template<typename T>
-	requires std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>
+	requires std::is_same_v<std::decay_t<T>, std::string>
+		|| std::is_same_v<std::decay_t<T>, std::string_view>
 	binary_stream& operator<<(prefixed_varint<T> adaptor) requires writeable<buf_type> {
 		varint_encode(*this, adaptor->size());
 		write(adaptor->data(), adaptor->size());
