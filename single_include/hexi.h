@@ -668,8 +668,10 @@ private:
 
 	template<typename container_type>
 	void write_container(container_type& container) {
-		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
-			const auto bytes = container.size() * sizeof(typename container_type::value_type);
+		using c_value_type = typename container_type::value_type;
+
+		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
+			const auto bytes = container.size() * sizeof(c_value_type);
 			write(container.data(), static_cast<size_type>(bytes));
 		} else {
 			for(auto& element : container) {
@@ -680,16 +682,18 @@ private:
 
 	template<typename container_type, typename count_type>
 	void read_container(container_type& container, const count_type count) {
+		using c_value_type = typename container_type::value_type;
+
 		container.clear();
 
-		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
+		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
 			container.resize(count);
 
-			const auto bytes = static_cast<size_type>(count * sizeof(typename container_type::value_type));
+			const auto bytes = static_cast<size_type>(count * sizeof(c_value_type));
 			SAFE_READ(container.data(), bytes, void());
 		} else {
 			for(count_type i = 0; i < count; ++i) {
-				typename container_type::value_type value;
+				c_value_type value;
 				*this >> value;
 				container.emplace_back(std::move(value));
 			}
@@ -749,7 +753,7 @@ public:
 
 	binary_stream& operator<<(const has_shl_override<binary_stream> auto& data)
 	requires writeable<buf_type> {
-		return data.operator<<(*this);
+		return *this << data;
 	}
 
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
@@ -813,11 +817,11 @@ public:
 	}
 
 	binary_stream& operator<<(std::string_view string) requires writeable<buf_type> {
-		return (*this << prefixed(string));
+		return *this << prefixed(string);
 	}
 
 	binary_stream& operator<<(const std::string& string) requires writeable<buf_type> {
-		return (*this << prefixed(string));
+		return *this << prefixed(string);
 	}
 
 	binary_stream& operator<<(const char* data) requires writeable<buf_type> {
@@ -1032,15 +1036,15 @@ public:
 	}
 
 	binary_stream& operator >>(std::string_view& data) {
-		return (*this >> prefixed(data));
+		return *this >> prefixed(data);
 	}
 
 	binary_stream& operator >>(std::string& data) {
-		return (*this >> prefixed(data));
+		return *this >> prefixed(data);
 	}
 
 	binary_stream& operator>>(has_shr_override<binary_stream> auto&& data) {
-		return data.operator>>(*this);
+		return *this >> data;
 	}
 
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
@@ -1539,7 +1543,7 @@ public:
 		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
 		const auto min_req_size = write_ + length;
 
-		if(buffer_.size() < min_req_size) {
+		if(buffer_.size() < min_req_size) [[unlikely]] {
 			if constexpr(has_resize_overwrite<buf_type>) {
 				buffer_.resize_and_overwrite(min_req_size, [](char*, size_type size) {
 					return size;
@@ -4247,16 +4251,18 @@ class binary_stream_reader : virtual public stream_base {
 
 	template<typename container_type, typename count_type>
 	void read_container(container_type& container, const count_type count) {
+		using c_value_type = typename container_type::value_type;
+
 		container.clear();
 
-		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
+		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
 			container.resize(count);
 
-			const auto bytes = count * sizeof(typename container_type::value_type);
+			const auto bytes = count * sizeof(c_value_type);
 			read(container.data(), bytes);
 		} else {
 			for(count_type i = 0; i < count; ++i) {
-				typename container_type::value_type value;
+				c_value_type value;
 				*this >> value;
 				container.emplace_back(std::move(value));
 			}
@@ -4351,11 +4357,11 @@ public:
 	}
 
 	binary_stream_reader& operator >>(std::string& data) {
-		return (*this >> prefixed(data));
+		return *this >> prefixed(data);
 	}
 
 	binary_stream_reader& operator>>(has_shr_override<binary_stream_reader> auto&& data) {
-		return data.operator>>(*this);
+		return *this >> data;
 	}
 
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
@@ -4609,8 +4615,10 @@ class binary_stream_writer : virtual public stream_base {
 
 	template<typename container_type>
 	void write_container(container_type& container) {
-		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
-			const auto bytes = container.size() * sizeof(typename container_type::value_type);
+		using c_value_type = typename container_type::value_type;
+
+		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
+			const auto bytes = container.size() * sizeof(c_value_type);
 			write(container.data(), bytes);
 		} else {
 			for(auto& element : container) {
@@ -4642,7 +4650,7 @@ public:
 	}
 
 	binary_stream_writer& operator<<(has_shl_override<binary_stream_writer> auto&& data) {
-		return data.operator<<(*this);
+		return *this << data;
 	}
 
 	template<typename T>
@@ -4707,11 +4715,11 @@ public:
 	}
 
 	binary_stream_writer& operator<<(std::string_view string) {
-		return (*this << prefixed(string));
+		return *this << prefixed(string);
 	}
 
 	binary_stream_writer& operator<<(const std::string& string) {
-		return (*this << prefixed(string));
+		return *this << prefixed(string);
 	}
 
 	binary_stream_writer& operator<<(const char* data) {
@@ -4740,7 +4748,8 @@ public:
 	}
 
 	template<is_iterable T>
-	requires (!std::is_same_v<std::decay_t<T>, std::string> && !std::is_same_v<std::decay_t<T>, std::string_view>)
+	requires (!std::is_same_v<std::decay_t<T>, std::string>
+		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
 	binary_stream_writer& operator<<(prefixed<T> adaptor) {
 		const auto count = endian::native_to_little(static_cast<std::uint32_t>(adaptor->size()));
 		write(&count, sizeof(count));
@@ -4749,7 +4758,8 @@ public:
 	}
 
 	template<is_iterable T>
-	requires (!std::is_same_v<std::decay_t<T>, std::string> && !std::is_same_v<std::decay_t<T>, std::string_view>)
+	requires (!std::is_same_v<std::decay_t<T>, std::string>
+		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
 	binary_stream_writer& operator<<(prefixed_varint<T> adaptor) {
 		varint_encode(*this, adaptor->size());
 		write(adaptor->data(), adaptor->size());
@@ -5173,11 +5183,11 @@ public:
 		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
 		const auto min_req_size = write_ + length;
 
-		if(buffer_.size() < min_req_size) {
+		if(buffer_.size() < min_req_size) [[unlikely]] {
 			if constexpr(has_resize_overwrite<buf_type>) {
 				buffer_.resize_and_overwrite(min_req_size, [](char*, std::size_t size) {
 					return size;
-											 });
+				});
 			} else if constexpr(has_resize<buf_type>) {
 				buffer_.resize(min_req_size);
 			} else {
