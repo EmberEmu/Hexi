@@ -59,7 +59,11 @@ class binary_stream_reader : virtual public stream_base {
 
 		container.clear();
 
-		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
+		// if this is a POD, a contiguous range and does not provide any user-defined
+		// serialisation functions, then we'll just memcpy it
+		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>
+			&& !has_shr_override<c_value_type, binary_stream_reader>
+		    && !has_serialise<c_value_type, stream_read_adaptor<binary_stream_reader>>) {
 			container.resize(count);
 
 			const auto bytes = count * sizeof(c_value_type);

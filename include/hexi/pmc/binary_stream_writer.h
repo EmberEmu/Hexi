@@ -40,7 +40,11 @@ class binary_stream_writer : virtual public stream_base {
 	void write_container(container_type& container) {
 		using c_value_type = typename container_type::value_type;
 
-		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
+		// if this is a POD, a contiguous range and does not provide any user-defined
+		// serialisation functions, then we'll just memcpy it
+		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>
+			&& !has_shl_override<c_value_type, binary_stream_writer>
+			&& !has_serialise<c_value_type, stream_write_adaptor<binary_stream_writer>>) {
 			const auto bytes = container.size() * sizeof(c_value_type);
 			write(container.data(), bytes);
 		} else {
