@@ -23,8 +23,6 @@
 #include <cstdint>
 #include <cstring>
 
-#include <iostream>
-
 namespace hexi {
 
 using namespace detail;
