@@ -59,8 +59,6 @@ class binary_stream_reader : virtual public stream_base {
 
 		container.clear();
 
-		// if this is a POD, a contiguous range and does not provide any user-defined
-		// serialisation functions, then we'll just memcpy it
 		if constexpr(memcpy_read<container_type, binary_stream_reader>) {
 			container.resize(count);
 
