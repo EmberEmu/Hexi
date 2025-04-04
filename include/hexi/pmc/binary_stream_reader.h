@@ -59,7 +59,7 @@ class binary_stream_reader : virtual public stream_base {
 
 		container.clear();
 
-		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
+		if constexpr(memcpy_read<container_type, binary_stream_reader>) {
 			container.resize(count);
 
 			const auto bytes = count * sizeof(c_value_type);
@@ -99,7 +99,7 @@ public:
 	}
 
 	template<typename T>
-	requires has_serialise<T, stream_read_adaptor<binary_stream_reader>>
+	requires has_deserialise<T, binary_stream_reader>
 	binary_stream_reader& operator>>(T& data) {
 		deserialise(data);
 		return *this;

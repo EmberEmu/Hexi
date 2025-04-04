@@ -162,8 +162,66 @@ static inline bool region_overlap(const void* src, std::size_t src_len, const vo
 
 
 
-// #include <hexi/shared.h>
+// #include <hexi/stream_adaptors.h>
+//  _               _ 
+// | |__   _____  _(_)
+// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
+// | | | |  __/>  <| | Version 1.0
+// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
+
+
+#include <utility>
+
+namespace hexi {
+
+template<typename stream_type>
+class stream_read_adaptor final {
+	stream_type& _stream;
+
+public:
+	stream_read_adaptor(stream_type& stream) 
+		: _stream(stream) {}
+
+	void operator&(auto&& arg) {
+		_stream >> arg;
+	}
+
+	template<typename ...Ts>
+	void operator()(Ts&&... args) {
+		(_stream >> ... >> args);
+	}
+
+	template<typename ...Ts>
+	void forward(Ts&&... args) {
+		_stream.get(std::forward<Ts>(args)...);
+	}
+};
+
+template<typename stream_type>
+class stream_write_adaptor final {
+	stream_type& _stream;
+
+public:
+	stream_write_adaptor(stream_type& stream) 
+		: _stream(stream) {}
+
+	void operator&(auto&& arg) {
+		_stream << arg;
+	}
+
+	template<typename ...Ts>
+	void operator()(Ts&&... args) {
+		(_stream << ... << args);
+	}
+
+	template<typename ...Ts>
+	void forward(Ts&&... args) {
+		_stream.put(std::forward<Ts>(args)...);
+	}
+};
+
+} // hexi
 #include <bit>
 #include <concepts>
 #include <ranges>
@@ -237,7 +295,13 @@ concept has_shr_override =
 
 template<typename T, typename U>
 concept has_serialise =
-	requires(T t, U& u) {
+	requires(T t, stream_write_adaptor<U>& u) {
+		{ t.serialise(u) } -> std::same_as<void>;
+};
+
+template<typename T, typename U>
+concept has_deserialise =
+	requires(T t, stream_read_adaptor<U>& u) {
 		{ t.serialise(u) } -> std::same_as<void>;
 };
 
@@ -246,6 +310,19 @@ concept is_iterable =
 	requires(T t) {
 		t.begin(); t.end();
 };
+
+template<typename T, typename U>
+concept memcpy_read =
+	pod<typename T::value_type> && std::ranges::contiguous_range<T>
+		&& !has_shr_override<typename T::value_type, U>
+		&& !has_deserialise<typename T::value_type, U>;
+
+
+template<typename T, typename U>
+concept memcpy_write =
+	pod<typename T::value_type> && std::ranges::contiguous_range<T>
+		&& !has_shl_override<typename T::value_type, U>
+		&& !has_serialise<typename T::value_type, U>;
 
 } // hexi
 
@@ -496,65 +573,7 @@ inline void storage_out(arithmetic auto& value, as_big_t) {
 
 } // endian, hexi
 // #include <hexi/stream_adaptors.h>
-//  _               _ 
-// | |__   _____  _(_)
-// | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
-// |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
-
-
-#include <utility>
-
-namespace hexi {
-
-template<typename stream_type>
-class stream_read_adaptor final {
-	stream_type& _stream;
-
-public:
-	stream_read_adaptor(stream_type& stream) 
-		: _stream(stream) {}
-
-	void operator&(auto&& arg) {
-		_stream >> arg;
-	}
-
-	template<typename ...Ts>
-	void operator()(Ts&&... args) {
-		(_stream >> ... >> args);
-	}
-
-	template<typename ...Ts>
-	void forward(Ts&&... args) {
-		_stream.get(std::forward<Ts>(args)...);
-	}
-};
-
-template<typename stream_type>
-class stream_write_adaptor final {
-	stream_type& _stream;
-
-public:
-	stream_write_adaptor(stream_type& stream) 
-		: _stream(stream) {}
-
-	void operator&(auto&& arg) {
-		_stream << arg;
-	}
-
-	template<typename ...Ts>
-	void operator()(Ts&&... args) {
-		(_stream << ... << args);
-	}
-
-	template<typename ...Ts>
-	void forward(Ts&&... args) {
-		_stream.put(std::forward<Ts>(args)...);
-	}
-};
-
-} // hexi
 #include <concepts>
 #include <ranges>
 #include <span>
@@ -670,7 +689,7 @@ private:
 	void write_container(container_type& container) {
 		using c_value_type = typename container_type::value_type;
 
-		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
+		if constexpr(memcpy_write<container_type, binary_stream>) {
 			const auto bytes = container.size() * sizeof(c_value_type);
 			write(container.data(), static_cast<size_type>(bytes));
 		} else {
@@ -686,7 +705,7 @@ private:
 
 		container.clear();
 
-		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
+		if constexpr(memcpy_read<container_type, binary_stream>) {
 			container.resize(count);
 
 			const auto bytes = static_cast<size_type>(count * sizeof(c_value_type));
@@ -745,7 +764,7 @@ public:
 	}
 
 	template<typename T>
-	requires has_serialise<T, stream_write_adaptor<binary_stream>>
+	requires has_serialise<T, binary_stream>
 	binary_stream& operator<<(T& data) requires writeable<buf_type> {
 		serialise(data);
 		return *this;
@@ -945,7 +964,7 @@ public:
 	}
 
 	template<typename T>
-	requires has_serialise<T, stream_read_adaptor<binary_stream>>
+	requires has_deserialise<T, binary_stream>
 	binary_stream& operator>>(T& data) {
 		deserialise(data);
 		return *this;
@@ -4255,7 +4274,7 @@ class binary_stream_reader : virtual public stream_base {
 
 		container.clear();
 
-		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
+		if constexpr(memcpy_read<container_type, binary_stream_reader>) {
 			container.resize(count);
 
 			const auto bytes = count * sizeof(c_value_type);
@@ -4295,7 +4314,7 @@ public:
 	}
 
 	template<typename T>
-	requires has_serialise<T, stream_read_adaptor<binary_stream_reader>>
+	requires has_deserialise<T, binary_stream_reader>
 	binary_stream_reader& operator>>(T& data) {
 		deserialise(data);
 		return *this;
@@ -4617,7 +4636,7 @@ class binary_stream_writer : virtual public stream_base {
 	void write_container(container_type& container) {
 		using c_value_type = typename container_type::value_type;
 
-		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
+		if constexpr(memcpy_write<container_type, binary_stream_writer>) {
 			const auto bytes = container.size() * sizeof(c_value_type);
 			write(container.data(), bytes);
 		} else {
@@ -4654,7 +4673,7 @@ public:
 	}
 
 	template<typename T>
-	requires has_serialise<T, stream_write_adaptor<binary_stream_writer>>
+	requires has_serialise<T, binary_stream_writer>
 	binary_stream_writer& operator<<(T& data) {
 		serialise(data);
 		return *this;

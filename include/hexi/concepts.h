@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <hexi/shared.h>
+#include <hexi/stream_adaptors.h>
 #include <bit>
 #include <concepts>
 #include <ranges>
@@ -80,7 +80,13 @@ concept has_shr_override =
 
 template<typename T, typename U>
 concept has_serialise =
-	requires(T t, U& u) {
+	requires(T t, stream_write_adaptor<U>& u) {
+		{ t.serialise(u) } -> std::same_as<void>;
+};
+
+template<typename T, typename U>
+concept has_deserialise =
+	requires(T t, stream_read_adaptor<U>& u) {
 		{ t.serialise(u) } -> std::same_as<void>;
 };
 
@@ -89,5 +95,17 @@ concept is_iterable =
 	requires(T t) {
 		t.begin(); t.end();
 };
+
+template<typename T, typename U>
+concept memcpy_read =
+	pod<typename T::value_type> && std::ranges::contiguous_range<T>
+		&& !has_shr_override<typename T::value_type, U>
+		&& !has_deserialise<typename T::value_type, U>;
+
+template<typename T, typename U>
+concept memcpy_write =
+	pod<typename T::value_type> && std::ranges::contiguous_range<T>
+		&& !has_shl_override<typename T::value_type, U>
+		&& !has_serialise<typename T::value_type, U>;
 
 } // hexi

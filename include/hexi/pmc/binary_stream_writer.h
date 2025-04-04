@@ -40,7 +40,7 @@ class binary_stream_writer : virtual public stream_base {
 	void write_container(container_type& container) {
 		using c_value_type = typename container_type::value_type;
 
-		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
+		if constexpr(memcpy_write<container_type, binary_stream_writer>) {
 			const auto bytes = container.size() * sizeof(c_value_type);
 			write(container.data(), bytes);
 		} else {
@@ -77,7 +77,7 @@ public:
 	}
 
 	template<typename T>
-	requires has_serialise<T, stream_write_adaptor<binary_stream_writer>>
+	requires has_serialise<T, binary_stream_writer>
 	binary_stream_writer& operator<<(T& data) {
 		serialise(data);
 		return *this;
