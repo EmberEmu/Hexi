@@ -53,11 +53,11 @@ public:
 		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
 		const auto min_req_size = write_ + length;
 
-		if(buffer_.size() < min_req_size) {
+		if(buffer_.size() < min_req_size) [[unlikely]] {
 			if constexpr(has_resize_overwrite<buf_type>) {
 				buffer_.resize_and_overwrite(min_req_size, [](char*, std::size_t size) {
 					return size;
-											 });
+				});
 			} else if constexpr(has_resize<buf_type>) {
 				buffer_.resize(min_req_size);
 			} else {

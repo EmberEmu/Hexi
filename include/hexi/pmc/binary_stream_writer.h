@@ -38,8 +38,10 @@ class binary_stream_writer : virtual public stream_base {
 
 	template<typename container_type>
 	void write_container(container_type& container) {
-		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
-			const auto bytes = container.size() * sizeof(typename container_type::value_type);
+		using c_value_type = typename container_type::value_type;
+
+		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
+			const auto bytes = container.size() * sizeof(c_value_type);
 			write(container.data(), bytes);
 		} else {
 			for(auto& element : container) {
@@ -71,7 +73,7 @@ public:
 	}
 
 	binary_stream_writer& operator<<(has_shl_override<binary_stream_writer> auto&& data) {
-		return data.operator<<(*this);
+		return *this << data;
 	}
 
 	template<typename T>
@@ -136,11 +138,11 @@ public:
 	}
 
 	binary_stream_writer& operator<<(std::string_view string) {
-		return (*this << prefixed(string));
+		return *this << prefixed(string);
 	}
 
 	binary_stream_writer& operator<<(const std::string& string) {
-		return (*this << prefixed(string));
+		return *this << prefixed(string);
 	}
 
 	binary_stream_writer& operator<<(const char* data) {
@@ -169,7 +171,8 @@ public:
 	}
 
 	template<is_iterable T>
-	requires (!std::is_same_v<std::decay_t<T>, std::string> && !std::is_same_v<std::decay_t<T>, std::string_view>)
+	requires (!std::is_same_v<std::decay_t<T>, std::string>
+		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
 	binary_stream_writer& operator<<(prefixed<T> adaptor) {
 		const auto count = endian::native_to_little(static_cast<std::uint32_t>(adaptor->size()));
 		write(&count, sizeof(count));
@@ -178,7 +181,8 @@ public:
 	}
 
 	template<is_iterable T>
-	requires (!std::is_same_v<std::decay_t<T>, std::string> && !std::is_same_v<std::decay_t<T>, std::string_view>)
+	requires (!std::is_same_v<std::decay_t<T>, std::string>
+		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
 	binary_stream_writer& operator<<(prefixed_varint<T> adaptor) {
 		varint_encode(*this, adaptor->size());
 		write(adaptor->data(), adaptor->size());

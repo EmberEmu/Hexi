@@ -124,8 +124,10 @@ private:
 
 	template<typename container_type>
 	void write_container(container_type& container) {
-		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
-			const auto bytes = container.size() * sizeof(typename container_type::value_type);
+		using c_value_type = typename container_type::value_type;
+
+		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
+			const auto bytes = container.size() * sizeof(c_value_type);
 			write(container.data(), static_cast<size_type>(bytes));
 		} else {
 			for(auto& element : container) {
@@ -136,16 +138,18 @@ private:
 
 	template<typename container_type, typename count_type>
 	void read_container(container_type& container, const count_type count) {
+		using c_value_type = typename container_type::value_type;
+
 		container.clear();
 
-		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
+		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>) {
 			container.resize(count);
 
-			const auto bytes = static_cast<size_type>(count * sizeof(typename container_type::value_type));
+			const auto bytes = static_cast<size_type>(count * sizeof(c_value_type));
 			SAFE_READ(container.data(), bytes, void());
 		} else {
 			for(count_type i = 0; i < count; ++i) {
-				typename container_type::value_type value;
+				c_value_type value;
 				*this >> value;
 				container.emplace_back(std::move(value));
 			}
@@ -205,7 +209,7 @@ public:
 
 	binary_stream& operator<<(const has_shl_override<binary_stream> auto& data)
 	requires writeable<buf_type> {
-		return data.operator<<(*this);
+		return *this << data;
 	}
 
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
@@ -269,11 +273,11 @@ public:
 	}
 
 	binary_stream& operator<<(std::string_view string) requires writeable<buf_type> {
-		return (*this << prefixed(string));
+		return *this << prefixed(string);
 	}
 
 	binary_stream& operator<<(const std::string& string) requires writeable<buf_type> {
-		return (*this << prefixed(string));
+		return *this << prefixed(string);
 	}
 
 	binary_stream& operator<<(const char* data) requires writeable<buf_type> {
@@ -488,15 +492,15 @@ public:
 	}
 
 	binary_stream& operator >>(std::string_view& data) {
-		return (*this >> prefixed(data));
+		return *this >> prefixed(data);
 	}
 
 	binary_stream& operator >>(std::string& data) {
-		return (*this >> prefixed(data));
+		return *this >> prefixed(data);
 	}
 
 	binary_stream& operator>>(has_shr_override<binary_stream> auto&& data) {
-		return data.operator>>(*this);
+		return *this >> data;
 	}
 
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
