@@ -27,6 +27,11 @@ class buffer_read_adaptor : public buffer_read {
 
 public:
 	buffer_read_adaptor(buf_type& buffer)
+		: buffer_(buffer) {
+		write_ = buffer_.size();
+	}
+
+	buffer_read_adaptor(buf_type& buffer, init_empty_t)
 		: buffer_(buffer) {}
 
 	/**

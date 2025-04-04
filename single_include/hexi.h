@@ -795,7 +795,8 @@ public:
 	}
 
 	template<typename T>
-	requires std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>
+	requires std::is_same_v<std::decay_t<T>, std::string>
+		|| std::is_same_v<std::decay_t<T>, std::string_view>
 	binary_stream& operator<<(prefixed<T> adaptor) requires writeable<buf_type> {
 		const auto size = static_cast<std::uint32_t>(adaptor->size());
 		write(endian::native_to_little(size));
@@ -804,7 +805,8 @@ public:
 	}
 
 	template<typename T>
-	requires std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>
+	requires std::is_same_v<std::decay_t<T>, std::string>
+		|| std::is_same_v<std::decay_t<T>, std::string_view>
 	binary_stream& operator<<(prefixed_varint<T> adaptor) requires writeable<buf_type> {
 		varint_encode(*this, adaptor->size());
 		write(adaptor->data(), adaptor->size());
@@ -1561,7 +1563,7 @@ public:
 		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
 		const auto min_req_size = write_ + length;
 
-		if(buffer_.size() < min_req_size) [[unlikely]] {
+		if(buffer_.size() < min_req_size) [[likely]] {
 			if constexpr(has_resize_overwrite<buf_type>) {
 				buffer_.resize_and_overwrite(min_req_size, [](char*, size_type size) {
 					return size;
@@ -4648,6 +4650,7 @@ class binary_stream_writer : virtual public stream_base {
 			}
 		}
 	}
+
 public:
 	explicit binary_stream_writer(buffer_write& source)
 		: stream_base(source),
@@ -5006,6 +5009,11 @@ class buffer_read_adaptor : public buffer_read {
 
 public:
 	buffer_read_adaptor(buf_type& buffer)
+		: buffer_(buffer) {
+		write_ = buffer_.size();
+	}
+
+	buffer_read_adaptor(buf_type& buffer, init_empty_t)
 		: buffer_(buffer) {}
 
 	/**
@@ -5202,7 +5210,7 @@ public:
 		assert(source && !region_overlap(source, length, buffer_.data(), buffer_.size()));
 		const auto min_req_size = write_ + length;
 
-		if(buffer_.size() < min_req_size) [[unlikely]] {
+		if(buffer_.size() < min_req_size) [[likely]] {
 			if constexpr(has_resize_overwrite<buf_type>) {
 				buffer_.resize_and_overwrite(min_req_size, [](char*, std::size_t size) {
 					return size;
@@ -5346,7 +5354,7 @@ public:
 		  buffer_write_adaptor<buf_type>(buffer) {}
 
 	explicit buffer_adaptor(buf_type& buffer, init_empty_t)
-		: buffer_read_adaptor<buf_type>(buffer),
+		: buffer_read_adaptor<buf_type>(buffer, init_empty),
 		  buffer_write_adaptor<buf_type>(buffer, init_empty) {}
 
 	/**
