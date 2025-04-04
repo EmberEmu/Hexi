@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <limits>
 #include <list>
 #include <numeric>
 #include <random>

@@ -268,7 +268,7 @@ public:
 	 * @return Pointer to the location within the buffer where the next write
 	 * will be made.
 	 */
-	auto write_ptr() const  {
+	auto write_ptr() const {
 		return buffer_.data() + write_;
 	}
 
