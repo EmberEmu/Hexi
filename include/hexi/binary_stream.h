@@ -126,11 +126,7 @@ private:
 	void write_container(container_type& container) {
 		using c_value_type = typename container_type::value_type;
 
-		// if this is a POD, a contiguous range and does not provide any user-defined
-		// serialisation functions, then we'll just memcpy it
-		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>
-			&& !has_shl_override<c_value_type, binary_stream>
-			&& !has_serialise<c_value_type, stream_write_adaptor<binary_stream>>) {
+		if constexpr(memcpy_write<container_type, binary_stream>) {
 			const auto bytes = container.size() * sizeof(c_value_type);
 			write(container.data(), static_cast<size_type>(bytes));
 		} else {
@@ -146,11 +142,7 @@ private:
 
 		container.clear();
 
-		// if this is a POD, a contiguous range and does not provide any user-defined
-		// serialisation functions, then we'll just memcpy it
-		if constexpr(pod<c_value_type> && std::ranges::contiguous_range<container_type>
-			&& !has_shr_override<c_value_type, binary_stream>
-		    && !has_serialise<c_value_type, stream_read_adaptor<binary_stream>>) {
+		if constexpr(memcpy_read<container_type, binary_stream>) {
 			container.resize(count);
 
 			const auto bytes = static_cast<size_type>(count * sizeof(c_value_type));
@@ -209,7 +201,7 @@ public:
 	}
 
 	template<typename T>
-	requires has_serialise<T, stream_write_adaptor<binary_stream>>
+	requires has_serialise<T, binary_stream>
 	binary_stream& operator<<(T& data) requires writeable<buf_type> {
 		serialise(data);
 		return *this;
@@ -409,7 +401,7 @@ public:
 	}
 
 	template<typename T>
-	requires has_serialise<T, stream_read_adaptor<binary_stream>>
+	requires has_deserialise<T, binary_stream>
 	binary_stream& operator>>(T& data) {
 		deserialise(data);
 		return *this;
