@@ -666,3 +666,47 @@ TEST(binary_stream_pmc, iterable_containers) {
 	ASSERT_EQ(stream.get<int>(), 14);
 	ASSERT_EQ(stream.get<int>(), 15);
 }
+
+namespace {
+
+struct PrefixedContainers {
+	std::vector<int> vec;
+	std::list<int> list;
+
+	void serialise(auto& stream) {
+		stream & hexi::prefixed(vec);
+		stream & hexi::prefixed(list);
+	}
+
+	bool operator==(const PrefixedContainers& rhs) const {
+		return vec == rhs.vec && list == rhs.list;
+	}
+};
+
+}
+
+TEST(binary_stream_pmc, prefixed_containers) {
+	std::vector<char> buffer;
+	hexi::pmc::buffer_adaptor adaptor(buffer);
+	hexi::pmc::binary_stream stream(adaptor);
+
+	std::vector primitives { 1, 2, 3, 4, 5 };
+	stream << hexi::prefixed(primitives);
+
+	std::vector<int> output;
+	stream >> hexi::prefixed(output);
+	ASSERT_TRUE(std::ranges::equal(primitives, output));
+
+	std::vector<PrefixedContainers> objects;
+
+	for(int i = 0u; i < 5; ++i) {
+		objects.emplace_back(PrefixedContainers{ { 1 + i, 2 + i }, { 3 + i, 4 + i} });
+	}
+
+	stream << hexi::prefixed(objects);
+
+	std::vector<PrefixedContainers> output_objs;
+	stream >> hexi::prefixed(output_objs);
+	EXPECT_EQ(objects.size(), output_objs.size());
+	ASSERT_EQ(objects, output_objs);
+}
