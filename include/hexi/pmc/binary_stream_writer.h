@@ -36,6 +36,17 @@ class binary_stream_writer : virtual public stream_base {
 		}
 	}
 
+	template<typename container_type>
+	void write_container(container_type& container) {
+		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
+			const auto bytes = container.size() * sizeof(typename container_type::value_type);
+			write(container.data(), bytes);
+		} else {
+			for(auto& element : container) {
+				*this << element;
+			}
+		}
+	}
 public:
 	explicit binary_stream_writer(buffer_write& source)
 		: stream_base(source),
@@ -154,6 +165,24 @@ public:
 			*this << element;
 		}
 
+		return *this;
+	}
+
+	template<is_iterable T>
+	requires (!std::is_same_v<std::decay_t<T>, std::string> && !std::is_same_v<std::decay_t<T>, std::string_view>)
+	binary_stream_writer& operator<<(prefixed<T> adaptor) {
+		const auto count = endian::native_to_little(static_cast<std::uint32_t>(adaptor->size()));
+		write(&count, sizeof(count));
+		write_container(adaptor.str);
+		return *this;
+	}
+
+	template<is_iterable T>
+	requires (!std::is_same_v<std::decay_t<T>, std::string> && !std::is_same_v<std::decay_t<T>, std::string_view>)
+	binary_stream_writer& operator<<(prefixed_varint<T> adaptor) {
+		varint_encode(*this, adaptor->size());
+		write(adaptor->data(), adaptor->size());
+		write_container(adaptor.str);
 		return *this;
 	}
 

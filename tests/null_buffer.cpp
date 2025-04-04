@@ -8,7 +8,7 @@
 #include <hexi/null_buffer.h>
 #include <gtest/gtest.h>
 #include <string_view>
-
+#include <cstdint>
 
 TEST(null_buffer, write_size) {
 	hexi::null_buffer buffer;

@@ -53,6 +53,24 @@ class binary_stream_reader : virtual public stream_base {
 		}
 	}
 
+	template<typename container_type, typename count_type>
+	void read_container(container_type& container, const count_type count) {
+		container.clear();
+
+		if constexpr(pod<typename container_type::value_type> && std::ranges::contiguous_range<container_type>) {
+			container.resize(count);
+
+			const auto bytes = count * sizeof(typename container_type::value_type);
+			read(container.data(), bytes);
+		} else {
+			for(count_type i = 0; i < count; ++i) {
+				typename container_type::value_type value;
+				*this >> value;
+				container.emplace_back(std::move(value));
+			}
+		}
+	}
+
 public:
 	explicit binary_stream_reader(buffer_read& source, std::size_t read_limit = 0)
 		: stream_base(source),
@@ -164,6 +182,25 @@ public:
 
 	binary_stream_reader& operator>>(pod auto& data) {
 		read(&data, sizeof(data));
+		return *this;
+	}
+
+	template<is_iterable T>
+	requires (!std::is_same_v<std::decay_t<T>, std::string>
+		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
+	binary_stream_reader& operator>>(prefixed<T> adaptor) {
+		std::uint32_t count = 0;
+		*this >> endian::le(count);
+		read_container(adaptor.str, count);
+		return *this;
+	}
+
+	template<is_iterable T>
+	requires (!std::is_same_v<std::decay_t<T>, std::string>
+		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
+	binary_stream_reader& operator>>(prefixed_varint<T> adaptor) {
+		const auto count = varint_decode<std::size_t>(*this);
+		read_container(adaptor.str, count);
 		return *this;
 	}
 
