@@ -102,7 +102,6 @@ concept memcpy_read =
 		&& !has_shr_override<typename T::value_type, U>
 		&& !has_deserialise<typename T::value_type, U>;
 
-
 template<typename T, typename U>
 concept memcpy_write =
 	pod<typename T::value_type> && std::ranges::contiguous_range<T>
