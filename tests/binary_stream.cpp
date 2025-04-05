@@ -407,6 +407,39 @@ TEST(binary_stream, static_buffer_underrun_noexcept) {
 	ASSERT_EQ(output, 0);
 }
 
+TEST(binary_stream, static_buffer_adaptor_regression) {
+	hexi::static_buffer<char, 128> buffer;
+	hexi::buffer_adaptor adaptor(buffer);
+	hexi::binary_stream stream(buffer);
+	stream << 1 << 2 << 3;
+
+	std::string foo { "foo " };
+	stream << foo;
+
+	std::string_view sv;
+	stream.skip(sizeof(int) * 3);
+	stream >> sv;
+	ASSERT_TRUE(stream);
+}
+
+TEST(binary_stream, static_buffer_adaptor_exception_regression) {
+	hexi::static_buffer<char, 16> buffer;
+	hexi::buffer_adaptor adaptor(buffer);
+	hexi::binary_stream stream(buffer);
+	std::string_view str { "This is a string that is longer than the size of the buffer..." };
+	ASSERT_THROW(stream << str, hexi::exception);
+	ASSERT_FALSE(stream);
+}
+
+TEST(binary_stream, static_buffer_adaptor_no_exception_regression) {
+	hexi::static_buffer<char, 16> buffer;
+	hexi::buffer_adaptor adaptor(buffer);
+	hexi::binary_stream stream(buffer, hexi::no_throw);
+	std::string_view str { "This is a string that is longer than the size of the buffer..." };
+	ASSERT_NO_THROW(stream << str);
+	ASSERT_FALSE(stream);
+
+}
 TEST(binary_stream, put_integral_literals) {
 	hexi::static_buffer<char, 64> buffer;
 	hexi::binary_stream stream(buffer);

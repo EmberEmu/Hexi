@@ -147,6 +147,20 @@ public:
 	}
 
 	/**
+	 * @brief Resizes the buffer.
+	 * 
+	 * @param size The new size of the buffer.
+	 * 
+	 */
+	void resize(size_type size) {
+		if(size > buffer_.size()) {
+			throw exception("attempted to resize static_buffer to larger than capacity");
+		}
+
+		write_ = size;
+	}
+
+	/**
 	 * @brief Clears the container.
 	 */
 	void clear() {
