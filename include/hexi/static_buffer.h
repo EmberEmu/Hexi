@@ -147,6 +147,17 @@ public:
 	}
 
 	/**
+	 * @brief Resizes the buffer.
+	 * 
+	 * @param size The new size of the buffer.
+	 * 
+	 */
+	void resize(size_type size) {
+		assert(size <= buffer_.size());
+		write_ = size;
+	}
+
+	/**
 	 * @brief Clears the container.
 	 */
 	void clear() {
