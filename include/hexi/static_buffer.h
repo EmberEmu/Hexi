@@ -153,7 +153,10 @@ public:
 	 * 
 	 */
 	void resize(size_type size) {
-		assert(size <= buffer_.size());
+		if(size > buffer_.size()) {
+			throw exception("attempted to resize static_buffer to larger than capacity");
+		}
+
 		write_ = size;
 	}
 
