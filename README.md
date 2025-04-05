@@ -69,7 +69,7 @@ The two classes you'll primarily deal with are `buffer_adaptor` and `binary_stre
 
 To support containers that weren't written to be used with Hexi, `buffer_adaptor` is used as a wrapper that `binary_stream` can interface with. As with `binary_stream`, it also provides read and write operations but at a lower level. 
 
-`buffer_adaptor` can wrap any contiguous container or view that provides `data` and `size` member functions and optionally `resize()` for write support. From the standard library, that means the following can be used out of the box:
+`buffer_adaptor` can wrap any contiguous container or view that provides `data` and `size` member functions. From the standard library, that means the following can be used out of the box:
 - [x] std::array
 - [x] std::span
 - [x] std::string_view
@@ -246,10 +246,10 @@ auto handle_logout_packet(std::span<const char> buffer) {
 
     /**
      * alternative methods:
-	 * stream.serialise(packet);
-	 *
-	 * or:
-	 *
+     * stream.serialise(packet);
+     *
+     * or:
+     *
      * hexi::stream_read_adaptor adaptor(stream);
      * packet.serialise(adaptor);
      */ 
