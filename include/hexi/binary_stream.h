@@ -233,25 +233,6 @@ public:
 	}
 
 	template<typename T>
-	requires std::is_same_v<std::decay_t<T>, std::string>
-		|| std::is_same_v<std::decay_t<T>, std::string_view>
-	binary_stream& operator<<(prefixed<T> adaptor) requires writeable<buf_type> {
-		const auto size = static_cast<std::uint32_t>(adaptor->size());
-		write(endian::native_to_little(size));
-		write(adaptor->data(), static_cast<size_type>(size));
-		return *this;
-	}
-
-	template<typename T>
-	requires std::is_same_v<std::decay_t<T>, std::string>
-		|| std::is_same_v<std::decay_t<T>, std::string_view>
-	binary_stream& operator<<(prefixed_varint<T> adaptor) requires writeable<buf_type> {
-		varint_encode(*this, adaptor->size());
-		write(adaptor->data(), adaptor->size());
-		return *this;
-	}
-
-	template<typename T>
 	requires std::is_same_v<std::decay_t<T>, std::string_view>
 	binary_stream& operator<<(null_terminated<T> adaptor) requires writeable<buf_type> {
 		assert(adaptor->find_first_of('\0') == adaptor->npos);
@@ -289,14 +270,12 @@ public:
 		return *this;
 	}
 
-	binary_stream& operator <<(const is_iterable auto& data) requires writeable<buf_type> {
+	binary_stream& operator<<(const is_iterable auto& data) requires writeable<buf_type> {
 		write_container(data);
 		return *this;
 	}
 
 	template<is_iterable T>
-	requires (!std::is_same_v<std::decay_t<T>, std::string>
-		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
 	binary_stream& operator<<(prefixed<T> adaptor) requires writeable<buf_type> {
 		const auto count = static_cast<std::uint32_t>(adaptor->size());
 		write(endian::native_to_little(count));
@@ -305,11 +284,8 @@ public:
 	}
 
 	template<is_iterable T>
-	requires (!std::is_same_v<std::decay_t<T>, std::string>
-		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
 	binary_stream& operator<<(prefixed_varint<T> adaptor) requires writeable<buf_type> {
 		varint_encode(*this, adaptor->size());
-		write(adaptor->data(), adaptor->size());
 		write_container(adaptor.str);
 		return *this;
 	}
@@ -480,11 +456,11 @@ public:
 		return *this;
 	}
 
-	binary_stream& operator >>(std::string_view& data) {
+	binary_stream& operator>>(std::string_view& data) {
 		return *this >> prefixed(data);
 	}
 
-	binary_stream& operator >>(std::string& data) {
+	binary_stream& operator>>(std::string& data) {
 		return *this >> prefixed(data);
 	}
 
