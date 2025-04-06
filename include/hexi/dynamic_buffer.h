@@ -186,7 +186,10 @@ public:
 	/**
 	 * @brief Reads a number of bytes to the provided buffer.
 	 * 
-	 * @param destination The buffer to copy the data to.
+	 * @note The destination buffer must not overlap with any of the underlying
+	 * buffers being used by the dynamic buffer.
+	 * 
+	 * @param[out] destination The buffer to copy the data to.
 	 */
 	template<typename T>
 	void read(T* destination) {
@@ -196,7 +199,10 @@ public:
 	/**
 	 * @brief Reads a number of bytes to the provided buffer.
 	 * 
-	 * @param destination The buffer to copy the data to.
+	 * @note The destination buffer must not overlap with any of the underlying
+	 * buffers being used by the dynamic buffer.
+	 * 
+	 * @param[out] destination The buffer to copy the data to.
 	 * @param length The number of bytes to read into the buffer.
 	 */
 	void read(void* destination, size_type length) override {
@@ -225,7 +231,10 @@ public:
 	 * @brief Copies a number of bytes to the provided buffer but without advancing
 	 * the container's read cursor.
 	 * 
-	 * @param destination The buffer to copy the data to.
+	 * @note The source buffer must not overlap with any of the underlying
+	 * buffers being used by the dynamic buffer.
+	 * 
+	 * @param[out] destination The buffer to copy the data to.
 	 */
 	template<typename T>
 	void copy(T* destination) const {
@@ -236,7 +245,10 @@ public:
 	 * @brief Copies a number of bytes to the provided buffer but without advancing
 	 * the container's read cursor.
 	 * 
-	 * @param destination The buffer to copy the data to.
+	 * @note The destination buffer must not overlap with any of the underlying
+	 * buffers being used by the dynamic buffer.
+	 * 
+	 * @param[out] destination The buffer to copy the data to.
 	 * @param length The number of bytes to copy.
 	 */
 	void copy(void* destination, const size_type length) const override {
@@ -259,6 +271,16 @@ public:
 	}
 
 #ifdef HEXI_BUFFER_DEBUG
+	/**
+	 * @brief Retrives underlying buffers owned by the dynamic buffer.
+	 *
+	 * @param length Limit returned buffers to those holding up to the requested amount
+	 * of data.
+	 * @param offset The offset to start at.
+	 * 
+	 * @return Container of pointers to the underlying buffers holding the range of data
+	 * requested by length and offset.
+	 */
 	std::vector<storage_type*> fetch_buffers(const size_type length, const size_type offset = 0) {
 		size_type total = length + offset;
 		assert(total <= size_ && "Chained buffer fetch too large!");
@@ -318,6 +340,9 @@ public:
 	/**
 	 * @brief Write data to the container.
 	 * 
+	 * @note The source buffer must not overlap with any of the underlying buffers
+	 * being used by the dynamic buffer.
+	 * 
 	 * @param source Pointer to the data to be written.
 	 */
 	void write(const auto& source) {
@@ -326,6 +351,9 @@ public:
 
 	/**
 	 * @brief Write provided data to the container.
+	 * 
+	 * @note The source buffer must not overlap with any of the underlying buffers
+	 * being used by the dynamic buffer.
 	 * 
 	 * @param source Pointer to the data to be written.
 	 * @param length Number of bytes to write from the source.

@@ -55,6 +55,8 @@ struct intrusive_storage final {
 	 * If the container size is lower than requested number of bytes,
 	 * the request will be capped at the number of bytes available.
 	 * 
+	 * @note The source buffer must not overlap with the underlying buffer.
+	 * 
 	 * @param source Pointer to the data to be written.
 	 * @param length Number of bytes to write from the source.
 	 * 
@@ -80,7 +82,9 @@ struct intrusive_storage final {
 	 * If the container size is lower than requested number of bytes,
 	 * the request will be capped at the number of bytes available.
 	 * 
-	 * @param destination The buffer to copy the data to.
+	 * @note The destination buffer must not overlap with the underlying buffer.
+	 * 
+	 * @param[out] destination The buffer to copy the data to.
 	 * @param length The number of bytes to copy.
 	 * 
 	 * @return The number of bytes copied, which may be less than requested.
@@ -98,17 +102,19 @@ struct intrusive_storage final {
 	}
 
 	/**
-	* @brief Reads a number of bytes to the provided buffer.
-	* 
-	* If the container size is lower than requested number of bytes,
-	* the request will be capped at the number of bytes available.
-	* 
-	* @param length The number of bytes to skip.
-	* @param destination The buffer to copy the data to.
-	* @param allow_optimise Whether the buffer can reuse its space where possible.
-	* 
-	* @return The number of bytes read, which may be less than requested.
-	*/
+	 * @brief Reads a number of bytes to the provided buffer.
+	 * 
+	 * If the container size is lower than requested number of bytes,
+	 * the request will be capped at the number of bytes available.
+	 * 
+	 * @note The destination buffer must not overlap with the underlying buffer.
+	 * 
+	 * @param length The number of bytes to skip.
+	 * @param[out] destination The buffer to copy the data to.
+	 * @param allow_optimise Whether the buffer can reuse its space where possible.
+	 * 
+	 * @return The number of bytes read, which may be less than requested.
+	 */
 	std::size_t read(auto destination, const std::size_t length, const bool allow_optimise = false) {
 		std::size_t read_len = copy(destination, length);
 		read_offset += static_cast<offset_type>(read_len);
@@ -121,20 +127,20 @@ struct intrusive_storage final {
 	}
 
 	/**
-	* @brief Skip over requested number of bytes.
-	*
-	* Skips over a number of bytes in the container. This should be used
-	* if the container holds data that you don't care about but don't want
-	* to have to read it to another buffer to move beyond it.
-	* 
-	* If the container size is lower than requested number of bytes,
-	* the request will be capped at the number of bytes available.
-	* 
-	* @param length The number of bytes to skip.
-	* @param allow_optimise Whether the buffer can reuse its space where possible.
-	* 
-	* @return The number of bytes skipped, which may be less than requested.
-	*/
+	 * @brief Skip over requested number of bytes.
+	 *
+	 * Skips over a number of bytes in the container. This should be used
+	 * if the container holds data that you don't care about but don't want
+	 * to have to read it to another buffer to move beyond it.
+	 * 
+	 * If the container size is lower than requested number of bytes,
+	 * the request will be capped at the number of bytes available.
+	 * 
+	 * @param length The number of bytes to skip.
+	 * @param allow_optimise Whether the buffer can reuse its space where possible.
+	 * 
+	 * @return The number of bytes skipped, which may be less than requested.
+	 */
 	std::size_t skip(const std::size_t length, const bool allow_optimise = false) {
 		std::size_t skip_len = block_size - read_offset;
 

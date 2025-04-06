@@ -55,18 +55,18 @@ class binary_stream_reader : virtual public stream_base {
 
 	template<typename container_type, typename count_type>
 	void read_container(container_type& container, const count_type count) {
-		using c_value_type = typename container_type::value_type;
+		using cvalue_type = typename container_type::value_type;
 
 		container.clear();
 
 		if constexpr(memcpy_read<container_type, binary_stream_reader>) {
 			container.resize(count);
 
-			const auto bytes = count * sizeof(c_value_type);
+			const auto bytes = count * sizeof(cvalue_type);
 			read(container.data(), bytes);
 		} else {
 			for(count_type i = 0; i < count; ++i) {
-				c_value_type value;
+				cvalue_type value;
 				*this >> value;
 				container.emplace_back(std::move(value));
 			}
@@ -93,11 +93,25 @@ public:
 	binary_stream_reader& operator=(const binary_stream_reader&) = delete;
 	binary_stream_reader(const binary_stream_reader&) = delete;
 
+	/**
+	 * @brief Deserialises an object that provides a deserialise function:
+	 * void serialise(auto& stream);
+	 * 
+	 * @param[out] object The object to be deserialised.
+	 */
 	void deserialise(auto& object) {
 		stream_read_adaptor adaptor(*this);
 		object.serialise(adaptor);
 	}
 
+	/**
+	 * @brief Deserialises an object that provides a deserialise function:
+	 * void serialise(auto& stream);
+	 * 
+	 * @param[out] data The object to be serialised.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<typename T>
 	requires has_deserialise<T, binary_stream_reader>
 	binary_stream_reader& operator>>(T& data) {
@@ -105,6 +119,14 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * fixed-length prefix.
+	 * 
+	 * @param[out] adaptor std::string to hold the result.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream_reader& operator>>(prefixed<std::string> adaptor) {
 		std::uint32_t size = 0;
 		*this >> endian::le(size);
@@ -123,6 +145,14 @@ public:
 		return *this;
 	}
 	
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * variable-length prefix.
+	 * 
+	 * @param[out] adaptor std::string to hold the result.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream_reader& operator>>(prefixed_varint<std::string> adaptor) {
 		const auto size = varint_decode<std::size_t>(*this);
 
@@ -141,6 +171,14 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * null terminator.
+	 * 
+	 * @param[out] adaptor std::string to hold the result.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream_reader& operator>>(null_terminated<std::string> adaptor) {
 		auto pos = buffer_.find_first_of(std::byte{0});
 
@@ -160,14 +198,42 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * fixed-length prefix.
+	 * 
+	 * @param[out] data std::string_view to hold the result.
+	 * 
+	 * @note The string_view's lifetime is tied to that of the underlying
+	 * buffer. You should not make any further writes to the buffer
+	 * unless you know it will not cause the data to be overwritten (i.e.
+	 * buffer adaptor with optimise disabled).
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream_reader& operator>>(std::string& data) {
 		return *this >> prefixed(data);
 	}
 
+	/**
+	 * @brief Deserialises an object that provides a deserialise function:
+	 * auto& operator>>(auto& stream);
+	 * 
+	 * @param[out] data The object to be deserialised.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream_reader& operator>>(has_shr_override<binary_stream_reader> auto&& data) {
 		return *this >> data;
 	}
 
+	/**
+	 * @brief Deserialises an arithmetic type with the requested byte order.
+	 * 
+	 * @param[out] endian_func The arithmetic type wrapped by the adaptor.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream_reader& operator>>(endian_func adaptor) {
 		read(&adaptor.value, sizeof(adaptor.value));
@@ -175,6 +241,17 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a POD type.
+	 * 
+	 * @tparam T The type of the POD object.
+	 * @param[out] data The object to hold the result.
+	 * 
+	 * @note Will not be used for types with user-defined serialisation
+	 * functions.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<pod T>
 	requires (!has_shr_override<T, binary_stream_reader>)
 	binary_stream_reader& operator>>(T& data) {
@@ -182,11 +259,30 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a POD type.
+	 * 
+	 * @param[out] data The object to hold the result.
+	 * 
+	 * @note Will be used for types without user-defined serialisation
+	 * functions.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream_reader& operator>>(pod auto& data) {
 		read(&data, sizeof(data));
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises an iterable container that was previously written
+	 * with a fixed-length prefix.
+	 * 
+	 * @tparam T The iterable container type.
+	 * @param[out] adaptor The container to hold the result.
+	 *  
+	 * @return Reference to the current stream.
+	 */
 	template<is_iterable T>
 	requires (!std::is_same_v<std::decay_t<T>, std::string>
 		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
@@ -197,6 +293,15 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises an iterable container that was previously written
+	 * with a variable-length prefix.
+	 * 
+	 * @tparam T The iterable container type.
+	 * @param[out] adaptor The container to hold the result.
+	 *  
+	 * @return Reference to the current stream.
+	 */
 	template<is_iterable T>
 	requires (!std::is_same_v<std::decay_t<T>, std::string>
 		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
@@ -209,6 +314,8 @@ public:
 	/**
 	 * @brief Reads a string from the stream.
 	 * 
+	 * @param[out] dest The std::string to hold the result.
+	 * 
 	 * @param dest The destination string.
 	 */
 	void get(std::string& dest) {
@@ -218,7 +325,7 @@ public:
 	/**
 	 * @brief Reads a fixed-length string from the stream.
 	 * 
-	 * @param dest The destination string.
+	 * @param[out] dest The std::string to hold the result.
 	 * @param count The number of bytes to be read.
 	 */
 	void get(std::string& dest, std::size_t size) {
@@ -233,7 +340,7 @@ public:
 	/**
 	 * @brief Read data from the stream into the provided destination argument.
 	 * 
-	 * @param dest The destination buffer.
+	 * @param[out] dest The destination buffer.
 	 * @param count The number of bytes to be read into the destination.
 	 */
 	template<typename T>
@@ -246,7 +353,7 @@ public:
 	/**
 	 * @brief Read data from the stream to the destination represented by the iterators.
 	 * 
-	 * @param begin The beginning iterator.
+	 * @param[out] begin The beginning iterator.
 	 * @param end The end iterator.
 	 */
 	template<typename It>
@@ -259,7 +366,7 @@ public:
 	/**
 	 * @brief Read data from the stream into the provided destination argument.
 	 * 
-	 * @param dest A contiguous range into which the data should be read.
+	 * @param[out] dest A contiguous range into which the data should be read.
 	 */
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
@@ -268,7 +375,8 @@ public:
 	}
 
 	/**
-	 * @brief Read an arithmetic type from the stream.
+	 * @brief Read an arithmetic type from the stream, allowing for endian
+	 * conversion.
 	 * 
 	 * @return The arithmetic value.
 	 */
@@ -282,7 +390,7 @@ public:
 	/**
 	 * @brief Read an arithmetic type from the stream.
 	 * 
-	 * @return The arithmetic value.
+	 * @param[out] dest The variable to hold the result.
 	 */
 	void get(arithmetic auto& dest) {
 		read(&dest, sizeof(dest));
@@ -292,7 +400,7 @@ public:
 	 * @brief Read an arithmetic type from the stream, allowing for endian
 	 * conversion.
 	 * 
-	 * @param The destination for the read value.
+	 * @param[out] adaptor The destination for the read value.
 	 */
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	void get(endian_func& adaptor) {
@@ -318,8 +426,8 @@ public:
 	/**
 	 * @brief Skip over count bytes
 	 *
-	 * Skips over a number of bytes from the container. This should be used
-	 * if the container holds data that you don't care about but don't want
+	 * Skips over a number of bytes from the stream. This should be used
+	 * if the stream holds data that you don't care about but don't want
 	 * to have to read it to another buffer to move beyond it.
 	 * 
 	 * @param length The number of bytes to skip.

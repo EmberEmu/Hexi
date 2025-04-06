@@ -56,7 +56,11 @@ public:
 	/**
 	 * @brief Reads a number of bytes to the provided buffer.
 	 * 
-	 * @param destination The buffer to copy the data to.
+	 * @note The destination buffer must not overlap with the underlying buffer
+	 * being used by the buffer_adaptor.
+	 * 
+	 * @tparam T The destination type.
+	 * @param[out] destination The buffer to copy the data to.
 	 */
 	template<typename T>
 	void read(T* destination) {
@@ -66,7 +70,10 @@ public:
 	/**
 	 * @brief Reads a number of bytes to the provided buffer.
 	 * 
-	 * @param destination The buffer to copy the data to.
+	 * @note The destination buffer must not overlap with the underlying buffer
+	 * being used by the buffer_adaptor.
+	 * 
+	 * @param[out] destination The buffer to copy the data to.
 	 * @param length The number of bytes to read into the buffer.
 	 */
 	void read(void* destination, size_type length) {
@@ -85,7 +92,7 @@ public:
 	 * @brief Copies a number of bytes to the provided buffer but without advancing
 	 * the read cursor.
 	 * 
-	 * @param destination The buffer to copy the data to.
+	 * @param[out] destination The buffer to copy the data to.
 	 */
 	template<typename T>
 	void copy(T* destination) const {
@@ -96,7 +103,10 @@ public:
 	 * @brief Copies a number of bytes to the provided buffer but without advancing
 	 * the read cursor.
 	 * 
-	 * @param destination The buffer to copy the data to.
+	 * @note The destination buffer must not overlap with the underlying buffer
+	 * being used by the buffer_adaptor.
+	 * 
+	 * @param[out] destination The buffer to copy the data to.
 	 * @param length The number of bytes to copy.
 	 */
 	void copy(void* destination, size_type length) const {
@@ -126,6 +136,9 @@ public:
 	/**
 	 * @brief Write data to the container.
 	 * 
+	 * @note The source buffer must not overlap with the underlying buffer
+	 * being used by the buffer_adaptor.
+	 * 
 	 * @param source Pointer to the data to be written.
 	 */
 	void write(const auto& source) {
@@ -134,6 +147,9 @@ public:
 
 	/**
 	 * @brief Write provided data to the container.
+	 * 
+	 * @note The source buffer must not overlap with the underlying buffer
+	 * being used by the buffer_adaptor.
 	 * 
 	 * @param source Pointer to the data to be written.
 	 * @param length Number of bytes to write from the source.
@@ -318,10 +334,22 @@ public:
 		write_ += bytes;
 	}
 
+	/**
+	 * @brief The amount of space left in the container.
+	 * 
+	 * @return The number of free bytes.
+	 */
 	auto free() const {
 		return buffer_.size() - write_;
 	}
-
+	
+	/*
+	 * @brief Resets both the read and write cursors back to the beginning
+	 * of the buffer.
+	 * 
+	 * @note The underlying buffer will not be cleared but should be treated
+	 * as thought it has been.
+	 */
 	void clear() {
 		read_ = write_ = 0;
 	}

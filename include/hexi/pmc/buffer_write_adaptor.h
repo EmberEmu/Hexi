@@ -36,6 +36,9 @@ public:
 	/**
 	 * @brief Write data to the container.
 	 * 
+	 * @note The source buffer must not overlap with the underlying buffer
+	 * being used by the buffer_adaptor.
+	 * 
 	 * @param source Pointer to the data to be written.
 	 */
 	void write(auto& source) {
@@ -45,6 +48,9 @@ public:
 	/**
 	 * @brief Write provided data to the container.
 	 *
+	 * @note The source buffer must not overlap with the underlying buffer
+	 * being used by the buffer_adaptor.
+	 * 
 	 * @param source Pointer to the data to be written.
 	 * @param length Number of bytes to write from the source.
 	 */
@@ -166,6 +172,11 @@ public:
 		write_ += bytes;
 	}
 
+	/**
+	 * @brief The amount of free space.
+	 * 
+	 * @return The number of bytes of free space within the container.
+	 */
 	std::size_t free() const {
 		return buffer_.size() - write_;
 	}

@@ -197,6 +197,10 @@ public:
 		return buffer_read_adaptor<buf_type>::find_first_of(val);
 	}
 
+	/**
+	 * @brief Clears the underlying buffer, resetting both the read
+	 * and write cursors.
+	 */
 	void clear() {
 		buffer_read_adaptor<buf_type>::clear();
 		buffer_write_adaptor<buf_type>::clear();
