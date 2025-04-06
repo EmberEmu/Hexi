@@ -76,6 +76,9 @@ public:
 
 	/**
 	 * @brief Reserves a number of bytes within the container for future use.
+	 * 
+	 * @note This is a non-binding request, meaning the buffer may not reserve
+	 * any additional space, such as in the case where it is not supported.
 	 *
 	 * @param length The number of bytes that the container should reserve.
 	 */
