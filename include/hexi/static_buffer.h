@@ -87,6 +87,8 @@ public:
 	 * @brief Copies a number of bytes to the provided buffer but without advancing
 	 * the read cursor.
 	 * 
+	 * @note The destination buffer address must not belong to the static_buffer.
+	 * 
 	 * @param destination The buffer to copy the data to.
 	 * @param length The number of bytes to copy.
 	 */
@@ -120,11 +122,11 @@ public:
 	}
 
 	/**
-	 * @brief Skip over length bytes.
+	 * @brief Skip over a number of bytes.
 	 * 
 	 * Skips over a number of bytes from the container. This should be used
 	 * if the container holds data that you don't care about but don't want
-	 * to have to read it to another buffer to move beyond it.
+	 * to have to read it to another buffer to access data beyond it.
 	 * 
 	 * @param length The number of bytes to skip.
 	 */
@@ -248,6 +250,8 @@ public:
 
 	/**
 	 * @brief Write provided data to the container.
+	 * 
+	 * @note The source buffer address must not belong to the static_buffer.
 	 * 
 	 * @param source Pointer to the data to be written.
 	 * @param length Number of bytes to write from the source.

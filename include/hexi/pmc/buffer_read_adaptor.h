@@ -37,7 +37,11 @@ public:
 	/**
 	 * @brief Reads a number of bytes to the provided buffer.
 	 * 
-	 * @param destination The buffer to copy the data to.
+	 * @note The destination buffer must not overlap with the underlying buffer
+	 * being used by the buffer_adaptor.
+	 * 
+	 * @tparam T The destination type.
+	 * @param[out] destination The buffer to copy the data to.
 	 */
 	template<typename T>
 	void read(T* destination) {
@@ -46,6 +50,9 @@ public:
 
 	/**
 	 * @brief Reads a number of bytes to the provided buffer.
+	 *
+	 * @note The destination buffer must not overlap with the underlying buffer
+	 * being used by the buffer_adaptor.
 	 * 
 	 * @param destination The buffer to copy the data to.
 	 * @param length The number of bytes to read into the buffer.
@@ -60,7 +67,7 @@ public:
 	 * @brief Copies a number of bytes to the provided buffer but without advancing
 	 * the read cursor.
 	 * 
-	 * @param destination The buffer to copy the data to.
+	 * @param[out] destination The buffer to copy the data to.
 	 */
 	template<typename T>
 	void copy(T* destination) const {
@@ -71,7 +78,10 @@ public:
 	 * @brief Copies a number of bytes to the provided buffer but without advancing
 	 * the read cursor.
 	 * 
-	 * @param destination The buffer to copy the data to.
+	 * @note The destination buffer must not overlap with the underlying buffer
+	 * being used by the buffer_adaptor.
+	 * 
+	 * @param[out] destination The buffer to copy the data to.
 	 * @param length The number of bytes to copy.
 	 */
 	void copy(void* destination, std::size_t length) const override {
@@ -80,11 +90,11 @@ public:
 	}
 
 	/**
-	 * @brief Skip over requested number of bytes.
+	 * @brief Skip over a number of bytes.
 	 *
 	 * Skips over a number of bytes from the container. This should be used
 	 * if the container holds data that you don't care about but don't want
-	 * to have to read it to another buffer to move beyond it.
+	 * to have to read it to another buffer to access data beyond it.
 	 * 
 	 * @param length The number of bytes to skip.
 	 */
@@ -94,6 +104,11 @@ public:
 
 	/**
 	 * @brief Returns the size of the container.
+	 * 
+	 * @note The value returned may be higher than the total number of bytes
+	 * that can be read from this stream, if a read limit was set during
+	 * construction. Use read_max() to determine how many bytes can be
+	 * read from this stream.
 	 * 
 	 * @return The number of bytes of data available to read within the stream.
 	 */
@@ -155,8 +170,12 @@ public:
 		return npos;
 	}
 
-	/**
-	 * @brief Clear the underlying buffer and reset state.
+	/*
+	 * @brief Resets both the read and write cursors back to the beginning
+	 * of the buffer.
+	 * 
+	 * @note The underlying buffer will not be cleared but should be treated
+	 * as thought it has been.
 	 */
 	void clear() {
 		read_ = 0;

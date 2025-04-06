@@ -78,6 +78,8 @@ public:
 	 * When used in conjunction with unsafe_entrant, allows the owning object
 	 * to be executed on another thread without paying for checks on every
 	 * allocation
+	 * 
+	 * @note If ref counting is enabled, the count will be incremented.
 	 */
 	inline void thread_enter() {
 		if(!allocator_) {
@@ -93,6 +95,12 @@ public:
 		}
 	}
 
+	/*
+	 * When used in conjunction with unsafe_entrant, signals that the current
+	 * thread not make further calls into the allocator.
+	 * 
+	 * @note If ref counting is enabled, the count will be decremented.
+	 */
 	inline void thread_exit() {
 		if constexpr(std::is_same_v<ref_count_policy, ref_counting>) {
 			assert(ref_count_);
@@ -105,6 +113,13 @@ public:
 		}
 	}
 
+	/*
+	 * @brief Allocates and constructs an object.
+	 * 
+	 * @tparam Args Variadic arguments to be forwarded to the object's constructor.
+	 * 
+	 * @return Pointer to the allocated object.
+	 */
 	template<typename ...Args>
 	[[nodiscard]] inline _ty* allocate(Args&&... args) {
 		/*
@@ -121,6 +136,11 @@ public:
 		return allocator_handle()->allocate(std::forward<Args>(args)...);
 	}
 
+	/*
+	 * @brief Deallocates and destructs an object.
+	 * 
+	 * @param t The object to be deallocated.
+	 */
 	inline void deallocate(_ty* t) {
 		assert(t);
 

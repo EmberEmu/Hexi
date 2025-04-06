@@ -124,10 +124,10 @@ private:
 
 	template<typename container_type>
 	void write_container(container_type& container) {
-		using c_value_type = typename container_type::value_type;
+		using cvalue_type = typename container_type::value_type;
 
 		if constexpr(memcpy_write<container_type, binary_stream>) {
-			const auto bytes = container.size() * sizeof(c_value_type);
+			const auto bytes = container.size() * sizeof(cvalue_type);
 			write(container.data(), static_cast<size_type>(bytes));
 		} else {
 			for(auto& element : container) {
@@ -138,18 +138,18 @@ private:
 
 	template<typename container_type, typename count_type>
 	void read_container(container_type& container, const count_type count) {
-		using c_value_type = typename container_type::value_type;
+		using cvalue_type = typename container_type::value_type;
 
 		container.clear();
 
 		if constexpr(memcpy_read<container_type, binary_stream>) {
 			container.resize(count);
 
-			const auto bytes = static_cast<size_type>(count * sizeof(c_value_type));
+			const auto bytes = static_cast<size_type>(count * sizeof(cvalue_type));
 			SAFE_READ(container.data(), bytes, void());
 		} else {
 			for(count_type i = 0; i < count; ++i) {
-				c_value_type value;
+				cvalue_type value;
 				*this >> value;
 				container.emplace_back(std::move(value));
 			}
@@ -195,11 +195,25 @@ public:
 
 	/*** Write ***/
 
+	/**
+	 * @brief Serialises an object that provides a serialise function:
+	 * void serialise(auto& stream);
+	 * 
+	 * @param object The object to be serialised.
+	 */
 	void serialise(auto&& object) requires writeable<buf_type> {
 		stream_write_adaptor adaptor(*this);
 		object.serialise(adaptor);
 	}
 
+	/**
+	 * @brief Serialises an object that provides a serialise function:
+	 * void serialise(auto& stream);
+	 * 
+	 * @param data The object to be serialised.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<typename T>
 	requires has_serialise<T, binary_stream>
 	binary_stream& operator<<(T& data) requires writeable<buf_type> {
@@ -207,11 +221,26 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Serialises an object that provides a serialise function:
+	 * auto& operator<<(auto& stream);
+	 * 
+	 * @param data The object to be serialised.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator<<(const has_shl_override<binary_stream> auto& data)
 	requires writeable<buf_type> {
 		return *this << data;
 	}
 
+	/**
+	 * @brief Serialises an arithmetic type with the requested byte order.
+	 * 
+	 * @param adaptor An endian adaptor.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream& operator<<(endian_func adaptor) requires writeable<buf_type> {
 		const auto converted = adaptor.to();
@@ -219,12 +248,30 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Serialises an arithmetic type with the default byte order.
+	 * 
+	 * @param data Reference to the type to be serialised.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator<<(const arithmetic auto& data) requires writeable<buf_type> {
 		const auto converted = endian::storage_in(data, byte_order);
 		write(&converted, sizeof(converted));
 		return *this;
 	}
 
+	/**
+	 * @brief Serialises a POD type.
+	 * 
+	 * @tparam T The type of the POD object.
+	 * @param data Reference to the object to be serialised.
+	 * 
+	 * @note Will not be used for types with user-defined serialisation
+	 * functions.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<pod T>
 	requires (!has_shl_override<T, binary_stream> && !arithmetic<T>)
 	binary_stream& operator<<(const T& data) requires writeable<buf_type> {
@@ -232,6 +279,15 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Serialises a string or string_view with a fixed-length prefix
+	 * 
+	 * @tparam T The string type.
+	 * @param adaptor prefixed adaptor that will instruct the stream to write a length
+	 * prefix before serialising the string.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<typename T>
 	requires std::is_same_v<std::decay_t<T>, std::string_view>
 	binary_stream& operator<<(null_terminated<T> adaptor) requires writeable<buf_type> {
@@ -241,6 +297,15 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Serialises a string_view as a null terminated string.
+	 * 
+	 * @tparam T The string type.
+	 * @param adaptor null_terminated adaptor that will instruct the stream to write
+	 * a null terminated string with no prefix.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<typename T>
 	requires std::is_same_v<std::decay_t<T>, std::string>
 	binary_stream& operator<<(null_terminated<T> adaptor) requires writeable<buf_type> {
@@ -249,20 +314,53 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Serialises a string, string_view or any type providing data()
+	 * and a size() member functions.
+	 * 
+	 * @tparam T The type.
+	 * @param adaptor raw adaptor referencing the type to be serialised.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<typename T>
 	binary_stream& operator<<(raw<T> adaptor) requires writeable<buf_type> {
 		write(adaptor->data(), adaptor->size());
 		return *this;
 	}
 
+	/**
+	 * @brief Serialises an std::string_view with a fixed-length prefix.
+	 * 
+	 * @param string std::string_view to be serialised with a prefix.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator<<(std::string_view string) requires writeable<buf_type> {
 		return *this << prefixed(string);
 	}
 
+	/**
+	 * @brief Serialises an std::string with a fixed-length prefix.
+	 * 
+	 * @param string std::string to be serialised with a prefix.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator<<(const std::string& string) requires writeable<buf_type> {
 		return *this << prefixed(string);
 	}
 
+	/**
+	 * @brief Serialises a C-style string.
+	 * 
+	 * @param data string to be serialised.
+	 * 
+	 * @note The null terminator for this string will also be written. It will
+	 * not be prefixed.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator<<(const char* data) requires writeable<buf_type> {
 		assert(data);
 		const auto len = std::strlen(data);
@@ -275,6 +373,17 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Serialises an iterable container.
+	 * 
+	 * @tparam T The iterable container type.
+	 * @param adaptor The container to be serialised.
+	 * 
+	 * @note A fixed-length prefix representing the number of elements in the
+	 * container will be written before the elements.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<is_iterable T>
 	binary_stream& operator<<(prefixed<T> adaptor) requires writeable<buf_type> {
 		const auto count = static_cast<std::uint32_t>(adaptor->size());
@@ -283,6 +392,17 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Serialises an iterable container.
+	 * 
+	 * @tparam T The iterable container type.
+	 * @param adaptor The container to be serialised.
+	 * 
+	 * @note A variable-length prefix representing the number of elements in the
+	 * container will be written before the elements.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<is_iterable T>
 	binary_stream& operator<<(prefixed_varint<T> adaptor) requires writeable<buf_type> {
 		varint_encode(*this, adaptor->size());
@@ -313,7 +433,7 @@ public:
 	/**
 	 * @brief Writes data to the stream.
 	 * 
-	 * @param data The element to be written to the stream.
+	 * @param adaptor The element to be written to the stream.
 	 */
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	void put(const endian_func& adaptor) requires writeable<buf_type> {
@@ -324,6 +444,7 @@ public:
 	/**
 	 * @brief Writes count elements from the provided buffer to the stream.
 	 * 
+	 * @tparam T POD type.
 	 * @param data Pointer to the buffer from which data will be copied to the stream.
 	 * @param count The number of elements to write.
 	 */
@@ -336,6 +457,7 @@ public:
 	/**
 	 * @brief Writes the data from the iterator range to the stream.
 	 * 
+	 * @tparam It The iterator type.
 	 * @param begin Iterator to the beginning of the data.
 	 * @param end Iterator to the end of the data.
 	 */
@@ -350,7 +472,8 @@ public:
 	 * @brief Allows for writing a provided byte value a specified number of times to
 	 * the stream.
 	 * 
-	 * @param The byte value that will fill the specified number of bytes.
+	 * @tparam size The number of bytes to generate.
+	 * @param value The byte value that will fill the specified number of bytes.
 	 */
 	template<size_type size>
 	constexpr void fill(const std::uint8_t value) requires writeable<buf_type> {
@@ -360,11 +483,25 @@ public:
 
 	/*** Read ***/
 
+	/**
+	 * @brief Deserialises an object that provides a deserialise function:
+	 * void serialise(auto& stream);
+	 * 
+	 * @param[out] object The object to be deserialised.
+	 */
 	void deserialise(auto& object) {
 		stream_read_adaptor adaptor(*this);
 		object.serialise(adaptor);
 	}
 
+	/**
+	 * @brief Deserialises an object that provides a deserialise function:
+	 * void serialise(auto& stream);
+	 * 
+	 * @param[out] data The object to be serialised.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<typename T>
 	requires has_deserialise<T, binary_stream>
 	binary_stream& operator>>(T& data) {
@@ -372,6 +509,14 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * fixed-length prefix.
+	 * 
+	 * @param[out] adaptor std::string to hold the result.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator>>(prefixed<std::string> adaptor) {
 		std::uint32_t size = 0;
 		*this >> endian::le(size);
@@ -390,6 +535,19 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * fixed-length prefix.
+	 * 
+	 * @param[out] adaptor std::string_view to hold the result.
+	 * 
+	 * @note The string_view's lifetime is tied to that of the underlying
+	 * buffer. You should not make any further writes to the buffer
+	 * unless you know it will not cause the data to be overwritten or
+	 * relocated (std::vector).
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator>>(prefixed<std::string_view> adaptor) {
 		std::uint32_t size = 0;
 		*this >> endian::le(size);
@@ -402,6 +560,14 @@ public:
 		return *this;
 	}
 	
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * variable-length prefix.
+	 * 
+	 * @param[out] adaptor std::string to hold the result.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator>>(prefixed_varint<std::string> adaptor) {
 		const auto size = varint_decode<size_type>(*this);
 
@@ -420,6 +586,19 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * variable-length prefix.
+	 * 
+	 * @param[out] adaptor std::string_view to hold the result.
+	 * 
+	 * @note The string_view's lifetime is tied to that of the underlying
+	 * buffer. You should not make any further writes to the buffer
+	 * unless you know it will not cause the data to be overwritten or
+	 * relocated (std::vector).
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator>>(prefixed_varint<std::string_view> adaptor) {
 		const auto size = varint_decode<size_type>(*this);
 
@@ -432,6 +611,14 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * null terminator.
+	 * 
+	 * @param[out] adaptor std::string to hold the result.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator>>(null_terminated<std::string> adaptor) {
 		auto pos = buffer_.find_first_of(value_type(0));
 
@@ -447,27 +634,77 @@ public:
 			return size;
 		});
 
+		// no need to enforce bounds, we know there's enough data
 		buffer_.skip(1); // skip null terminator
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * null terminator.
+	 * 
+	 * @param[out] adaptor std::string_view to hold the result.
+	 * 
+	 * @note The string_view's lifetime is tied to that of the underlying
+	 * buffer. You should not make any further writes to the buffer
+	 * unless you know it will not cause the data to be overwritten (i.e.
+	 * buffer adaptor with optimise disabled).
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator>>(null_terminated<std::string_view> adaptor) {
 		adaptor.str = view();
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * fixed-length prefix.
+	 * 
+	 * @param[out] data std::string_view to hold the result.
+	 * 
+	 * @note The string_view's lifetime is tied to that of the underlying
+	 * buffer. You should not make any further writes to the buffer
+	 * unless you know it will not cause the data to be overwritten or
+	 * relocated (std::vector).
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator>>(std::string_view& data) {
 		return *this >> prefixed(data);
 	}
 
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * fixed-length prefix.
+	 * 
+	 * @param[out] data std::string to hold the result.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator>>(std::string& data) {
 		return *this >> prefixed(data);
 	}
 
+	/**
+	 * @brief Deserialises an object that provides a deserialise function:
+	 * auto& operator>>(auto& stream);
+	 * 
+	 * @param[out] data The object to be deserialised.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator>>(has_shr_override<binary_stream> auto&& data) {
 		return *this >> data;
 	}
 
+	/**
+	 * @brief Deserialises an arithmetic type with the requested byte order.
+	 * 
+	 * @param[out] endian_func The arithmetic type wrapped by the adaptor.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream& operator>>(endian_func adaptor) {
 		SAFE_READ(&adaptor.value, sizeof(adaptor.value), *this);
@@ -475,12 +712,30 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises an arithmetic point type with the default byte order.
+	 * 
+	 * @param[out] data The arithmetic type.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator>>(arithmetic auto& data) {
 		SAFE_READ(&data, sizeof(data), *this);
 		endian::storage_out(data, byte_order);
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a POD type.
+	 * 
+	 * @tparam T The type of the POD object.
+	 * @param[out] data The object to hold the result.
+	 * 
+	 * @note Will not be used for types with user-defined serialisation
+	 * functions.
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	template<pod T>
 	requires (!has_shr_override<T, binary_stream> && !arithmetic<T>)
 	binary_stream& operator>>(T& data) {
@@ -488,9 +743,16 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises an iterable container that was previously written
+	 * with a fixed-length prefix.
+	 * 
+	 * @tparam T The iterable container type.
+	 * @param[out] adaptor The container to hold the result.
+	 *
+	 * @return Reference to the current stream.
+	 */
 	template<is_iterable T>
-	requires (!std::is_same_v<std::decay_t<T>, std::string>
-		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
 	binary_stream& operator>>(prefixed<T> adaptor) {
 		std::uint32_t count = 0;
 		*this >> endian::le(count);
@@ -498,20 +760,26 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises an iterable container that was previously written
+	 * with a variable-length prefix.
+	 * 
+	 * @tparam T The iterable container type.
+	 * @param[out] adaptor The container to hold the result.
+	 *  
+	 * @return Reference to the current stream.
+	 */
 	template<is_iterable T>
-	requires (!std::is_same_v<std::decay_t<T>, std::string>
-		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
 	binary_stream& operator>>(prefixed_varint<T> adaptor) {
 		const auto count = varint_decode<size_type>(*this);
 		read_container(adaptor.str, count);
 		return *this;
 	}
 
-
 	/**
 	 * @brief Read an arithmetic type from the stream.
 	 * 
-	 * @return The destination for the read value.
+	 * @param[out] dest The variable to hold the result.
 	 */
 	void get(arithmetic auto& dest) {
 		SAFE_READ(&dest, sizeof(dest), void());
@@ -533,7 +801,7 @@ public:
 	 * @brief Read an arithmetic type from the stream, allowing for endian
 	 * conversion.
 	 * 
-	 * @param The destination for the read value.
+	 * @param[out] adaptor The destination for the read value.
 	 */
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	void get(endian_func& adaptor) {
@@ -554,9 +822,10 @@ public:
 		return endian::convert<conversion>(t);
 	}
 
-
 	/**
 	 * @brief Reads a string from the stream.
+	 * 
+	 * @param[out] dest The std::string to hold the result.
 	 * 
 	 * @param dest The destination string.
 	 */
@@ -567,7 +836,7 @@ public:
 	/**
 	 * @brief Reads a fixed-length string from the stream.
 	 * 
-	 * @param dest The destination string.
+	 * @param[out] dest The std::string to hold the result.
 	 * @param count The number of bytes to be read.
 	 */
 	void get(std::string& dest, size_type size) {
@@ -582,8 +851,8 @@ public:
 	/**
 	 * @brief Read data from the stream into the provided destination argument.
 	 * 
-	 * @param dest The destination buffer.
-	 * @param count The number of bytes to be read into the destination.
+	 * @param[out] dest The destination buffer.
+	 * @param count The number of elements to be read to the destination.
 	 */
 	template<typename T>
 	void get(T* dest, size_type count) {
@@ -595,7 +864,7 @@ public:
 	/**
 	 * @brief Read data from the stream to the destination represented by the iterators.
 	 * 
-	 * @param begin The beginning iterator.
+	 * @param[out] begin The beginning iterator.
 	 * @param end The end iterator.
 	 */
 	template<typename It>
@@ -608,7 +877,7 @@ public:
 	/**
 	 * @brief Read data from the stream into the provided destination argument.
 	 * 
-	 * @param dest A contiguous range into which the data should be read.
+	 * @param[out] dest A contiguous range into which the data should be read.
 	 */
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
@@ -617,17 +886,17 @@ public:
 	}
 
 	/**
-	 * @brief Skip over count bytes
+	 * @brief Skip over a number of bytes.
 	 *
 	 * Skips over a number of bytes from the stream. This should be used
 	 * if the stream holds data that you don't care about but don't want
-	 * to have to read it to another buffer to move beyond it.
+	 * to have to read it to another buffer to access data beyond it.
 	 * 
 	 * @param length The number of bytes to skip.
 	 */
-	void skip(const size_type count) {
-		STREAM_READ_BOUNDS_ENFORCE(count, void());
-		buffer_.skip(count);
+	void skip(const size_type length) {
+		STREAM_READ_BOUNDS_ENFORCE(length, void());
+		buffer_.skip(length);
 	}
 
 	/**
@@ -692,7 +961,7 @@ public:
 	 * when using absolute seeking.
 	 */
 	void write_seek(const stream_seek direction, const offset_type offset)
-		requires(seekable<buf_type> && writeable<buf_type>) {
+	requires(seekable<buf_type> && writeable<buf_type>) {
 		if(direction == stream_seek::sk_stream_absolute) {
 			if(offset >= total_write_) {
 				buffer_.write_seek(buffer_seek::sk_forward, offset - total_write_);
@@ -707,9 +976,14 @@ public:
 	}
 
 	/**
-	 * @brief Returns the size of the stream.
+	 * @brief Returns the size of the underlying buffer.
 	 * 
-	 * @return The number of bytes of data available to read within the stream.
+	 * @note The value returned may be higher than the total number of bytes
+	 * that can be read from this stream, if a read limit was set during
+	 * construction. Use read_max() to determine how many bytes can be
+	 * read from this stream.
+	 * 
+	 * @return The size of the underlying buffer.
 	 */
 	size_type size() const {
 		return buffer_.size();
@@ -788,16 +1062,18 @@ public:
 	}
 
 	/**
-	 * @brief Determine whether the stream is in an error state.
+	 * @brief Determine whether the stream is in a usable state.
 	 * 
-	 * @return True if no errors occurred on this stream.
+	 * @return true if no errors have occurred.
 	 */
 	bool good() const {
 		return state_ == stream_state::ok;
 	}
 
 	/**
-	 * @brief Clears the reset state of the stream if an error has occurred.
+	 * @brief Resets the stream state back to a good state, allowing
+	 * it to be used for streaming operations again. Has no effect
+	 * if the stream has not errored.
 	 */
 	void clear_error_state() {
 		state_ = stream_state::ok;

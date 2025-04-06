@@ -97,11 +97,11 @@ public:
 	};
 
 	/**
-	 * @brief Skip over requested number of bytes.
+	 * @brief Skip over a number of bytes.
 	 *
 	 * Skips over a number of bytes from the container. This should be used
 	 * if the container holds data that you don't care about but don't want
-	 * to have to read it to another buffer to move beyond it.
+	 * to have to read it to another buffer to access data beyond it.
 	 * 
 	 * @param length The number of bytes to skip.
 	 */
@@ -197,6 +197,10 @@ public:
 		return buffer_read_adaptor<buf_type>::find_first_of(val);
 	}
 
+	/**
+	 * @brief Clears the underlying buffer, resetting both the read
+	 * and write cursors.
+	 */
 	void clear() {
 		buffer_read_adaptor<buf_type>::clear();
 		buffer_write_adaptor<buf_type>::clear();
