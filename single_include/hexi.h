@@ -1660,6 +1660,9 @@ public:
 	}
 };
 
+#undef SAFE_READ
+#undef STREAM_READ_BOUNDS_ENFORCE
+
 } // hexi
 
 // #include <hexi/buffer_adaptor.h>
@@ -4179,7 +4182,7 @@ public:
 	 */
 	void resize(size_type size) {
 		if(size > buffer_.size()) {
-			throw exception("attempted to resize static_buffer to larger than capacity");
+			HEXI_THROW(exception("attempted to resize static_buffer to larger than capacity"));
 		}
 
 		write_ = size;
@@ -5109,6 +5112,9 @@ public:
 		return &buffer_;
 	}
 };
+
+#undef SAFE_READ
+#undef STREAM_READ_BOUNDS_ENFORCE
 
 } // pmc, hexi
 

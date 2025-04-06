@@ -518,4 +518,7 @@ public:
 	}
 };
 
+#undef SAFE_READ
+#undef STREAM_READ_BOUNDS_ENFORCE
+
 } // pmc, hexi
