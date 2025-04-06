@@ -21,6 +21,11 @@ public:
 		  binary_stream_reader(source, read_limit),
 		  binary_stream_writer(source) {}
 
+	explicit binary_stream(hexi::pmc::buffer& source, hexi::no_throw_t, std::size_t read_limit = 0)
+		: stream_base(source),
+		  binary_stream_reader(source, no_throw, read_limit),
+		  binary_stream_writer(source, no_throw) {}
+
 	~binary_stream() override = default;
 };
 

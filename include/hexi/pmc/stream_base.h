@@ -14,16 +14,27 @@ namespace hexi::pmc {
 class stream_base {
 	buffer_base& buffer_;
 	stream_state state_;
+	bool allow_throw_;
 
 protected:
 	void set_state(stream_state state) {
 		state_ = state;
 	}
 
+	bool allow_throw() const {
+		return allow_throw_;
+	}
+
 public:
 	explicit stream_base(buffer_base& buffer)
 		: buffer_(buffer),
-		  state_(stream_state::ok) { }
+		  state_(stream_state::ok),
+		  allow_throw_(true) { }
+
+	explicit stream_base(buffer_base& buffer, bool allow_throw)
+		: buffer_(buffer),
+		  state_(stream_state::ok),
+		  allow_throw_(allow_throw) { }
 
 	std::size_t size() const {
 		return buffer_.size();

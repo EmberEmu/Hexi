@@ -30,9 +30,17 @@ class binary_stream_writer : virtual public stream_base {
 	std::size_t total_write_;
 
 	inline void write(const void* data, const std::size_t size) {
-		if(state() == stream_state::ok) [[likely]] {
-			buffer_.write(data, size);
-			total_write_ += size;
+		HEXI_TRY {
+			if(state() == stream_state::ok) [[likely]] {
+				buffer_.write(data, size);
+				total_write_ += size;
+			}
+		} HEXI_CATCH(...) {
+			set_state(stream_state::buff_write_err);
+
+			if(allow_throw()) {
+				HEXI_THROW();
+			}
 		}
 	}
 
@@ -53,6 +61,11 @@ class binary_stream_writer : virtual public stream_base {
 public:
 	explicit binary_stream_writer(buffer_write& source)
 		: stream_base(source),
+		  buffer_(source),
+		  total_write_(0) {}
+
+	explicit binary_stream_writer(buffer_write& source, no_throw_t)
+		: stream_base(source, false),
 		  buffer_(source),
 		  total_write_(0) {}
 
