@@ -300,10 +300,7 @@ public:
 	template<is_iterable T>
 	requires (!pod<typename T::value_type> || !std::ranges::contiguous_range<T>)
 	binary_stream& operator<<(T& data) requires writeable<buf_type> {
-		for(auto& element : data) {
-           *this << element;
-        }
-
+		write_container(data);
 		return *this;
 	}
 
