@@ -289,7 +289,7 @@ public:
 		return *this;
 	}
 
-	binary_stream& operator <<(const auto& data) requires writeable<buf_type> {
+	binary_stream& operator <<(const is_iterable auto& data) requires writeable<buf_type> {
 		write_container(data);
 		return *this;
 	}

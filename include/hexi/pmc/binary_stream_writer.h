@@ -153,7 +153,7 @@ public:
 		return *this;
 	}
 
-	binary_stream_writer& operator <<(const auto& data) {
+	binary_stream_writer& operator <<(const is_iterable auto& data) {
 		write_container(data);
 		return *this;
 	}
