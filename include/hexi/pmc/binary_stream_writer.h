@@ -180,7 +180,7 @@ public:
 	}
 
 	/**
-	 * @brief Serialises a string_view with a fixed-length prefix.
+	 * @brief Serialises an std::string_view with a fixed-length prefix.
 	 * 
 	 * @param string std::string_view to be serialised with a prefix.
 	 * 
@@ -191,7 +191,7 @@ public:
 	}
 
 	/**
-	 * @brief Serialises a string with a fixed-length prefix.
+	 * @brief Serialises an std::string with a fixed-length prefix.
 	 * 
 	 * @param string std::string to be serialised with a prefix.
 	 * 
@@ -292,7 +292,7 @@ public:
 	}
 
 	/**
-	 * @brief Writes count elements from the provided buffer to the stream.
+	 * @brief Writes bytes from the provided buffer to the stream.
 	 * 
 	 * @tparam T POD type.
 	 * @param data Pointer to the buffer from which data will be copied to the stream.
@@ -391,18 +391,18 @@ public:
 	}
 
 	/** 
-	 * @brief Get a pointer to the buffer.
+	 * @brief Get a pointer to the buffer write interface.
 	 *
-	 * @return Pointer to the underlying buffer. 
+	 * @return Pointer to the buffer write interface. 
 	 */
 	buffer_write* buffer() {
 		return &buffer_;
 	}
 
 	/** 
-	 * @brief Get a pointer to the buffer.
+	 * @brief Get a pointer to the buffer write interface.
 	 *
-	 * @return Pointer to the underlying buffer. 
+	 * @return Pointer to the buffer write interface. 
 	 */
 	const buffer_write* buffer() const {
 		return &buffer_;

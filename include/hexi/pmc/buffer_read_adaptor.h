@@ -90,11 +90,11 @@ public:
 	}
 
 	/**
-	 * @brief Skip over requested number of bytes.
+	 * @brief Skip over a number of bytes.
 	 *
 	 * Skips over a number of bytes from the container. This should be used
 	 * if the container holds data that you don't care about but don't want
-	 * to have to read it to another buffer to move beyond it.
+	 * to have to read it to another buffer to access data beyond it.
 	 * 
 	 * @param length The number of bytes to skip.
 	 */
@@ -104,6 +104,11 @@ public:
 
 	/**
 	 * @brief Returns the size of the container.
+	 * 
+	 * @note The value returned may be higher than the total number of bytes
+	 * that can be read from this stream, if a read limit was set during
+	 * construction. Use read_max() to determine how many bytes can be
+	 * read from this stream.
 	 * 
 	 * @return The number of bytes of data available to read within the stream.
 	 */

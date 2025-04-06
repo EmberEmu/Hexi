@@ -330,7 +330,7 @@ public:
 	}
 
 	/**
-	 * @brief Serialises a string_view with a fixed-length prefix.
+	 * @brief Serialises an std::string_view with a fixed-length prefix.
 	 * 
 	 * @param string std::string_view to be serialised with a prefix.
 	 * 
@@ -341,7 +341,7 @@ public:
 	}
 
 	/**
-	 * @brief Serialises a string with a fixed-length prefix.
+	 * @brief Serialises an std::string with a fixed-length prefix.
 	 * 
 	 * @param string std::string to be serialised with a prefix.
 	 * 
@@ -543,8 +543,8 @@ public:
 	 * 
 	 * @note The string_view's lifetime is tied to that of the underlying
 	 * buffer. You should not make any further writes to the buffer
-	 * unless you know it will not cause the data to be overwritten (i.e.
-	 * buffer adaptor with optimise disabled).
+	 * unless you know it will not cause the data to be overwritten or
+	 * relocated (std::vector).
 	 * 
 	 * @return Reference to the current stream.
 	 */
@@ -594,8 +594,8 @@ public:
 	 * 
 	 * @note The string_view's lifetime is tied to that of the underlying
 	 * buffer. You should not make any further writes to the buffer
-	 * unless you know it will not cause the data to be overwritten (i.e.
-	 * buffer adaptor with optimise disabled).
+	 * unless you know it will not cause the data to be overwritten or
+	 * relocated (std::vector).
 	 * 
 	 * @return Reference to the current stream.
 	 */
@@ -657,11 +657,23 @@ public:
 		return *this;
 	}
 
+	/**
+	 * @brief Deserialises a string that was previously written with a
+	 * fixed-length prefix.
+	 * 
+	 * @param[out] data std::string_view to hold the result.
+	 * 
+	 * @note The string_view's lifetime is tied to that of the underlying
+	 * buffer. You should not make any further writes to the buffer
+	 * unless you know it will not cause the data to be overwritten or
+	 * relocated (std::vector).
+	 * 
+	 * @return Reference to the current stream.
+	 */
 	binary_stream& operator>>(std::string_view& data) {
 		return *this >> prefixed(data);
 	}
 
-	binary_stream& operator>>(std::string& data) {
 	/**
 	 * @brief Deserialises a string that was previously written with a
 	 * fixed-length prefix.
@@ -741,8 +753,6 @@ public:
 	 * @return Reference to the current stream.
 	 */
 	template<is_iterable T>
-	requires (!std::is_same_v<std::decay_t<T>, std::string>
-		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
 	binary_stream& operator>>(prefixed<T> adaptor) {
 		std::uint32_t count = 0;
 		*this >> endian::le(count);
@@ -760,8 +770,6 @@ public:
 	 * @return Reference to the current stream.
 	 */
 	template<is_iterable T>
-	requires (!std::is_same_v<std::decay_t<T>, std::string>
-		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
 	binary_stream& operator>>(prefixed_varint<T> adaptor) {
 		const auto count = varint_decode<size_type>(*this);
 		read_container(adaptor.str, count);
@@ -844,7 +852,7 @@ public:
 	 * @brief Read data from the stream into the provided destination argument.
 	 * 
 	 * @param[out] dest The destination buffer.
-	 * @param count The number of bytes to be read into the destination.
+	 * @param count The number of elements to be read to the destination.
 	 */
 	template<typename T>
 	void get(T* dest, size_type count) {
@@ -878,17 +886,17 @@ public:
 	}
 
 	/**
-	 * @brief Skip over count bytes
+	 * @brief Skip over a number of bytes.
 	 *
 	 * Skips over a number of bytes from the stream. This should be used
 	 * if the stream holds data that you don't care about but don't want
-	 * to have to read it to another buffer to move beyond it.
+	 * to have to read it to another buffer to access data beyond it.
 	 * 
 	 * @param length The number of bytes to skip.
 	 */
-	void skip(const size_type count) {
-		STREAM_READ_BOUNDS_ENFORCE(count, void());
-		buffer_.skip(count);
+	void skip(const size_type length) {
+		STREAM_READ_BOUNDS_ENFORCE(length, void());
+		buffer_.skip(length);
 	}
 
 	/**
@@ -968,9 +976,14 @@ public:
 	}
 
 	/**
-	 * @brief Returns the size of the stream.
+	 * @brief Returns the size of the underlying buffer.
 	 * 
-	 * @return The number of bytes of data available to read within the stream.
+	 * @note The value returned may be higher than the total number of bytes
+	 * that can be read from this stream, if a read limit was set during
+	 * construction. Use read_max() to determine how many bytes can be
+	 * read from this stream.
+	 * 
+	 * @return The size of the underlying buffer.
 	 */
 	size_type size() const {
 		return buffer_.size();

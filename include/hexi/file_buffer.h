@@ -213,7 +213,7 @@ public:
 	 *
 	 * Skips over a number of bytes from the file. This should be used
 	 * if the file holds data that you don't care about but don't want
-	 * to have to read it to another buffer to move beyond it.
+	 * to have to read it to another buffer to access data beyond it.
 	 * 
 	 * @param length The number of bytes to skip.
 	 */

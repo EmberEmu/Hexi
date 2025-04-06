@@ -284,8 +284,6 @@ public:
 	 * @return Reference to the current stream.
 	 */
 	template<is_iterable T>
-	requires (!std::is_same_v<std::decay_t<T>, std::string>
-		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
 	binary_stream_reader& operator>>(prefixed<T> adaptor) {
 		std::uint32_t count = 0;
 		*this >> endian::le(count);
@@ -303,8 +301,6 @@ public:
 	 * @return Reference to the current stream.
 	 */
 	template<is_iterable T>
-	requires (!std::is_same_v<std::decay_t<T>, std::string>
-		&& !std::is_same_v<std::decay_t<T>, std::string_view>)
 	binary_stream_reader& operator>>(prefixed_varint<T> adaptor) {
 		const auto count = varint_decode<std::size_t>(*this);
 		read_container(adaptor.str, count);
@@ -341,7 +337,7 @@ public:
 	 * @brief Read data from the stream into the provided destination argument.
 	 * 
 	 * @param[out] dest The destination buffer.
-	 * @param count The number of bytes to be read into the destination.
+	 * @param count The number of elements to be read into the destination.
 	 */
 	template<typename T>
 	void get(T* dest, std::size_t count) {
@@ -424,17 +420,17 @@ public:
 	/**  Misc functions **/ 
 
 	/**
-	 * @brief Skip over count bytes
+	 * @brief Skip over a number of bytes.
 	 *
 	 * Skips over a number of bytes from the stream. This should be used
 	 * if the stream holds data that you don't care about but don't want
-	 * to have to read it to another buffer to move beyond it.
+	 * to have to read it to another buffer to access data beyond it.
 	 * 
 	 * @param length The number of bytes to skip.
 	 */
-	void skip(std::size_t count) {
-		enforce_read_bounds(count);
-		buffer_.skip(count);
+	void skip(std::size_t length) {
+		enforce_read_bounds(length);
+		buffer_.skip(length);
 	}
 
 	/**
@@ -471,10 +467,21 @@ public:
 		}
 	}
 
-	/**
-	 * @return Pointer to stream's underlying buffer.
+	/** 
+	 * @brief Get a pointer to the buffer read interface.
+	 *
+	 * @return Pointer to the buffer read interface. 
 	 */
-	buffer_read* buffer() const {
+	buffer_read* buffer() {
+		return &buffer_;
+	}
+
+	/** 
+	 * @brief Get a pointer to the buffer read interface.
+	 *
+	 * @return Pointer to the buffer read interface. 
+	 */
+	const buffer_read* buffer() const {
 		return &buffer_;
 	}
 };

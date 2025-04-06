@@ -127,11 +127,11 @@ struct intrusive_storage final {
 	}
 
 	/**
-	 * @brief Skip over requested number of bytes.
+	 * @brief Skip over a number of bytes.
 	 *
 	 * Skips over a number of bytes in the container. This should be used
 	 * if the container holds data that you don't care about but don't want
-	 * to have to read it to another buffer to move beyond it.
+	 * to have to read it to another buffer to access data beyond it.
 	 * 
 	 * If the container size is lower than requested number of bytes,
 	 * the request will be capped at the number of bytes available.
