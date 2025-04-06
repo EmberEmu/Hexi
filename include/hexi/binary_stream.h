@@ -634,6 +634,7 @@ public:
 			return size;
 		});
 
+		// no need to enforce bounds, we know there's enough data
 		buffer_.skip(1); // skip null terminator
 		return *this;
 	}
