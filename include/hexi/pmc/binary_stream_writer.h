@@ -153,21 +153,8 @@ public:
 		return *this;
 	}
 
-	template<std::ranges::contiguous_range range>
-	requires pod<typename range::value_type>
-	binary_stream_writer& operator <<(const range& data) {
-		const auto write_size = data.size() * sizeof(typename range::value_type);
-		write(data.data(), write_size);
-		return *this;
-	}
-
-	template<is_iterable T>
-	requires (!pod<typename T::value_type> || !std::ranges::contiguous_range<T>)
-	binary_stream_writer& operator<<(T& data) {
-		for(auto& element : data) {
-			*this << element;
-		}
-
+	binary_stream_writer& operator <<(const is_iterable auto& data) {
+		write_container(data);
 		return *this;
 	}
 
