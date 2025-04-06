@@ -23,15 +23,37 @@ namespace hexi::pmc {
 
 using namespace detail;
 
+#define STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)            \
+	if(state() != stream_state::ok) [[unlikely]] {                \
+		return ret_var;                                           \
+	}                                                             \
+                                                                  \
+	enforce_read_bounds(read_size);                               \
+	                                                              \
+	if(!allow_throw()) {                                          \
+		if(state() != stream_state::ok) [[unlikely]] {            \
+			return ret_var;                                       \
+		}                                                         \
+	}
+
+#define SAFE_READ(dest, read_size, ret_var)                       \
+	STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)                \
+	buffer_.read(dest, read_size);
+
 class binary_stream_reader : virtual public stream_base {
 	buffer_read& buffer_;
 	std::size_t total_read_;
 	const std::size_t read_limit_;
 
-	void enforce_read_bounds(std::size_t read_size) {
+	inline void enforce_read_bounds(const std::size_t read_size) {
 		if(read_size > buffer_.size()) [[unlikely]] {
 			set_state(stream_state::buff_limit_err);
-			HEXI_THROW(buffer_underrun(read_size, total_read_, buffer_.size()));
+
+			if(allow_throw()) {
+				HEXI_THROW(buffer_underrun(read_size, total_read_, buffer_.size()));
+			}
+
+			return;
 		}
 
 		if(read_limit_) {
@@ -39,18 +61,16 @@ class binary_stream_reader : virtual public stream_base {
 
 			if(read_size > max_read_remaining) [[unlikely]] {
 				set_state(stream_state::read_limit_err);
-				HEXI_THROW(stream_read_limit(read_size, total_read_, read_limit_));
+
+				if(allow_throw()) {
+					HEXI_THROW(stream_read_limit(read_size, total_read_, read_limit_));
+				}
+
+				return;
 			}
 		}
 
 		total_read_ += read_size;
-	}
-
-	inline void read(void* dest, const std::size_t size) {
-		if(state() == stream_state::ok) [[likely]] {
-			enforce_read_bounds(size);
-			buffer_.read(dest, size);
-		}
 	}
 
 	template<typename container_type, typename count_type>
@@ -69,7 +89,7 @@ class binary_stream_reader : virtual public stream_base {
 			container.resize(count);
 
 			const auto bytes = count * sizeof(cvalue_type);
-			read(container.data(), bytes);
+			SAFE_READ(container.data(), bytes, void());
 		} else {
 			for(count_type i = 0; i < count; ++i) {
 				cvalue_type value;
@@ -86,9 +106,15 @@ public:
 		  total_read_(0),
 		  read_limit_(read_limit) {}
 
+	explicit binary_stream_reader(buffer_read& source, no_throw_t, std::size_t read_limit = 0)
+		: stream_base(source, false),
+		  buffer_(source),
+		  total_read_(0),
+		  read_limit_(read_limit) {}
+
 	binary_stream_reader(binary_stream_reader&& rhs) noexcept
 		: stream_base(rhs),
-		  buffer_(rhs.buffer_), 
+		  buffer_(rhs.buffer_),
 		  total_read_(rhs.total_read_),
 		  read_limit_(rhs.read_limit_) {
 		rhs.total_read_ = static_cast<std::size_t>(-1);
@@ -141,7 +167,7 @@ public:
 			return *this;
 		}
 
-		enforce_read_bounds(size);
+		STREAM_READ_BOUNDS_ENFORCE(size, *this);
 
 		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
 			buffer_.read(strbuf, size);
@@ -167,7 +193,7 @@ public:
 			std::unreachable();
 		}
 
-		enforce_read_bounds(size);
+		STREAM_READ_BOUNDS_ENFORCE(size, *this);
 
 		adaptor->resize_and_overwrite(size, [&](char* strbuf, std::size_t size) {
 			buffer_.read(strbuf, size);
@@ -193,7 +219,7 @@ public:
 			return *this;
 		}
 
-		enforce_read_bounds(pos + 1); // include null terminator
+		STREAM_READ_BOUNDS_ENFORCE(pos + 1, *this); // include null terminator
 
 		adaptor->resize_and_overwrite(pos, [&](char* strbuf, std::size_t size) {
 			buffer_.read(strbuf, pos);
@@ -242,7 +268,7 @@ public:
 	 */
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	binary_stream_reader& operator>>(endian_func adaptor) {
-		read(&adaptor.value, sizeof(adaptor.value));
+		SAFE_READ(&adaptor.value, sizeof(adaptor.value), *this);
 		adaptor.value = adaptor.from();
 		return *this;
 	}
@@ -261,7 +287,7 @@ public:
 	template<pod T>
 	requires (!has_shr_override<T, binary_stream_reader>)
 	binary_stream_reader& operator>>(T& data) {
-		read(&data, sizeof(data));
+		SAFE_READ(&data, sizeof(data), *this);
 		return *this;
 	}
 
@@ -276,7 +302,7 @@ public:
 	 * @return Reference to the current stream.
 	 */
 	binary_stream_reader& operator>>(pod auto& data) {
-		read(&data, sizeof(data));
+		SAFE_READ(&data, sizeof(data), *this);
 		return *this;
 	}
 
@@ -331,7 +357,7 @@ public:
 	 * @param count The number of bytes to be read.
 	 */
 	void get(std::string& dest, std::size_t size) {
-		enforce_read_bounds(size);
+		STREAM_READ_BOUNDS_ENFORCE(size, void());
 
 		dest.resize_and_overwrite(size, [&](char* strbuf, std::size_t len) {
 			buffer_.read(strbuf, len);
@@ -349,7 +375,7 @@ public:
 	void get(T* dest, std::size_t count) {
 		assert(dest);
 		const auto read_size = count * sizeof(T);
-		read(dest, read_size);
+		SAFE_READ(dest, read_size, void());
 	}
 
 	/**
@@ -373,7 +399,7 @@ public:
 	template<std::ranges::contiguous_range range>
 	void get(range& dest) {
 		const auto read_size = dest.size() * sizeof(typename range::value_type);
-		read(dest.data(), read_size);
+		SAFE_READ(dest.data(), read_size, void());
 	}
 
 	/**
@@ -385,7 +411,7 @@ public:
 	template<arithmetic T>
 	T get() {
 		T t{};
-		read(&t, sizeof(T));
+		SAFE_READ(&t, sizeof(T), t);
 		return t;
 	}
 
@@ -395,7 +421,7 @@ public:
 	 * @param[out] dest The variable to hold the result.
 	 */
 	void get(arithmetic auto& dest) {
-		read(&dest, sizeof(dest));
+		SAFE_READ(&dest, sizeof(dest), void());
 	}
 
 	/**
@@ -406,7 +432,7 @@ public:
 	 */
 	template<std::derived_from<endian::adaptor_tag_t> endian_func>
 	void get(endian_func& adaptor) {
-		read(&adaptor.value, sizeof(adaptor.value));
+		SAFE_READ(&adaptor.value, sizeof(adaptor.value), void());
 		adaptor.value = adaptor.from();
 	}
 
@@ -419,7 +445,7 @@ public:
 	template<arithmetic T, endian::conversion conversion>
 	T get() {
 		T t{};
-		read(&t, sizeof(T));
+		SAFE_READ(&t, sizeof(T), t);
 		return endian::convert<conversion>(t);
 	}
 
@@ -435,7 +461,7 @@ public:
 	 * @param length The number of bytes to skip.
 	 */
 	void skip(std::size_t length) {
-		enforce_read_bounds(length);
+		STREAM_READ_BOUNDS_ENFORCE(length, void());
 		buffer_.skip(length);
 	}
 
