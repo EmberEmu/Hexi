@@ -356,6 +356,7 @@ public:
 	 */
 	std::size_t read_max() const {
 		if(read_limit_) {
+			assert(total_read_ < read_limit_);
 			return read_limit_ - total_read_;
 		} else {
 			return buffer_.size();
