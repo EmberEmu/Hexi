@@ -57,7 +57,13 @@ class binary_stream_reader : virtual public stream_base {
 	void read_container(container_type& container, const count_type count) {
 		using cvalue_type = typename container_type::value_type;
 
-		container.clear();
+		if constexpr(!memcpy_read<container_type, binary_stream_reader>) {
+			container.clear();
+		}
+
+		if constexpr(has_reserve<container_type>) {
+			container.reserve(count);
+		}
 
 		if constexpr(memcpy_read<container_type, binary_stream_reader>) {
 			container.resize(count);
