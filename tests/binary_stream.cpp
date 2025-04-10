@@ -798,7 +798,7 @@ TEST(binary_stream, std_array) {
 	// array is considered full by default as size == capacity
 	ASSERT_THROW(stream << input, hexi::buffer_overflow);
 	adaptor.clear();
-	stream.clear_error_state();
+	stream.clear_state();
 
 	// try again now we've reset the state
 	std::string_view output;

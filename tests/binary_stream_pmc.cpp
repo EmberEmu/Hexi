@@ -478,8 +478,9 @@ TEST(binary_stream_pmc, std_array) {
 	std::string_view input { "We're just normal strings. Innocent strings."};
 
 	// array is considered full by default as size == capacity
-	//ASSERT_THROW(stream << input, hexi::buffer_overflow);
+	ASSERT_THROW(stream << input, hexi::buffer_overflow);
 	adaptor.clear();
+	stream.clear_state();
 	ASSERT_TRUE(stream.empty());
 
 	// try again now we've reset the state
