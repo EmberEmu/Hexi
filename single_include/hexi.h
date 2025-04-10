@@ -1644,7 +1644,7 @@ public:
 	 * it to be used for streaming operations again. Has no effect
 	 * if the stream has not errored.
 	 */
-	void clear_error_state() {
+	void clear_state() {
 		state_ = stream_state::ok;
 	}
 
