@@ -169,7 +169,7 @@ public:
 			--new_active_count;
 #endif
 			t->~_ty();
-			delete block;
+			operator delete(block);
 		} else {
 #ifdef HEXI_DEBUG_ALLOCATORS
 			--storage_active_count;
