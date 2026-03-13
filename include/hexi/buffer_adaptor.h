@@ -251,7 +251,7 @@ public:
 	/**
 	 * @brief Determine whether the adaptor supports write seeking.
 	 * 
-	 * This is determined at compile-time and does not need to checked at
+	 * This is determined at compile-time and does not need to be checked at
 	 * run-time.
 	 * 
 	 * @return True if write seeking is supported, otherwise false.
