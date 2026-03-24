@@ -1,7 +1,7 @@
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 #pragma once
@@ -10,7 +10,7 @@
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -19,7 +19,7 @@
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -158,7 +158,7 @@ static inline bool region_overlap(const void* src, std::size_t src_len,
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -167,7 +167,7 @@ static inline bool region_overlap(const void* src, std::size_t src_len,
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -330,7 +330,7 @@ concept memcpy_write =
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -387,7 +387,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -1667,7 +1667,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -2042,7 +2042,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 #if defined HEXI_WITH_ASIO || defined HEXI_WITH_BOOST_ASIO
@@ -2139,7 +2139,7 @@ friend class const_iterator;
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -2148,7 +2148,7 @@ friend class const_iterator;
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -2157,7 +2157,7 @@ friend class const_iterator;
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -2166,7 +2166,7 @@ friend class const_iterator;
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -2212,7 +2212,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -2259,7 +2259,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -2286,7 +2286,7 @@ struct default_allocator final {
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -3278,7 +3278,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -3289,7 +3289,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -3298,7 +3298,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -3687,7 +3687,7 @@ using dynamic_tls_buffer = dynamic_buffer<block_size, storage_type,
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -4014,7 +4014,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -4440,7 +4440,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -4495,7 +4495,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -4504,7 +4504,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -4513,7 +4513,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -5108,7 +5108,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -5570,7 +5570,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -5581,7 +5581,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
@@ -5773,7 +5773,7 @@ public:
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
-// | | | |  __/>  <| | Version 1.0
+// | | | |  __/>  <| | Version 1.3.5
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
 
