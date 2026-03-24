@@ -4,16 +4,15 @@
 // | | | |  __/>  <| | Version 1.0
 // |_| |_|\___/_/\_\_| https://github.com/EmberEmu/hexi
 
-#include <hexi/detail/intrusive_storage.h>
+#include <hexi/impl/intrusive_storage.h>
 #include <gtest/gtest.h>
 #include <array>
 #include <string_view>
 
 
-
 TEST(intrusive_storage, size) {
 	const int iterations = 5;
-	hexi::detail::intrusive_storage<sizeof(int) * iterations> buffer;
+	hexi::impl::intrusive_storage<sizeof(int) * iterations> buffer;
 	int foo = 24221;
 	std::size_t written = 0;
 
@@ -32,7 +31,7 @@ TEST(intrusive_storage, size) {
 
 TEST(intrusive_storage, read_write_consistency) {
 	const char text[] = "The quick brown fox jumps over the lazy dog";
-	hexi::detail::intrusive_storage<sizeof(text)> buffer;
+	hexi::impl::intrusive_storage<sizeof(text)> buffer;
 
 	std::size_t written = buffer.write(text, sizeof(text));
 	ASSERT_EQ(sizeof(text), written) << "Incorrect write size";
@@ -48,7 +47,7 @@ TEST(intrusive_storage, read_write_consistency) {
 
 TEST(intrusive_storage, skip) {
 	const char text[] = "The quick brown fox jumps over the lazy dog";
-	hexi::detail::intrusive_storage<sizeof(text)> buffer;
+	hexi::impl::intrusive_storage<sizeof(text)> buffer;
 
 	buffer.write(text, sizeof(text));
 
@@ -62,7 +61,7 @@ TEST(intrusive_storage, skip) {
 }
 
 TEST(intrusive_storage, read_write_string_view) {
-	hexi::detail::intrusive_storage<128, char> buffer;
+	hexi::impl::intrusive_storage<128, char> buffer;
 	std::string_view str { "The quick brown fox jumped over the lazy dog" };
 	buffer.write(str.data(), str.size());
 	ASSERT_EQ(str.size(), buffer.size());
@@ -74,7 +73,7 @@ TEST(intrusive_storage, read_write_string_view) {
 }
 
 TEST(intrusive_storage, read_wrie_ints) {
-	hexi::detail::intrusive_storage<128, char> buffer;
+	hexi::impl::intrusive_storage<128, char> buffer;
 	std::array<int, 4> in { 42, 1657, 1558, -1563 };
 	buffer.write(in.data(), sizeof(in));
 	ASSERT_EQ(sizeof(in), buffer.size());
@@ -86,7 +85,7 @@ TEST(intrusive_storage, read_wrie_ints) {
 }
 
 TEST(intrusive_storage, subscript) {
-	hexi::detail::intrusive_storage<8, char> buffer;
+	hexi::impl::intrusive_storage<8, char> buffer;
 	std::string_view str { "ABC" };
 	buffer.write(str.data(), str.size());
 	ASSERT_EQ(str[0], buffer[0]);
@@ -101,7 +100,7 @@ TEST(intrusive_storage, subscript) {
 }
 
 TEST(intrusive_storage, advance_write) {
-	hexi::detail::intrusive_storage<32, char> buffer;
+	hexi::impl::intrusive_storage<32, char> buffer;
 	constexpr std::string_view str {"A short string"};
 	const std::size_t advance = 10;
 	buffer.advance_write(advance);

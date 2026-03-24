@@ -17,8 +17,6 @@
 
 namespace hexi::pmc {
 
-using namespace detail;
-
 template<byte_oriented buf_type>
 requires std::ranges::contiguous_range<buf_type>
 class buffer_write_adaptor : public buffer_write {

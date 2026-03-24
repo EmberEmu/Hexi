@@ -22,7 +22,7 @@
 
 namespace hexi {
 
-namespace detail {
+namespace impl {
 
 struct free_block {
 	free_block* next;
@@ -34,9 +34,7 @@ concept gt_zero = size > 0;
 template<typename T, typename U>
 concept sizeof_gte = sizeof(T) >= sizeof(U);
 
-} // detail
-
-using namespace detail;
+} // impl
 
 struct no_validate_dealloc {};
 struct validate_dealloc : no_validate_dealloc {};
@@ -63,7 +61,7 @@ struct validate_dealloc : no_validate_dealloc {};
 template<typename _ty, 
 	std::size_t _elements,
 	std::derived_from<no_validate_dealloc> ValidatePolicy = no_validate_dealloc>
-requires gt_zero<_elements> && sizeof_gte<_ty, free_block>
+requires impl::gt_zero<_elements> && impl::sizeof_gte<_ty, impl::free_block>
 class block_allocator {
 	using tid_type = std::conditional_t<
 		std::is_same_v<ValidatePolicy, validate_dealloc>, std::thread::id, std::monostate
@@ -80,7 +78,7 @@ class block_allocator {
 
 	static constexpr auto block_size = sizeof(mem_block);
 
-	free_block* head_ = nullptr;
+	impl::free_block* head_ = nullptr;
 	[[no_unique_address]] tid_type thread_id_;
 	std::array<char, block_size * _elements> storage_;
 
@@ -88,18 +86,18 @@ class block_allocator {
 		auto storage = storage_.data();
 
 		for(std::size_t i = 0; i < _elements; ++i) {
-			auto block = reinterpret_cast<free_block*>(storage + (block_size * i));
+			auto block = reinterpret_cast<impl::free_block*>(storage + (block_size * i));
 			push(block);
 		}
 	}
 
-	inline void push(free_block* block) {
+	inline void push(impl::free_block* block) {
 		assert(block);
 		block->next = head_;
 		head_ = block;
 	}
 
-	[[nodiscard]] inline free_block* pop() {
+	[[nodiscard]] inline impl::free_block* pop() {
 		if(!head_) {
 			return nullptr;
 		}
@@ -175,7 +173,7 @@ public:
 			--storage_active_count;
 #endif
 			t->~_ty();
-			push(reinterpret_cast<free_block*>(t));
+			push(reinterpret_cast<impl::free_block*>(t));
 		}
 
 #ifdef HEXI_DEBUG_ALLOCATORS

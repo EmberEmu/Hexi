@@ -9,7 +9,7 @@
 #include <array>
 #include <cstdint>
 
-using namespace hexi::detail;
+using namespace hexi::impl;
 
 TEST(buffer_utility, src_dest_overlap_start) {
 	std::array<std::uint8_t, 10> buffer{};

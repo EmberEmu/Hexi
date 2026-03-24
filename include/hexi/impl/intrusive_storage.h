@@ -20,7 +20,7 @@
 #include <cstring>
 #include <cstddef>
 
-namespace hexi::detail {
+namespace hexi::impl {
 
 struct intrusive_node {
 	intrusive_node* next;
@@ -313,4 +313,4 @@ struct intrusive_storage final {
 	}
 };
 
-} // detail, hexi
+} // impl, hexi

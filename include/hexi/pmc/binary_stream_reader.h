@@ -21,8 +21,6 @@
 
 namespace hexi::pmc {
 
-using namespace detail;
-
 #define STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)            \
 	if(state() != stream_state::ok) [[unlikely]] {                \
 		return ret_var;                                           \
@@ -186,7 +184,7 @@ public:
 	 * @return Reference to the current stream.
 	 */
 	binary_stream_reader& operator>>(prefixed_varint<std::string> adaptor) {
-		const auto size = varint_decode<std::size_t>(*this);
+		const auto size = impl::varint_decode<std::size_t>(*this);
 
 		// if an error was triggered during decode, we shouldn't reach here
 		if(state() != stream_state::ok) {
@@ -334,7 +332,7 @@ public:
 	 */
 	template<is_iterable T>
 	binary_stream_reader& operator>>(prefixed_varint<T> adaptor) {
-		const auto count = varint_decode<std::size_t>(*this);
+		const auto count = impl::varint_decode<std::size_t>(*this);
 		read_container(adaptor.str, count);
 		return *this;
 	}

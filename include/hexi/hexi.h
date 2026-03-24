@@ -22,7 +22,7 @@
 #include <hexi/allocators/block_allocator.h>
 #include <hexi/allocators/default_allocator.h>
 #include <hexi/allocators/tls_block_allocator.h>
-#include <hexi/detail/intrusive_storage.h>
+#include <hexi/impl/intrusive_storage.h>
 #include <hexi/pmc/binary_stream.h>
 #include <hexi/pmc/binary_stream_reader.h>
 #include <hexi/pmc/binary_stream_writer.h>

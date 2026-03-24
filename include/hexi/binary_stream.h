@@ -25,8 +25,6 @@
 
 namespace hexi {
 
-using namespace detail;
-
 #define STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)            \
 	if(state_ != stream_state::ok) [[unlikely]] {                 \
 		return ret_var;                                           \
@@ -411,7 +409,7 @@ public:
 	 */
 	template<is_iterable T>
 	binary_stream& operator<<(prefixed_varint<T> adaptor) requires writeable<buf_type> {
-		varint_encode(*this, adaptor->size());
+		impl::varint_encode(*this, adaptor->size());
 		write_container(adaptor.str);
 		return *this;
 	}
@@ -483,7 +481,7 @@ public:
 	 */
 	template<size_type size>
 	constexpr void fill(const std::uint8_t value) requires writeable<buf_type> {
-		const auto filled = generate_filled<size>(value);
+		const auto filled = impl::generate_filled<size>(value);
 		write(filled.data(), filled.size());
 	}
 
@@ -575,7 +573,7 @@ public:
 	 * @return Reference to the current stream.
 	 */
 	binary_stream& operator>>(prefixed_varint<std::string> adaptor) {
-		const auto size = varint_decode<size_type>(*this);
+		const auto size = impl::varint_decode<size_type>(*this);
 
 		// if an error was triggered during decode
 		if(state_ != stream_state::ok) {
@@ -606,7 +604,7 @@ public:
 	 * @return Reference to the current stream.
 	 */
 	binary_stream& operator>>(prefixed_varint<std::string_view> adaptor) {
-		const auto size = varint_decode<size_type>(*this);
+		const auto size = impl::varint_decode<size_type>(*this);
 
 		// if an error was triggered during decode
 		if(state_ != stream_state::ok) {
@@ -777,7 +775,7 @@ public:
 	 */
 	template<is_iterable T>
 	binary_stream& operator>>(prefixed_varint<T> adaptor) {
-		const auto count = varint_decode<size_type>(*this);
+		const auto count = impl::varint_decode<size_type>(*this);
 		read_container(adaptor.str, count);
 		return *this;
 	}

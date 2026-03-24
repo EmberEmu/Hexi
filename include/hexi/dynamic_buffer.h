@@ -9,7 +9,7 @@
 #include <hexi/pmc/buffer.h>
 #include <hexi/shared.h>
 #include <hexi/allocators/default_allocator.h>
-#include <hexi/detail/intrusive_storage.h>
+#include <hexi/impl/intrusive_storage.h>
 #include <concepts>
 #include <functional>
 #include <memory>
@@ -24,8 +24,6 @@
 
 namespace hexi {
 
-using namespace detail;
-
 template<typename buffer_type>
 class buffer_sequence;
 
@@ -34,14 +32,14 @@ concept int_gt_zero = std::integral<decltype(block_sz)> && block_sz > 0;
 
 template<decltype(auto) block_sz,
 	byte_type storage_value_type = std::byte,
-	typename allocator = default_allocator<detail::intrusive_storage<block_sz, storage_value_type>>
+	typename allocator = default_allocator<impl::intrusive_storage<block_sz, storage_value_type>>
 >
 requires int_gt_zero<block_sz>
 class dynamic_buffer final : public pmc::buffer {
 public:
-	using storage_type = intrusive_storage<block_sz, storage_value_type>;
+	using storage_type = impl::intrusive_storage<block_sz, storage_value_type>;
 	using value_type   = storage_value_type;
-	using node_type    = intrusive_node;
+	using node_type    = impl::intrusive_node;
 	using size_type    = std::size_t;
 	using offset_type  = std::size_t;
 	using contiguous   = is_non_contiguous;
@@ -52,22 +50,22 @@ public:
 	using unique_storage = std::unique_ptr<storage_type, std::function<void(storage_type*)>>;
 
 private:
-	intrusive_node root_;
+	node_type root_;
 	size_type size_;
 	[[no_unique_address]] allocator allocator_;
 
-	void link_tail_node(intrusive_node* node) {
+	void link_tail_node(node_type* node) {
 		node->next = &root_;
 		node->prev = root_.prev;
 		root_.prev = root_.prev->next = node;
 	}
 
-	void unlink_node(intrusive_node* node) {
+	void unlink_node(node_type* node) {
 		node->next->prev = node->prev;
 		node->prev->next = node->next;
 	}
 
-	inline storage_type* buffer_from_node(const intrusive_node* node) const {
+	inline storage_type* buffer_from_node(const node_type* node) const {
 		return reinterpret_cast<storage_type*>(std::uintptr_t(node)
 			- offsetof(storage_type, node));
 	}
@@ -93,7 +91,7 @@ private:
 			return;
 		}
 
-		const intrusive_node* head = rhs.root_.next;
+		const node_type* head = rhs.root_.next;
 		root_.next = &root_;
 		root_.prev = &root_;
 		size_ = 0;
@@ -360,7 +358,7 @@ public:
 	 */
 	void write(const void* source, const size_type length) override {
 		size_type remaining = length;
-		intrusive_node* tail = root_.prev;
+		node_type* tail = root_.prev;
 
 		do {
 			storage_type* buffer;
@@ -390,7 +388,7 @@ public:
 	 */
 	void reserve(const size_type length) override {
 		size_type remaining = length;
-		intrusive_node* tail = root_.prev;
+		node_type* tail = root_.prev;
 
 		do {
 			storage_type* buffer;
@@ -558,7 +556,7 @@ public:
 	 * @brief Clears the container.
 	 */
 	void clear() {
-		intrusive_node* head = root_.next;
+		node_type* head = root_.next;
 
 		while(head != &root_) {
 			auto next = head->next;
