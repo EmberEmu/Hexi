@@ -18,8 +18,6 @@
 
 namespace hexi {
 
-using namespace detail;
-
 template<byte_oriented buf_type, bool space_optimise = true>
 requires std::ranges::contiguous_range<buf_type>
 class buffer_adaptor final {

@@ -23,8 +23,6 @@
 
 namespace hexi::pmc {
 
-using namespace detail;
-
 class binary_stream_writer : virtual public stream_base {
 	buffer_write& buffer_;
 	std::size_t total_write_;
@@ -268,7 +266,7 @@ public:
 	 */
 	template<is_iterable T>
 	binary_stream_writer& operator<<(prefixed_varint<T> adaptor) {
-		varint_encode(*this, adaptor->size());
+		impl::varint_encode(*this, adaptor->size());
 		write_container(adaptor.str);
 		return *this;
 	}
@@ -341,7 +339,7 @@ public:
 	 */
 	template<std::size_t size>
 	void fill(const std::uint8_t value) {
-		const auto filled = generate_filled<size>(value);
+		const auto filled = impl::generate_filled<size>(value);
 		write(filled.data(), filled.size());
 	}
 

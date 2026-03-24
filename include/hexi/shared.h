@@ -80,7 +80,7 @@ enum class stream_state {
 	user_defined_err
 };
 
-namespace detail {
+namespace impl {
 
 template<typename size_type, typename stream_type>
 constexpr auto varint_decode(stream_type& stream) -> size_type {
@@ -132,6 +132,6 @@ static inline bool region_overlap(const void* src, std::size_t src_len,
 	return src_beg < dst_end && dst_beg < src_end;
 }
 
-} // detail
+} // impl
 
 } // hexi

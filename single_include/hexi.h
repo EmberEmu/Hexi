@@ -98,7 +98,7 @@ enum class stream_state {
 	user_defined_err
 };
 
-namespace detail {
+namespace impl {
 
 template<typename size_type, typename stream_type>
 constexpr auto varint_decode(stream_type& stream) -> size_type {
@@ -150,7 +150,7 @@ static inline bool region_overlap(const void* src, std::size_t src_len,
 	return src_beg < dst_end && dst_beg < src_end;
 }
 
-} // detail
+} // impl
 
 } // hexi
 
@@ -588,8 +588,6 @@ inline void storage_out(arithmetic auto& value, as_big_t) {
 
 namespace hexi {
 
-using namespace detail;
-
 #define STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)            \
 	if(state_ != stream_state::ok) [[unlikely]] {                 \
 		return ret_var;                                           \
@@ -974,7 +972,7 @@ public:
 	 */
 	template<is_iterable T>
 	binary_stream& operator<<(prefixed_varint<T> adaptor) requires writeable<buf_type> {
-		varint_encode(*this, adaptor->size());
+		impl::varint_encode(*this, adaptor->size());
 		write_container(adaptor.str);
 		return *this;
 	}
@@ -1046,7 +1044,7 @@ public:
 	 */
 	template<size_type size>
 	constexpr void fill(const std::uint8_t value) requires writeable<buf_type> {
-		const auto filled = generate_filled<size>(value);
+		const auto filled = impl::generate_filled<size>(value);
 		write(filled.data(), filled.size());
 	}
 
@@ -1138,7 +1136,7 @@ public:
 	 * @return Reference to the current stream.
 	 */
 	binary_stream& operator>>(prefixed_varint<std::string> adaptor) {
-		const auto size = varint_decode<size_type>(*this);
+		const auto size = impl::varint_decode<size_type>(*this);
 
 		// if an error was triggered during decode
 		if(state_ != stream_state::ok) {
@@ -1169,7 +1167,7 @@ public:
 	 * @return Reference to the current stream.
 	 */
 	binary_stream& operator>>(prefixed_varint<std::string_view> adaptor) {
-		const auto size = varint_decode<size_type>(*this);
+		const auto size = impl::varint_decode<size_type>(*this);
 
 		// if an error was triggered during decode
 		if(state_ != stream_state::ok) {
@@ -1340,7 +1338,7 @@ public:
 	 */
 	template<is_iterable T>
 	binary_stream& operator>>(prefixed_varint<T> adaptor) {
-		const auto count = varint_decode<size_type>(*this);
+		const auto count = impl::varint_decode<size_type>(*this);
 		read_container(adaptor.str, count);
 		return *this;
 	}
@@ -1688,8 +1686,6 @@ public:
 #include <cstring>
 
 namespace hexi {
-
-using namespace detail;
 
 template<byte_oriented buf_type, bool space_optimise = true>
 requires std::ranges::contiguous_range<buf_type>
@@ -2286,7 +2282,7 @@ struct default_allocator final {
 
 } // hexi
 
-// #include <hexi/detail/intrusive_storage.h>
+// #include <hexi/impl/intrusive_storage.h>
 //  _               _ 
 // | |__   _____  _(_)
 // | '_ \ / _ \ \/ / | MIT & Apache 2.0 dual licensed
@@ -2311,7 +2307,7 @@ struct default_allocator final {
 #include <cstring>
 #include <cstddef>
 
-namespace hexi::detail {
+namespace hexi::impl {
 
 struct intrusive_node {
 	intrusive_node* next;
@@ -2604,7 +2600,7 @@ struct intrusive_storage final {
 	}
 };
 
-} // detail, hexi
+} // impl, hexi
 
 #include <concepts>
 #include <functional>
@@ -2620,8 +2616,6 @@ struct intrusive_storage final {
 
 namespace hexi {
 
-using namespace detail;
-
 template<typename buffer_type>
 class buffer_sequence;
 
@@ -2630,14 +2624,14 @@ concept int_gt_zero = std::integral<decltype(block_sz)> && block_sz > 0;
 
 template<decltype(auto) block_sz,
 	byte_type storage_value_type = std::byte,
-	typename allocator = default_allocator<detail::intrusive_storage<block_sz, storage_value_type>>
+	typename allocator = default_allocator<impl::intrusive_storage<block_sz, storage_value_type>>
 >
 requires int_gt_zero<block_sz>
 class dynamic_buffer final : public pmc::buffer {
 public:
-	using storage_type = intrusive_storage<block_sz, storage_value_type>;
+	using storage_type = impl::intrusive_storage<block_sz, storage_value_type>;
 	using value_type   = storage_value_type;
-	using node_type    = intrusive_node;
+	using node_type    = impl::intrusive_node;
 	using size_type    = std::size_t;
 	using offset_type  = std::size_t;
 	using contiguous   = is_non_contiguous;
@@ -2648,22 +2642,22 @@ public:
 	using unique_storage = std::unique_ptr<storage_type, std::function<void(storage_type*)>>;
 
 private:
-	intrusive_node root_;
+	node_type root_;
 	size_type size_;
 	[[no_unique_address]] allocator allocator_;
 
-	void link_tail_node(intrusive_node* node) {
+	void link_tail_node(node_type* node) {
 		node->next = &root_;
 		node->prev = root_.prev;
 		root_.prev = root_.prev->next = node;
 	}
 
-	void unlink_node(intrusive_node* node) {
+	void unlink_node(node_type* node) {
 		node->next->prev = node->prev;
 		node->prev->next = node->next;
 	}
 
-	inline storage_type* buffer_from_node(const intrusive_node* node) const {
+	inline storage_type* buffer_from_node(const node_type* node) const {
 		return reinterpret_cast<storage_type*>(std::uintptr_t(node)
 			- offsetof(storage_type, node));
 	}
@@ -2689,7 +2683,7 @@ private:
 			return;
 		}
 
-		const intrusive_node* head = rhs.root_.next;
+		const node_type* head = rhs.root_.next;
 		root_.next = &root_;
 		root_.prev = &root_;
 		size_ = 0;
@@ -2956,7 +2950,7 @@ public:
 	 */
 	void write(const void* source, const size_type length) override {
 		size_type remaining = length;
-		intrusive_node* tail = root_.prev;
+		node_type* tail = root_.prev;
 
 		do {
 			storage_type* buffer;
@@ -2986,7 +2980,7 @@ public:
 	 */
 	void reserve(const size_type length) override {
 		size_type remaining = length;
-		intrusive_node* tail = root_.prev;
+		node_type* tail = root_.prev;
 
 		do {
 			storage_type* buffer;
@@ -3154,7 +3148,7 @@ public:
 	 * @brief Clears the container.
 	 */
 	void clear() {
-		intrusive_node* head = root_.next;
+		node_type* head = root_.next;
 
 		while(head != &root_) {
 			auto next = head->next;
@@ -3325,7 +3319,7 @@ public:
 
 namespace hexi {
 
-namespace detail {
+namespace impl {
 
 struct free_block {
 	free_block* next;
@@ -3337,9 +3331,7 @@ concept gt_zero = size > 0;
 template<typename T, typename U>
 concept sizeof_gte = sizeof(T) >= sizeof(U);
 
-} // detail
-
-using namespace detail;
+} // impl
 
 struct no_validate_dealloc {};
 struct validate_dealloc : no_validate_dealloc {};
@@ -3366,7 +3358,7 @@ struct validate_dealloc : no_validate_dealloc {};
 template<typename _ty, 
 	std::size_t _elements,
 	std::derived_from<no_validate_dealloc> ValidatePolicy = no_validate_dealloc>
-requires gt_zero<_elements> && sizeof_gte<_ty, free_block>
+requires impl::gt_zero<_elements> && impl::sizeof_gte<_ty, impl::free_block>
 class block_allocator {
 	using tid_type = std::conditional_t<
 		std::is_same_v<ValidatePolicy, validate_dealloc>, std::thread::id, std::monostate
@@ -3383,7 +3375,7 @@ class block_allocator {
 
 	static constexpr auto block_size = sizeof(mem_block);
 
-	free_block* head_ = nullptr;
+	impl::free_block* head_ = nullptr;
 	[[no_unique_address]] tid_type thread_id_;
 	std::array<char, block_size * _elements> storage_;
 
@@ -3391,18 +3383,18 @@ class block_allocator {
 		auto storage = storage_.data();
 
 		for(std::size_t i = 0; i < _elements; ++i) {
-			auto block = reinterpret_cast<free_block*>(storage + (block_size * i));
+			auto block = reinterpret_cast<impl::free_block*>(storage + (block_size * i));
 			push(block);
 		}
 	}
 
-	inline void push(free_block* block) {
+	inline void push(impl::free_block* block) {
 		assert(block);
 		block->next = head_;
 		head_ = block;
 	}
 
-	[[nodiscard]] inline free_block* pop() {
+	[[nodiscard]] inline impl::free_block* pop() {
 		if(!head_) {
 			return nullptr;
 		}
@@ -3478,7 +3470,7 @@ public:
 			--storage_active_count;
 #endif
 			t->~_ty();
-			push(reinterpret_cast<free_block*>(t));
+			push(reinterpret_cast<impl::free_block*>(t));
 		}
 
 #ifdef HEXI_DEBUG_ALLOCATORS
@@ -3712,8 +3704,6 @@ using dynamic_tls_buffer = dynamic_buffer<block_size, storage_type,
 #include <cstdio>
 
 namespace hexi {
-
-using namespace detail;
 
 class file_buffer final {
 public:
@@ -4043,8 +4033,6 @@ public:
 #include <cstring>
 
 namespace hexi {
-
-using namespace detail;
 
 template<byte_type storage_type, std::size_t buf_size>
 class static_buffer final {
@@ -4501,7 +4489,7 @@ public:
 
 // #include <hexi/allocators/tls_block_allocator.h>
 
-// #include <hexi/detail/intrusive_storage.h>
+// #include <hexi/impl/intrusive_storage.h>
 
 // #include <hexi/pmc/binary_stream.h>
 //  _               _ 
@@ -4615,8 +4603,6 @@ public:
 #include <cstdint>
 
 namespace hexi::pmc {
-
-using namespace detail;
 
 #define STREAM_READ_BOUNDS_ENFORCE(read_size, ret_var)            \
 	if(state() != stream_state::ok) [[unlikely]] {                \
@@ -4781,7 +4767,7 @@ public:
 	 * @return Reference to the current stream.
 	 */
 	binary_stream_reader& operator>>(prefixed_varint<std::string> adaptor) {
-		const auto size = varint_decode<std::size_t>(*this);
+		const auto size = impl::varint_decode<std::size_t>(*this);
 
 		// if an error was triggered during decode, we shouldn't reach here
 		if(state() != stream_state::ok) {
@@ -4929,7 +4915,7 @@ public:
 	 */
 	template<is_iterable T>
 	binary_stream_reader& operator>>(prefixed_varint<T> adaptor) {
-		const auto count = varint_decode<std::size_t>(*this);
+		const auto count = impl::varint_decode<std::size_t>(*this);
 		read_container(adaptor.str, count);
 		return *this;
 	}
@@ -5149,8 +5135,6 @@ public:
 #include <cstring>
 
 namespace hexi::pmc {
-
-using namespace detail;
 
 class binary_stream_writer : virtual public stream_base {
 	buffer_write& buffer_;
@@ -5395,7 +5379,7 @@ public:
 	 */
 	template<is_iterable T>
 	binary_stream_writer& operator<<(prefixed_varint<T> adaptor) {
-		varint_encode(*this, adaptor->size());
+		impl::varint_encode(*this, adaptor->size());
 		write_container(adaptor.str);
 		return *this;
 	}
@@ -5468,7 +5452,7 @@ public:
 	 */
 	template<std::size_t size>
 	void fill(const std::uint8_t value) {
-		const auto filled = generate_filled<size>(value);
+		const auto filled = impl::generate_filled<size>(value);
 		write(filled.data(), filled.size());
 	}
 
@@ -5616,8 +5600,6 @@ public:
 #include <cstring>
 
 namespace hexi::pmc {
-
-using namespace detail;
 
 template<byte_oriented buf_type>
 requires std::ranges::contiguous_range<buf_type>
@@ -5810,8 +5792,6 @@ public:
 #include <cstring>
 
 namespace hexi::pmc {
-
-using namespace detail;
 
 template<byte_oriented buf_type>
 requires std::ranges::contiguous_range<buf_type>

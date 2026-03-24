@@ -17,7 +17,7 @@ set(HEADERS
     hexi/binary_stream.h
     hexi/static_buffer.h
     hexi/concepts.h
-    hexi/detail/intrusive_storage.h
+    hexi/impl/intrusive_storage.h
     hexi/file_buffer.h
     hexi/null_buffer.h
     hexi/stream_adaptors.h

@@ -16,8 +16,6 @@
 
 namespace hexi {
 
-using namespace detail;
-
 class file_buffer final {
 public:
 	using size_type       = std::size_t;

@@ -18,8 +18,6 @@
 
 namespace hexi {
 
-using namespace detail;
-
 template<byte_type storage_type, std::size_t buf_size>
 class static_buffer final {
 	std::array<storage_type, buf_size> buffer_ = {};
