@@ -11,7 +11,6 @@ set(HEADERS
     hexi/dynamic_buffer.h
     hexi/dynamic_tls_buffer.h
     hexi/shared.h
-    hexi/exception.h
     hexi/buffer_adaptor.h
     hexi/buffer_sequence.h
     hexi/binary_stream.h
